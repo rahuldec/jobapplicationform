@@ -1,0 +1,428 @@
+// Recruitment Operations Portal — data model
+//
+// Design principles (do not violate these when extending the schema):
+// 1. Every tenant-scoped row carries `tenantId` and every query must filter by it.
+//    There is no cross-tenant relation anywhere in this file.
+// 2. Nothing that represents an admin *decision* (scoring rules, form fields,
+//    export columns, workflow stages) is a hard-coded enum tied to a domain
+//    concept like "qualification" or "experience". Those are rows the admin
+//    creates, not columns the schema defines.
+// 3. Status/type/role/method "enums" are plain strings validated in the
+//    application layer (see src/lib/enums.ts), not Prisma enums — this keeps
+//    the schema portable between SQLite (dev) and PostgreSQL (prod) without
+//    behavioral differences, and keeps new admin-defined values from
+//    requiring a migration.
+// 4. Historical calculations must remain reproducible: scoring is versioned
+//    and a calculated score always points at the exact version used.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  brandingJson String? // logo url, colors, letterhead config — admin-defined
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  departments      Department[]
+  users            User[]
+  jobs             Job[]
+  candidates       Candidate[]
+  applications     Application[]
+  documents        Document[]
+  applicationForms ApplicationForm[]
+  scoringPatterns  ScoringPattern[]
+  auditLogs        AuditLog[]
+
+  @@map("tenants")
+}
+
+model Department {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name String
+  code String?
+
+  jobs Job[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("departments")
+}
+
+// Staff user. No login/session is implemented yet (deferred per product
+// decision), but role + tenant scoping is modeled now so authorization can
+// be added later without a schema rework.
+model User {
+  id       String  @id @default(cuid())
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name  String
+  email String @unique
+  role  String // super_admin | college_admin | recruiter | panel_member — see src/lib/enums.ts
+
+  createdAt DateTime @default(now())
+
+  assignedApplications Application[]  @relation("AssignedRecruiter")
+  auditLogs            AuditLog[]
+  scoreOverrides        ApplicationScore[] @relation("OverriddenBy")
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic application form (per tenant, reusable across jobs)
+// ---------------------------------------------------------------------------
+
+model ApplicationForm {
+  id          String @id @default(cuid())
+  tenantId    String
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections FormSection[]
+  jobs     Job[]
+
+  @@index([tenantId])
+  @@map("application_forms")
+}
+
+model FormSection {
+  id     String @id @default(cuid())
+  formId String
+  form   ApplicationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  name  String
+  order Int
+
+  fields FormField[]
+
+  @@index([formId])
+  @@map("form_sections")
+}
+
+// A single field the admin has added to the form builder.
+// `fieldKey` is the stable machine name referenced by scoring formulas,
+// conditional rules, export mappings and synopsis templates — it must be
+// unique within a form and must never be silently reused for a different
+// meaning once criteria/exports reference it.
+model FormField {
+  id        String @id @default(cuid())
+  sectionId String
+  section   FormSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  fieldKey String
+  label    String
+  helpText String?
+
+  fieldType    String // text | textarea | number | date | email | phone | select | multiselect | radio | checkbox | file | yes_no — see src/lib/enums.ts
+  optionsJson  String? // for select/multiselect/radio: [{ "value": "...", "label": "..." }]
+  required     Boolean @default(false)
+  validationJson String? // { min, max, pattern, ... } — admin-defined, generic
+  order        Int
+
+  values ApplicationFieldValue[]
+  criteria ScoringCriterion[]
+
+  @@unique([sectionId, fieldKey])
+  @@index([sectionId])
+  @@map("form_fields")
+}
+
+// ---------------------------------------------------------------------------
+// Jobs
+// ---------------------------------------------------------------------------
+
+model Job {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  title              String
+  code               String?
+  description        String?
+  employmentType     String? // free text / admin-defined, e.g. "Assistant Professor - Regular"
+  numberOfPositions  Int      @default(1)
+  status             String   @default("draft") // draft | published | closed — see src/lib/enums.ts
+  applicationDeadline DateTime?
+
+  formId String?
+  form   ApplicationForm? @relation(fields: [formId], references: [id])
+
+  scoringPatternId String?
+  scoringPattern   ScoringPattern? @relation(fields: [scoringPatternId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  applications Application[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@map("jobs")
+}
+
+// ---------------------------------------------------------------------------
+// Candidates & Applications
+// ---------------------------------------------------------------------------
+
+model Candidate {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  fullName    String
+  email       String
+  mobile      String?
+  dateOfBirth DateTime?
+  gender      String?
+
+  createdAt DateTime @default(now())
+
+  applications Application[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("candidates")
+}
+
+model Application {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  applicationNumber String
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id])
+
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  status String @default("draft") // draft | submitted | under_review | shortlisted | interview_scheduled | interviewed | selected | rejected | withdrawn
+
+  assignedRecruiterId String?
+  assignedRecruiter   User?   @relation("AssignedRecruiter", fields: [assignedRecruiterId], references: [id])
+
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  fieldValues ApplicationFieldValue[]
+  documents   Document[]
+  scores      ApplicationScore[]
+
+  @@unique([tenantId, applicationNumber])
+  @@index([tenantId, jobId])
+  @@index([tenantId, status])
+  @@index([candidateId])
+  @@map("applications")
+}
+
+// EAV-style storage for dynamic form answers. `valueJson` carries structured
+// values (multiselect arrays, repeated entries); `valueText`/`valueNumber`
+// are populated alongside for fast filtering/sorting/scoring lookups.
+model ApplicationFieldValue {
+  id            String @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  fieldId String
+  field   FormField @relation(fields: [fieldId], references: [id])
+
+  valueText   String?
+  valueNumber Float?
+  valueJson   String?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([applicationId, fieldId])
+  @@index([applicationId])
+  @@index([fieldId])
+  @@map("application_field_values")
+}
+
+// Document metadata + external reference (e.g. a Google Drive link, matching
+// the current process). Actual file upload/storage can be added later by
+// populating `storageUrl` from a new upload pipeline without changing this
+// model's shape.
+model Document {
+  id            String @id @default(cuid())
+  tenantId      String
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  documentType String // admin-defined label, e.g. "Photograph", "10+2 Certificate"
+  fileName     String?
+  externalUrl  String? // e.g. Google Drive link
+  storageUrl   String? // reserved for future first-party file storage
+
+  verified   Boolean   @default(false)
+  verifiedBy String?
+  verifiedAt DateTime?
+
+  uploadedAt DateTime @default(now())
+
+  @@index([tenantId, applicationId])
+  @@map("documents")
+}
+
+// ---------------------------------------------------------------------------
+// Admin-defined dynamic scoring engine
+// ---------------------------------------------------------------------------
+
+// A named scoring pattern (e.g. "Assistant Professor — UGC Pattern 2026").
+// The pattern itself holds no rules — rules live on versions, so a pattern
+// can evolve without invalidating historical scores.
+model ScoringPattern {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions ScoringPatternVersion[]
+  jobs     Job[]
+
+  @@index([tenantId])
+  @@map("scoring_patterns")
+}
+
+// A specific, immutable-once-published set of criteria for a pattern.
+// Editing a published pattern creates a new version rather than mutating
+// this row — see src/lib/scoring/versioning.ts.
+model ScoringPatternVersion {
+  id        String @id @default(cuid())
+  patternId String
+  pattern   ScoringPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+
+  versionNumber Int
+  maxScore      Float? // admin-defined; never assumed to be 100
+  status        String @default("draft") // draft | published | archived
+  publishedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  criteria ScoringCriterion[]
+  scores   ApplicationScore[]
+
+  @@unique([patternId, versionNumber])
+  @@index([patternId])
+  @@map("scoring_pattern_versions")
+}
+
+// A single admin-authored scoring criterion. `method` selects which
+// generic scoring building block is used; `configJson` holds the
+// method-specific configuration the admin filled in via the builder UI.
+// See src/lib/scoring/engine.ts for how each method is evaluated.
+model ScoringCriterion {
+  id        String @id @default(cuid())
+  versionId String
+  version   ScoringPatternVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  maxPoints   Float
+  order       Int
+
+  method String // fixed | numeric_range | percentage | yes_no | dropdown | multiselect | count | formula | conditional | weightage
+
+  // The application field this criterion reads, when the method reads a
+  // single field directly (fixed/range/percentage/yes_no/dropdown/multiselect/count).
+  // Null for formula/conditional/weightage, which reference fields inside configJson instead.
+  sourceFieldId String?
+  sourceField   FormField? @relation(fields: [sourceFieldId], references: [id])
+
+  configJson String // method-specific rules, entirely admin-authored
+
+  createdAt DateTime @default(now())
+
+  @@index([versionId])
+  @@map("scoring_criteria")
+}
+
+// A calculated score for one application against one specific pattern
+// version. `calculatedScore`/`calculatedBreakdownJson` are the engine's
+// original output and are never overwritten. A manual override adds
+// `overrideScore`/`overrideReason` alongside it — see Rule 6 (section 36).
+model ApplicationScore {
+  id            String @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  versionId String
+  version   ScoringPatternVersion @relation(fields: [versionId], references: [id])
+
+  calculatedScore         Float
+  calculatedMaxScore      Float?
+  calculatedBreakdownJson String // [{ criterionId, name, method, points, maxPoints, detail }]
+  calculatedAt            DateTime @default(now())
+
+  overrideScore  Float?
+  overrideReason String?
+  overriddenById String?
+  overriddenBy   User?    @relation("OverriddenBy", fields: [overriddenById], references: [id])
+  overriddenAt   DateTime?
+
+  @@unique([applicationId, versionId])
+  @@index([applicationId])
+  @@map("application_scores")
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail (also serves as the per-application activity timeline)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  actorId   String?
+  actor     User?   @relation(fields: [actorId], references: [id])
+  actorName String // denormalized so logs remain readable if the user is later removed
+
+  action       String // e.g. application.submitted, document.uploaded, score.calculated, score.overridden, status.changed
+  entityType   String // e.g. Application, Job, ScoringPattern, Document
+  entityId     String
+  metadataJson String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
