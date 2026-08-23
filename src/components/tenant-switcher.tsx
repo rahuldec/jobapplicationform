@@ -16,6 +16,7 @@ export function TenantSwitcher({
   return (
     <form ref={formRef} action={switchTenant} className="flex items-center gap-2">
       <select
+        key={currentTenantId}
         name="tenantId"
         defaultValue={currentTenantId}
         disabled={pending}
