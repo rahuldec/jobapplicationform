@@ -45,12 +45,21 @@ export default async function DashboardPage() {
           Applications overview
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-          <StatTile label="Total" value={data.stats.totalApplications} />
-          <StatTile label="Pending" value={data.stats.pendingReview} tone="warning" />
-          <StatTile label="Shortlisted" value={data.stats.shortlisted} />
-          <StatTile label="Interviews" value={data.stats.interviews} />
-          <StatTile label="Selected" value={data.stats.selected} tone="success" />
-          <StatTile label="Rejected" value={data.stats.rejected} tone="danger" />
+          <StatTile label="Total" value={data.stats.totalApplications} href="/applications" />
+          <StatTile
+            label="Pending"
+            value={data.stats.pendingReview}
+            tone="warning"
+            href="/applications?status=submitted,under_review"
+          />
+          <StatTile label="Shortlisted" value={data.stats.shortlisted} href="/applications?status=shortlisted" />
+          <StatTile
+            label="Interviews"
+            value={data.stats.interviews}
+            href="/applications?status=interview_scheduled,interviewed"
+          />
+          <StatTile label="Selected" value={data.stats.selected} tone="success" href="/applications?status=selected" />
+          <StatTile label="Rejected" value={data.stats.rejected} tone="danger" href="/applications?status=rejected" />
           <StatTile label="Docs Pending" value={data.stats.documentsPending} tone="warning" />
         </div>
       </section>
@@ -60,9 +69,17 @@ export default async function DashboardPage() {
           Today&apos;s operations
         </h2>
         <div className="grid grid-cols-3 gap-3">
-          <StatTile label="New applications today" value={data.today.newApplications} />
-          <StatTile label="Shortlisted today" value={data.today.shortlisted} />
-          <StatTile label="Rejected today" value={data.today.rejected} />
+          <StatTile label="New applications today" value={data.today.newApplications} href="/applications?since=today" />
+          <StatTile
+            label="Shortlisted today"
+            value={data.today.shortlisted}
+            href="/applications?status=shortlisted&since=today"
+          />
+          <StatTile
+            label="Rejected today"
+            value={data.today.rejected}
+            href="/applications?status=rejected&since=today"
+          />
         </div>
       </section>
 

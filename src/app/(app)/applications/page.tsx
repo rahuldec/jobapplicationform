@@ -6,19 +6,38 @@ import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES } from "@/lib/enums";
 
 const PAGE_SIZE = 20;
 
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default async function ApplicationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; jobId?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; jobId?: string; page?: string; since?: string }>;
 }) {
   const params = await searchParams;
   const tenant = await getCurrentTenant();
   const page = Math.max(1, Number(params.page ?? 1) || 1);
 
+  const isToday = params.since === "today";
+  // Supports comma-separated statuses (e.g. "submitted,under_review") so
+  // dashboard tiles that count more than one status can link to an exact
+  // matching view here.
+  const statusList = (params.status ?? "")
+    .split(",")
+    .filter((s): s is (typeof APPLICATION_STATUSES)[number] => APPLICATION_STATUSES.includes(s as never));
+  const hasStatus = statusList.length > 0;
+
   const where = {
     tenantId: tenant.id,
-    status: params.status && APPLICATION_STATUSES.includes(params.status as never) ? params.status : undefined,
+    status: hasStatus ? { in: statusList } : undefined,
     jobId: params.jobId || undefined,
+    // Dashboard "today" tiles link here: with a status filter, "today" means
+    // that status was last set today; without one, it means the application
+    // itself was created today (matches how the dashboard counts each stat).
+    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
     ...(params.q
       ? {
           OR: [
@@ -59,7 +78,19 @@ export default async function ApplicationsPage({
     <div className="space-y-5">
       <div>
         <h1 className="text-lg font-semibold text-slate-900">Applications</h1>
-        <p className="text-sm text-slate-500">{total} total · {tenant.name}</p>
+        <p className="text-sm text-slate-500">
+          {total} {isToday ? "matching" : "total"} · {tenant.name}
+          {isToday && (
+            <>
+              {" · "}
+              <span className="font-medium text-indigo-600">filtered to today</span>
+              {" · "}
+              <Link href={buildHref({ since: undefined })} className="text-indigo-600 hover:underline">
+                show all
+              </Link>
+            </>
+          )}
+        </p>
       </div>
 
       <Card className="p-4">
@@ -98,7 +129,7 @@ export default async function ApplicationsPage({
           <Button type="submit" variant="secondary">
             Apply Filters
           </Button>
-          {(params.q || params.status || params.jobId) && (
+          {(params.q || params.status || params.jobId || params.since) && (
             <Link href="/applications" className="text-xs text-slate-500 hover:underline">
               Clear
             </Link>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -31,11 +32,13 @@ export function StatTile({
   value,
   sublabel,
   tone = "default",
+  href,
 }: {
   label: string;
   value: string | number;
   sublabel?: string;
   tone?: "default" | "warning" | "success" | "danger";
+  href?: string;
 }) {
   const toneClasses: Record<string, string> = {
     default: "text-slate-900",
@@ -43,13 +46,27 @@ export function StatTile({
     success: "text-emerald-600",
     danger: "text-red-600",
   };
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5">
+  const content = (
+    <>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className={`mt-1.5 text-2xl font-semibold tabular-nums ${toneClasses[tone]}`}>{value}</p>
       {sublabel ? <p className="mt-0.5 text-xs text-slate-500">{sublabel}</p> : null}
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block rounded-lg border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
+        title="Click to see the matching applications"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5">{content}</div>;
 }
 
 const badgeTones: Record<string, string> = {
