@@ -7,13 +7,16 @@
 // it adds a second, separate ApplicationForm that mirrors the sheet's own
 // ~100 columns, plus new departments/jobs (one per subject found in the
 // sheet) to hold the ~348 real applications.
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import XLSX from "xlsx";
 
 const SHEET_PATH = "/Users/rahulsharma/Downloads/NBGSM - JOB APPLICATION RESPONSES.xlsx";
 
-const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL ?? "file:./dev.db" });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 type FieldSpec = {
@@ -139,6 +142,22 @@ const DOCS: DocSpec[] = [
   { col: 103, label: "Score Sheet" },
 ];
 
+// The remote connection occasionally hits a transient socket timeout over
+// a long-running script. Retry a few times with backoff rather than losing
+// the whole import run to one flaky query.
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 function cell(row: unknown[], col: number): string | null {
   const v = row[col];
   if (v === null || v === undefined) return null;
@@ -225,6 +244,14 @@ async function main() {
 
   let imported = 0;
   let skipped = 0;
+  const auditEntries: {
+    tenantId: string;
+    actorName: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: Date;
+  }[] = [];
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
@@ -246,25 +273,29 @@ async function main() {
     const mobile = cell(row, 11);
     const gender = cell(row, 14);
 
-    const candidate = await prisma.candidate.upsert({
-      where: { tenantId_email: { tenantId: tenant.id, email } },
-      update: { fullName, mobile, dateOfBirth: dob ?? undefined, gender: gender ?? undefined },
-      create: { tenantId: tenant.id, fullName, email, mobile, dateOfBirth: dob, gender },
-    });
+    const candidate = await withRetry(() =>
+      prisma.candidate.upsert({
+        where: { tenantId_email: { tenantId: tenant.id, email } },
+        update: { fullName, mobile, dateOfBirth: dob ?? undefined, gender: gender ?? undefined },
+        create: { tenantId: tenant.id, fullName, email, mobile, dateOfBirth: dob, gender },
+      }),
+    );
 
     const applicationNumber = `NBGSM-2026-IMP-${String(i + 1).padStart(4, "0")}`;
 
-    const application = await prisma.application.create({
-      data: {
-        tenantId: tenant.id,
-        applicationNumber,
-        jobId: jobBySubject.get(subject)!,
-        candidateId: candidate.id,
-        status: "submitted",
-        submittedAt,
-        createdAt: submittedAt,
-      },
-    });
+    const application = await withRetry(() =>
+      prisma.application.create({
+        data: {
+          tenantId: tenant.id,
+          applicationNumber,
+          jobId: jobBySubject.get(subject)!,
+          candidateId: candidate.id,
+          status: "submitted",
+          submittedAt,
+          createdAt: submittedAt,
+        },
+      }),
+    );
 
     const fieldValues: { applicationId: string; fieldId: string; valueText: string | null; valueNumber: number | null }[] = [];
     for (const [col, field] of fieldByCol) {
@@ -282,7 +313,7 @@ async function main() {
       });
     }
     if (fieldValues.length) {
-      await prisma.applicationFieldValue.createMany({ data: fieldValues });
+      await withRetry(() => prisma.applicationFieldValue.createMany({ data: fieldValues }));
     }
 
     const docs: { tenantId: string; applicationId: string; documentType: string; externalUrl: string; uploadedAt: Date }[] = [];
@@ -298,22 +329,24 @@ async function main() {
       });
     }
     if (docs.length) {
-      await prisma.document.createMany({ data: docs });
+      await withRetry(() => prisma.document.createMany({ data: docs }));
     }
 
-    await prisma.auditLog.create({
-      data: {
-        tenantId: tenant.id,
-        actorName: fullName,
-        action: "application.submitted",
-        entityType: "Application",
-        entityId: application.id,
-        createdAt: submittedAt,
-      },
+    auditEntries.push({
+      tenantId: tenant.id,
+      actorName: fullName,
+      action: "application.submitted",
+      entityType: "Application",
+      entityId: application.id,
+      createdAt: submittedAt,
     });
 
     imported++;
     if (imported % 50 === 0) console.log(`  ...${imported} imported`);
+  }
+
+  if (auditEntries.length) {
+    await withRetry(() => prisma.auditLog.createMany({ data: auditEntries }));
   }
 
   console.log(`Done. Imported ${imported} applications, skipped ${skipped} (missing subject/email/name).`);
