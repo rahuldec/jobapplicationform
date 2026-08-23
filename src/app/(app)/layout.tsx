@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -30,6 +31,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
+        <span>Powered by</span>
+        <Image src="/brand/okie-dokie-logo.png" alt="Okie Dokie" width={18} height={18} className="opacity-90" />
+        <span className="font-semibold text-orange-700">Okie Dokie</span>
+      </footer>
     </div>
   );
 }

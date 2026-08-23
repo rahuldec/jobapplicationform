@@ -94,7 +94,7 @@ export default async function JobsPage({
               {jobs.map((job) => (
                 <tr key={job.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <Link href={`/jobs/${job.id}`} className="font-medium text-indigo-600 hover:underline">
+                    <Link href={`/jobs/${job.id}`} className="font-medium text-orange-600 hover:underline">
                       {job.title}
                     </Link>
                     {job.code ? <p className="text-xs text-slate-400">{job.code}</p> : null}
@@ -133,7 +133,7 @@ function FilterLink({
     <Link
       href={href}
       className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-        active ? "bg-indigo-100 text-indigo-700" : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+        active ? "bg-orange-100 text-orange-700" : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
       }`}
     >
       {children}

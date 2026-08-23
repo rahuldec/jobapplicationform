@@ -46,7 +46,7 @@ export default async function ScoringPatternsPage() {
             const draft = p.versions.find((v) => v.status === "draft");
             return (
               <Link key={p.id} href={`/scoring/${p.id}`}>
-                <Card className="h-full p-5 transition-colors hover:border-indigo-300">
+                <Card className="h-full p-5 transition-colors hover:border-orange-300">
                   <p className="font-medium text-slate-900">{p.name}</p>
                   {p.description ? <p className="mt-1 text-sm text-slate-500 line-clamp-2">{p.description}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-1.5">

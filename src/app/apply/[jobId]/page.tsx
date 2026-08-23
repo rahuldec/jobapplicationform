@@ -22,7 +22,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ jobId: s
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
-        <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{job.tenant.name}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-orange-600">{job.tenant.name}</p>
         <h1 className="text-xl font-semibold text-slate-900">{job.title}</h1>
         <p className="text-sm text-slate-500">{job.department?.name}</p>
       </header>

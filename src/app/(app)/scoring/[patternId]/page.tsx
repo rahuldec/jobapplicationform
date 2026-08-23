@@ -109,7 +109,7 @@ export default async function ScoringPatternDetailPage({
             href={`/scoring/${pattern.id}?version=${v.id}`}
             className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${
               activeVersion?.id === v.id
-                ? "bg-indigo-100 text-indigo-700"
+                ? "bg-orange-100 text-orange-700"
                 : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
             }`}
           >

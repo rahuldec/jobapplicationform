@@ -122,7 +122,7 @@ export function CriteriaBuilder({
                           <button
                             type="button"
                             onClick={() => setMode(c.id)}
-                            className="text-xs font-medium text-indigo-600 hover:underline"
+                            className="text-xs font-medium text-orange-600 hover:underline"
                           >
                             Edit
                           </button>

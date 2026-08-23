@@ -83,9 +83,9 @@ export default async function ApplicationsPage({
           {isToday && (
             <>
               {" · "}
-              <span className="font-medium text-indigo-600">filtered to today</span>
+              <span className="font-medium text-orange-600">filtered to today</span>
               {" · "}
-              <Link href={buildHref({ since: undefined })} className="text-indigo-600 hover:underline">
+              <Link href={buildHref({ since: undefined })} className="text-orange-600 hover:underline">
                 show all
               </Link>
             </>
@@ -160,7 +160,7 @@ export default async function ApplicationsPage({
                   return (
                     <tr key={app.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <Link href={`/applications/${app.id}`} className="font-medium text-indigo-600 hover:underline">
+                        <Link href={`/applications/${app.id}`} className="font-medium text-orange-600 hover:underline">
                           {app.applicationNumber}
                         </Link>
                       </td>
@@ -192,12 +192,12 @@ export default async function ApplicationsPage({
                 </span>
                 <div className="flex gap-2">
                   {page > 1 && (
-                    <Link href={buildHref({ page: String(page - 1) })} className="text-indigo-600 hover:underline">
+                    <Link href={buildHref({ page: String(page - 1) })} className="text-orange-600 hover:underline">
                       Previous
                     </Link>
                   )}
                   {page < totalPages && (
-                    <Link href={buildHref({ page: String(page + 1) })} className="text-indigo-600 hover:underline">
+                    <Link href={buildHref({ page: String(page + 1) })} className="text-orange-600 hover:underline">
                       Next
                     </Link>
                   )}

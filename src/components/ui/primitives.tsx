@@ -58,7 +58,7 @@ export function StatTile({
     return (
       <Link
         href={href}
-        className="block rounded-lg border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
+        className="block rounded-lg border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-orange-300 hover:bg-orange-50/40"
         title="Click to see the matching applications"
       >
         {content}
@@ -128,10 +128,10 @@ export function Button({
   className?: string;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-orange-500 disabled:opacity-50 disabled:pointer-events-none";
   const sizes = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
   const variants = {
-    primary: "bg-indigo-600 text-white hover:bg-indigo-700",
+    primary: "bg-orange-600 text-white hover:bg-orange-700",
     secondary: "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50",
     ghost: "text-slate-600 hover:bg-slate-100",
     danger: "bg-red-600 text-white hover:bg-red-700",
@@ -187,4 +187,4 @@ export function Field({
 }
 
 export const inputClass =
-  "block w-full rounded-md border-0 px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500";
+  "block w-full rounded-md border-0 px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-orange-500";

@@ -241,7 +241,7 @@ function MethodConfig({
           <button
             type="button"
             onClick={() => onChange({ ...c, ranges: [...c.ranges, { min: 0, max: 0, points: 0 }] })}
-            className="text-xs font-medium text-indigo-600 hover:underline"
+            className="text-xs font-medium text-orange-600 hover:underline"
           >
             + Add range
           </button>
@@ -519,7 +519,7 @@ function MethodConfig({
                 rules: [...c.rules, { fieldKey: "", operator: "is_not_empty", thenPoints: 0 }],
               })
             }
-            className="text-xs font-medium text-indigo-600 hover:underline"
+            className="text-xs font-medium text-orange-600 hover:underline"
           >
             + Add rule
           </button>
@@ -588,7 +588,7 @@ function MethodConfig({
           <button
             type="button"
             onClick={() => onChange({ ...c, components: [...c.components, { criterionId: "", weight: 1 }] })}
-            className="text-xs font-medium text-indigo-600 hover:underline"
+            className="text-xs font-medium text-orange-600 hover:underline"
           >
             + Add component
           </button>

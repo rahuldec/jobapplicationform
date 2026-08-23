@@ -71,7 +71,7 @@ export default async function JobDetailPage({
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Scoring pattern</p>
           <p className="mt-1 text-sm text-slate-800">
             {job.scoringPattern ? (
-              <Link href={`/scoring/${job.scoringPattern.id}`} className="text-indigo-600 hover:underline">
+              <Link href={`/scoring/${job.scoringPattern.id}`} className="text-orange-600 hover:underline">
                 {job.scoringPattern.name}
               </Link>
             ) : (
@@ -122,7 +122,7 @@ export default async function JobDetailPage({
                 return (
                   <tr key={app.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
-                      <Link href={`/applications/${app.id}`} className="font-medium text-indigo-600 hover:underline">
+                      <Link href={`/applications/${app.id}`} className="font-medium text-orange-600 hover:underline">
                         {app.applicationNumber}
                       </Link>
                     </td>

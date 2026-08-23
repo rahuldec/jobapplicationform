@@ -102,7 +102,7 @@ export default async function ApplicationDetailPage({
             href={tabHref(t.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === t.key
-                ? "border-b-2 border-indigo-600 text-indigo-700"
+                ? "border-b-2 border-orange-600 text-orange-700"
                 : "border-b-2 border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -184,7 +184,7 @@ export default async function ApplicationDetailPage({
                           href={doc.externalUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-indigo-600 hover:underline"
+                          className="text-orange-600 hover:underline"
                         >
                           Open
                         </a>
