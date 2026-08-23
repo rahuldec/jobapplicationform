@@ -2,7 +2,19 @@ import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, StatTile, EmptyState } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
+import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
+
+const STATUS_TONE: Record<ApplicationStatus, "default" | "warning" | "success" | "danger"> = {
+  draft: "default",
+  submitted: "warning",
+  under_review: "warning",
+  shortlisted: "default",
+  interview_scheduled: "default",
+  interviewed: "default",
+  selected: "success",
+  rejected: "danger",
+  withdrawn: "default",
+};
 
 function timeAgo(date: Date) {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -43,22 +55,20 @@ export default async function DashboardPage() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
           Applications overview
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+        <p className="mb-3 -mt-2 text-xs text-slate-400">
+          Same stages as the Applications page&apos;s status filter — click any tile to see that list.
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatTile label="Total" value={data.stats.totalApplications} href="/applications" />
-          <StatTile
-            label="Pending"
-            value={data.stats.pendingReview}
-            tone="warning"
-            href="/applications?status=submitted,under_review"
-          />
-          <StatTile label="Shortlisted" value={data.stats.shortlisted} href="/applications?status=shortlisted" />
-          <StatTile
-            label="Interviews"
-            value={data.stats.interviews}
-            href="/applications?status=interview_scheduled,interviewed"
-          />
-          <StatTile label="Selected" value={data.stats.selected} tone="success" href="/applications?status=selected" />
-          <StatTile label="Rejected" value={data.stats.rejected} tone="danger" href="/applications?status=rejected" />
+          {APPLICATION_STATUSES.map((status) => (
+            <StatTile
+              key={status}
+              label={APPLICATION_STATUS_LABELS[status]}
+              value={data.stats.byStatus[status]}
+              tone={STATUS_TONE[status]}
+              href={`/applications?status=${status}`}
+            />
+          ))}
           <StatTile label="Docs Pending" value={data.stats.documentsPending} tone="warning" />
         </div>
       </section>
@@ -148,11 +158,6 @@ export default async function DashboardPage() {
           </div>
         </Card>
       </div>
-
-      <p className="text-xs text-slate-400">
-        Status reference:{" "}
-        {Object.values(APPLICATION_STATUS_LABELS).join(" · ")}
-      </p>
     </div>
   );
 }

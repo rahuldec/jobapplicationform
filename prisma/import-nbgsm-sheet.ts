@@ -15,7 +15,7 @@ import XLSX from "xlsx";
 
 const SHEET_PATH = "/Users/rahulsharma/Downloads/NBGSM - JOB APPLICATION RESPONSES.xlsx";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 

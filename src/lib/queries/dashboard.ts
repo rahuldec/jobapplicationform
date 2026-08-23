@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
 
 function startOfToday() {
   const d = new Date();
@@ -11,11 +12,7 @@ export async function getDashboardData(tenantId: string) {
 
   const [
     totalApplications,
-    pendingReview,
-    shortlisted,
-    interviews,
-    selected,
-    rejected,
+    statusGroups,
     documentsPending,
     todaysApplications,
     todaysShortlisted,
@@ -24,11 +21,7 @@ export async function getDashboardData(tenantId: string) {
     missingDocumentsApps,
   ] = await Promise.all([
     prisma.application.count({ where: { tenantId } }),
-    prisma.application.count({ where: { tenantId, status: { in: ["submitted", "under_review"] } } }),
-    prisma.application.count({ where: { tenantId, status: "shortlisted" } }),
-    prisma.application.count({ where: { tenantId, status: { in: ["interview_scheduled", "interviewed"] } } }),
-    prisma.application.count({ where: { tenantId, status: "selected" } }),
-    prisma.application.count({ where: { tenantId, status: "rejected" } }),
+    prisma.application.groupBy({ by: ["status"], where: { tenantId }, _count: { _all: true } }),
     prisma.document.count({ where: { tenantId, verified: false } }),
     prisma.application.count({ where: { tenantId, createdAt: { gte: todayStart } } }),
     prisma.application.count({ where: { tenantId, status: "shortlisted", updatedAt: { gte: todayStart } } }),
@@ -57,14 +50,17 @@ export async function getDashboardData(tenantId: string) {
     take: 5,
   });
 
+  // Same statuses as the Applications page's own filter dropdown, so the
+  // dashboard's stages always match 1:1 with what you can filter by there.
+  const byStatus = Object.fromEntries(APPLICATION_STATUSES.map((s) => [s, 0])) as Record<ApplicationStatus, number>;
+  for (const g of statusGroups) {
+    byStatus[g.status as ApplicationStatus] = g._count._all;
+  }
+
   return {
     stats: {
       totalApplications,
-      pendingReview,
-      shortlisted,
-      interviews,
-      selected,
-      rejected,
+      byStatus,
       documentsPending,
     },
     today: {

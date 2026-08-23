@@ -16,7 +16,7 @@ import { calculateScore } from "../src/lib/scoring/engine";
 import type { CriterionInput } from "../src/lib/scoring/engine";
 import type { ApplicationValueMap } from "../src/lib/scoring/types";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
