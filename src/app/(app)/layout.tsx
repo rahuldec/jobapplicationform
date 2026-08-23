@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { getCurrentTenant, listTenants } from "@/lib/tenant";
-import { TenantSwitcher } from "@/components/tenant-switcher";
+import { getCurrentTenant } from "@/lib/tenant";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -11,7 +10,7 @@ const NAV = [
 ];
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const [tenant, tenants] = await Promise.all([getCurrentTenant(), listTenants()]);
+  const tenant = await getCurrentTenant();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -32,10 +31,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-xs text-slate-400 sm:inline">Viewing as</span>
-          <TenantSwitcher tenants={tenants} currentTenantId={tenant.id} />
-        </div>
+        <span className="text-xs text-slate-400">{tenant.name}</span>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
