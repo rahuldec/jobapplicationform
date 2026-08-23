@@ -37,7 +37,6 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-lg font-semibold text-slate-900">HR Operations Dashboard</h1>
-        <p className="text-sm text-slate-500">{tenant.name}</p>
       </div>
 
       <section>
