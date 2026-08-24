@@ -7,8 +7,9 @@ import {
   overrideScoreAction,
   verifyDocumentAction,
 } from "@/lib/actions/applications";
-import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass } from "@/components/ui/primitives";
+import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES } from "@/lib/enums";
+import { IconCalendar, IconStar, IconCheckCircle, IconUsers } from "@/components/ui/icons";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 
 const TABS = [
@@ -74,58 +75,68 @@ export default async function ApplicationDetailPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-base font-semibold text-orange-700">
-            {initials || "?"}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-slate-900">{application.candidate.fullName}</h1>
-              <StatusBadge
-                status={application.status}
-                label={APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] ?? application.status}
-              />
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-semibold text-orange-700 ring-4 ring-orange-50">
+              {initials || "?"}
             </div>
-            <p className="text-sm text-slate-500">
-              {application.applicationNumber} ·{" "}
-              <Link href={`/jobs/${application.job.id}`} className="hover:underline">
-                {application.job.title}
-              </Link>{" "}
-              · {application.job.department?.name ?? "No department"}
-            </p>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight text-slate-900">{application.candidate.fullName}</h1>
+                <StatusBadge
+                  status={application.status}
+                  label={APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] ?? application.status}
+                />
+              </div>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {application.applicationNumber} ·{" "}
+                <Link href={`/jobs/${application.job.id}`} className="text-orange-700 hover:underline">
+                  {application.job.title}
+                </Link>{" "}
+                · {application.job.department?.name ?? "No department"}
+              </p>
+            </div>
           </div>
+          <form action={changeApplicationStatus} className="flex items-center gap-2">
+            <input type="hidden" name="applicationId" value={application.id} />
+            <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
+              {APPLICATION_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {APPLICATION_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" variant="secondary" size="sm">
+              Update Status
+            </Button>
+          </form>
         </div>
-        <form action={changeApplicationStatus} className="flex items-center gap-2">
-          <input type="hidden" name="applicationId" value={application.id} />
-          <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
-            {APPLICATION_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {APPLICATION_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-          <Button type="submit" variant="secondary" size="sm">
-            Update Status
-          </Button>
-        </form>
-      </div>
+      </Card>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <AtAGlance
+        <StatTile
           label="Applied"
+          icon={IconCalendar}
           value={
             application.submittedAt
               ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(application.submittedAt)
               : "Draft"
           }
         />
-        <AtAGlance
+        <StatTile
           label="Score"
+          icon={IconStar}
+          tone={finalScore !== undefined ? "brand" : "default"}
           value={finalScore !== undefined ? `${finalScore} / ${currentScore?.calculatedMaxScore ?? "?"}` : "Not calculated"}
         />
-        <AtAGlance label="Documents" value={`${verifiedDocs} / ${application.documents.length} verified`} />
-        <AtAGlance label="Recruiter" value={application.assignedRecruiter?.name ?? "Unassigned"} />
+        <StatTile
+          label="Documents"
+          icon={IconCheckCircle}
+          tone={verifiedDocs === application.documents.length && application.documents.length > 0 ? "success" : "warning"}
+          value={`${verifiedDocs} / ${application.documents.length} verified`}
+        />
+        <StatTile label="Recruiter" icon={IconUsers} value={application.assignedRecruiter?.name ?? "Unassigned"} />
       </div>
 
       <div className="flex gap-1 border-b border-slate-200">
@@ -290,15 +301,6 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
       <dd className={`mt-0.5 text-sm ${isEmpty ? "italic text-slate-400" : "text-slate-800"}`}>
         {isEmpty ? "Not provided" : value}
       </dd>
-    </div>
-  );
-}
-
-function AtAGlance({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
