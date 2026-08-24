@@ -10,6 +10,7 @@ import {
 import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES } from "@/lib/enums";
 import { IconCalendar, IconStar, IconCheckCircle, IconUsers } from "@/components/ui/icons";
+import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 
 const TABS = [
@@ -203,7 +204,10 @@ export default async function ApplicationDetailPage({
       )}
 
       {tab === "documents" && (
-        <Card className="overflow-hidden">
+        // No overflow-hidden here — the document thumbnails intentionally
+        // scale up past their cell on hover, which a clipped ancestor
+        // would cut off.
+        <Card className="overflow-visible">
           <CardHeader title="Documents" description={`${application.documents.length} uploaded`} />
           {application.documents.length === 0 ? (
             <div className="p-5">
@@ -213,6 +217,7 @@ export default async function ApplicationDetailPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5">Preview</th>
                   <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5">Link</th>
                   <th className="px-4 py-2.5">Status</th>
@@ -222,6 +227,13 @@ export default async function ApplicationDetailPage({
               <tbody className="divide-y divide-slate-100">
                 {application.documents.map((doc) => (
                   <tr key={doc.id}>
+                    <td className="px-4 py-3">
+                      {doc.externalUrl ? (
+                        <DocumentThumbnail url={doc.externalUrl} label={doc.documentType} />
+                      ) : (
+                        <span className="text-xs italic text-slate-400">No preview</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-700">{doc.documentType}</td>
                     <td className="px-4 py-3">
                       {doc.externalUrl ? (
