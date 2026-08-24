@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { Card, EmptyState, StatusBadge, inputClass, Button } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES } from "@/lib/enums";
+import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, VISIBLE_APPLICATION_STATUSES } from "@/lib/enums";
 
 const PAGE_SIZE = 20;
 
@@ -108,7 +108,7 @@ export default async function ApplicationsPage({
             <label className="block text-xs font-medium text-slate-600">Status</label>
             <select name="status" defaultValue={params.status ?? ""} className={`${inputClass} mt-1`}>
               <option value="">All</option>
-              {APPLICATION_STATUSES.map((s) => (
+              {VISIBLE_APPLICATION_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {APPLICATION_STATUS_LABELS[s]}
                 </option>

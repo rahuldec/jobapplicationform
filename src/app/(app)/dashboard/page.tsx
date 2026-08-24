@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, StatTile, EmptyState } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
+import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
 
 const STATUS_TONE: Record<ApplicationStatus, "default" | "warning" | "success" | "danger"> = {
   draft: "default",
@@ -60,7 +60,7 @@ export default async function DashboardPage() {
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatTile label="Total" value={data.stats.totalApplications} href="/applications" />
-          {APPLICATION_STATUSES.map((status) => (
+          {VISIBLE_APPLICATION_STATUSES.map((status) => (
             <StatTile
               key={status}
               label={APPLICATION_STATUS_LABELS[status]}

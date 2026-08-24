@@ -28,6 +28,12 @@ export const APPLICATION_STATUSES = [
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+// "draft" stays a valid status (an application in progress on the public
+// form) but is hidden from the status filter and dashboard tiles — shown
+// here, it only ever reads as a permanent zero for tenants that don't use
+// the save-as-draft flow.
+export const VISIBLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft");
+
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
