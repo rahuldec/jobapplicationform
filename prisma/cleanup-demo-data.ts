@@ -62,13 +62,18 @@ async function main() {
   }
 
   // 5. Demo scoring pattern (cascades versions + criteria). Must come after
-  // the demo jobs (which referenced it) are gone.
+  // the demo jobs (which referenced it) are gone. Audit logs reference
+  // entities by a bare id string (no FK), so they don't cascade — clean
+  // those up explicitly first.
   const demoPattern = await prisma.scoringPattern.findFirst({
     where: { name: { contains: DEMO_PATTERN_NAME_CONTAINS } },
+    include: { versions: true },
   });
   if (demoPattern) {
+    const entityIds = [demoPattern.id, ...demoPattern.versions.map((v) => v.id)];
+    const { count } = await prisma.auditLog.deleteMany({ where: { entityId: { in: entityIds } } });
     await prisma.scoringPattern.delete({ where: { id: demoPattern.id } });
-    console.log(`Deleted demo scoring pattern "${demoPattern.name}".`);
+    console.log(`Deleted demo scoring pattern "${demoPattern.name}" and ${count} related audit log entr${count === 1 ? "y" : "ies"}.`);
   }
 
   // 6. Demo application form (cascades sections + fields). Must come after
@@ -79,7 +84,19 @@ async function main() {
     console.log(`Deleted demo application form "${demoForm.name}".`);
   }
 
-  // 7. Reset every remaining (genuine) application to "submitted".
+  // 7. Demo staff users seeded alongside the demo tenant data. Audit logs
+  // set actorId as a real FK here, so those rows must go first.
+  const demoUsers = await prisma.user.findMany({
+    where: { email: { in: ["admin@nbgsm.ac.in", "recruiter@nbgsm.ac.in"] } },
+  });
+  if (demoUsers.length) {
+    const userIds = demoUsers.map((u) => u.id);
+    await prisma.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    console.log(`Deleted ${demoUsers.length} demo user(s): ${demoUsers.map((u) => u.name).join(", ")}.`);
+  }
+
+  // 8. Reset every remaining (genuine) application to "submitted".
   const result = await prisma.application.updateMany({
     where: { status: { not: "submitted" } },
     data: { status: "submitted" },
