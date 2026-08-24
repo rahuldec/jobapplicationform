@@ -8,7 +8,7 @@ import {
   verifyDocumentAction,
 } from "@/lib/actions/applications";
 import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES } from "@/lib/enums";
+import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
 import { IconCalendar, IconStar, IconCheckCircle, IconUsers } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
@@ -102,7 +102,7 @@ export default async function ApplicationDetailPage({
           <form action={changeApplicationStatus} className="flex items-center gap-2">
             <input type="hidden" name="applicationId" value={application.id} />
             <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
-              {APPLICATION_STATUSES.map((s) => (
+              {SETTABLE_APPLICATION_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {APPLICATION_STATUS_LABELS[s]}
                 </option>

@@ -34,6 +34,11 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 // by the Total tile once an application has no further-along status yet.
 export const VISIBLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft" && s !== "submitted");
 
+// For the "change this application's status" action (not display/filter):
+// still lets HR move an application back to "submitted" if needed, just
+// never to "draft" — nothing in this app creates a draft application.
+export const SETTABLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft");
+
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
