@@ -1,19 +1,20 @@
-// One-off import of the real NBGSM recruitment spreadsheet into the
-// platform, so candidate profiles show the actual submitted data instead
-// of only the hand-built demo applications from seed.ts.
-//
-// This does NOT touch the demo scoring pattern or its 6 demo applications
-// (created under the original "Assistant Professor — Standard" form) —
-// it adds a second, separate ApplicationForm that mirrors the sheet's own
-// ~100 columns, plus new departments/jobs (one per subject found in the
-// sheet) to hold the ~348 real applications.
+// Repeatable sync from the live NBGSM Google Sheet into the platform, so
+// candidate profiles reflect whatever the Sheet currently says. Safe to
+// run on a schedule: matches each Sheet row to a stable application
+// number (its row position) and upserts, so re-running never duplicates
+// a row and never touches workflow state (status, assigned recruiter,
+// scores) that HR has already set on an existing application — only its
+// supplementary field values/documents get refreshed. Deliberately does
+// NOT deduplicate candidates who submitted the same job's form more than
+// once; each Sheet row stays its own application.
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 
-const SHEET_PATH = "/Users/rahulsharma/Downloads/NBGSM - JOB APPLICATION RESPONSES.xlsx";
+const SHEET_EXPORT_URL =
+  "https://docs.google.com/spreadsheets/d/1oLoJA1M6WqgcgkmZ8eg63neRvyhJQpZsMp2unuZfmKk/export?format=xlsx";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
 const adapter = new PrismaPg(pool);
@@ -165,61 +166,84 @@ function cell(row: unknown[], col: number): string | null {
   return s.length ? s : null;
 }
 
-async function main() {
+export async function syncNbgsmSheet() {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug: "nbgsm" } });
 
-  const wb = XLSX.readFile(SHEET_PATH, { cellDates: true });
+  const res = await fetch(SHEET_EXPORT_URL);
+  if (!res.ok) throw new Error(`Failed to fetch Sheet export: HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
   const dataRows = rows.slice(1);
 
-  console.log(`Importing ${dataRows.length} applications from the original recruitment sheet...`);
+  console.log(`Syncing ${dataRows.length} rows from the live NBGSM Sheet...`);
 
-  // Guard against re-running this script twice.
-  const existingForm = await prisma.applicationForm.findFirst({
-    where: { tenantId: tenant.id, name: "NBGSM — Original Recruitment Application (2026 Intake)" },
-  });
-  if (existingForm) {
-    console.log("Import already run — deleting previous import to re-import cleanly...");
-    const jobs = await prisma.job.findMany({ where: { formId: existingForm.id } });
-    await prisma.application.deleteMany({ where: { jobId: { in: jobs.map((j) => j.id) } } });
-    await prisma.job.deleteMany({ where: { formId: existingForm.id } });
-    await prisma.applicationForm.delete({ where: { id: existingForm.id } });
-  }
-
-  const form = await prisma.applicationForm.create({
-    data: {
-      tenantId: tenant.id,
-      name: "NBGSM — Original Recruitment Application (2026 Intake)",
-      description: "Imported as-is from the original Google Sheet of received applications.",
-      sections: {
-        create: SECTIONS.map((s, i) => ({
-          name: s.name,
-          order: i + 1,
-          fields: {
-            create: s.fields.map((f, j) => ({
-              fieldKey: f.fieldKey,
-              label: f.label,
-              fieldType: f.fieldType,
-              order: j + 1,
-            })),
-          },
-        })),
-      },
-    },
+  const formName = "NBGSM — Original Recruitment Application (2026 Intake)";
+  let form = await prisma.applicationForm.findFirst({
+    where: { tenantId: tenant.id, name: formName },
     include: { sections: { include: { fields: true } } },
   });
+  if (!form) {
+    form = await prisma.applicationForm.create({
+      data: {
+        tenantId: tenant.id,
+        name: formName,
+        description: "Synced as-is from the original Google Sheet of received applications.",
+        sections: {
+          create: SECTIONS.map((s, i) => ({
+            name: s.name,
+            order: i + 1,
+            fields: {
+              create: s.fields.map((f, j) => ({
+                fieldKey: f.fieldKey,
+                label: f.label,
+                fieldType: f.fieldType,
+                order: j + 1,
+              })),
+            },
+          })),
+        },
+      },
+      include: { sections: { include: { fields: true } } },
+    });
+  }
 
   const fieldByCol = new Map<number, { id: string; fieldKey: string }>();
   SECTIONS.forEach((s, i) => {
-    const section = form.sections[i];
+    const section = form!.sections[i];
     s.fields.forEach((f) => {
       const field = section.fields.find((sf) => sf.fieldKey === f.fieldKey)!;
       fieldByCol.set(f.col, field);
     });
   });
 
-  const subjects = Array.from(new Set(dataRows.map((r) => cell(r, 3)).filter((s): s is string => !!s)));
+  // The Sheet is fed by a Zoho form: once a candidate submits, they can't
+  // go back and edit it. So the Sheet is append-only — existing rows never
+  // change, only new ones get added at the end. That means a sync never
+  // needs to touch a row it has already imported; it only needs to find
+  // where it left off and import whatever's new since then. This keeps
+  // every sync fast (a no-op most days) and never risks overwriting a
+  // status/assignment HR has already set on an existing application.
+  const [{ max_row_index: alreadyImportedRaw }] = await prisma.$queryRawUnsafe<{ max_row_index: number | null }[]>(
+    `SELECT MAX(CAST(SUBSTRING("applicationNumber" FROM $1) AS INTEGER)) AS max_row_index
+     FROM applications
+     WHERE "tenantId" = $2 AND "applicationNumber" LIKE $3`,
+    "NBGSM-2026-IMP-(\\d+)",
+    tenant.id,
+    "NBGSM-2026-IMP-%",
+  );
+  const alreadyImported = alreadyImportedRaw ?? 0;
+
+  if (dataRows.length <= alreadyImported) {
+    console.log(`Nothing new — already imported all ${alreadyImported} rows.`);
+    return { created: 0, skipped: 0, alreadyImported };
+  }
+
+  const newRows = dataRows.slice(alreadyImported);
+  console.log(`${alreadyImported} rows already imported, ${newRows.length} new row(s) to add.`);
+
+  const subjects = Array.from(new Set(newRows.map((r) => cell(r, 3)).filter((s): s is string => !!s)));
 
   const jobBySubject = new Map<string, string>();
   for (const subject of subjects) {
@@ -227,24 +251,28 @@ async function main() {
     if (!department) {
       department = await prisma.department.create({ data: { tenantId: tenant.id, name: subject } });
     }
-    const job = await prisma.job.create({
-      data: {
-        tenantId: tenant.id,
-        departmentId: department.id,
-        title: `Assistant Professor — ${subject} (2026 Intake)`,
-        code: `NBGSM-${subject.slice(0, 3).toUpperCase()}-2026`,
-        employmentType: "Assistant Professor — Regular",
-        status: "published",
-        publishedAt: new Date(),
-        formId: form.id,
-      },
-    });
+    const title = `Assistant Professor — ${subject} (2026 Intake)`;
+    let job = await prisma.job.findFirst({ where: { tenantId: tenant.id, title } });
+    if (!job) {
+      job = await prisma.job.create({
+        data: {
+          tenantId: tenant.id,
+          departmentId: department.id,
+          title,
+          code: `NBGSM-${subject.slice(0, 3).toUpperCase()}-2026`,
+          employmentType: "Assistant Professor — Regular",
+          status: "published",
+          publishedAt: new Date(),
+          formId: form.id,
+        },
+      });
+    }
     jobBySubject.set(subject, job.id);
   }
 
-  let imported = 0;
+  let created = 0;
   let skipped = 0;
-  const auditEntries: {
+  const newAuditEntries: {
     tenantId: string;
     actorName: string;
     action: string;
@@ -253,8 +281,9 @@ async function main() {
     createdAt: Date;
   }[] = [];
 
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
+  for (let n = 0; n < newRows.length; n++) {
+    const row = newRows[n];
+    const i = alreadyImported + n; // absolute row index, for applicationNumber
     const subject = cell(row, 3);
     const email = cell(row, 16)?.toLowerCase();
     const fullName = cell(row, 6);
@@ -266,8 +295,6 @@ async function main() {
 
     const addedTimeRaw = row[0];
     const submittedAt = addedTimeRaw instanceof Date ? addedTimeRaw : new Date();
-    const ageRaw = row[8];
-    const age = typeof ageRaw === "number" ? ageRaw : null;
     const dobRaw = row[13];
     const dob = dobRaw instanceof Date ? dobRaw : null;
     const mobile = cell(row, 11);
@@ -281,6 +308,9 @@ async function main() {
       }),
     );
 
+    // Stable per-row identity: row position in this append-only Sheet.
+    // Each row — including a candidate resubmitting the same job — gets
+    // its own distinct application.
     const applicationNumber = `NBGSM-2026-IMP-${String(i + 1).padStart(4, "0")}`;
 
     const application = await withRetry(() =>
@@ -332,7 +362,8 @@ async function main() {
       await withRetry(() => prisma.document.createMany({ data: docs }));
     }
 
-    auditEntries.push({
+    created++;
+    newAuditEntries.push({
       tenantId: tenant.id,
       actorName: fullName,
       action: "application.submitted",
@@ -340,23 +371,23 @@ async function main() {
       entityId: application.id,
       createdAt: submittedAt,
     });
-
-    imported++;
-    if (imported % 50 === 0) console.log(`  ...${imported} imported`);
   }
 
-  if (auditEntries.length) {
-    await withRetry(() => prisma.auditLog.createMany({ data: auditEntries }));
+  if (newAuditEntries.length) {
+    await withRetry(() => prisma.auditLog.createMany({ data: newAuditEntries }));
   }
 
-  console.log(`Done. Imported ${imported} applications, skipped ${skipped} (missing subject/email/name).`);
+  console.log(`Done. ${created} new application(s) added, ${skipped} skipped (missing subject/email/name).`);
+  return { created, skipped, alreadyImported };
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  syncNbgsmSheet()
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
