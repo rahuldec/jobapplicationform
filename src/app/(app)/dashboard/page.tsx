@@ -3,6 +3,19 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, StatTile, EmptyState } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
+import {
+  IconLayers,
+  IconPaperPlane,
+  IconSearch,
+  IconStar,
+  IconCalendar,
+  IconUsers,
+  IconCheckCircle,
+  IconXCircle,
+  IconArchive,
+  IconFileWarning,
+  IconClock,
+} from "@/components/ui/icons";
 
 const STATUS_TONE: Record<ApplicationStatus, "default" | "warning" | "success" | "danger"> = {
   draft: "default",
@@ -14,6 +27,18 @@ const STATUS_TONE: Record<ApplicationStatus, "default" | "warning" | "success" |
   selected: "success",
   rejected: "danger",
   withdrawn: "default",
+};
+
+const STATUS_ICON: Record<ApplicationStatus, typeof IconStar> = {
+  draft: IconArchive,
+  submitted: IconPaperPlane,
+  under_review: IconSearch,
+  shortlisted: IconStar,
+  interview_scheduled: IconCalendar,
+  interviewed: IconUsers,
+  selected: IconCheckCircle,
+  rejected: IconXCircle,
+  withdrawn: IconArchive,
 };
 
 function timeAgo(date: Date) {
@@ -41,6 +66,37 @@ const ACTION_LABELS: Record<string, string> = {
   "job.published": "published a job",
 };
 
+const ACTION_DOT: Record<string, string> = {
+  "application.submitted": "bg-orange-500",
+  "application.reviewed": "bg-blue-500",
+  "application.status_changed": "bg-amber-500",
+  "document.uploaded": "bg-blue-500",
+  "document.verified": "bg-emerald-500",
+  "score.calculated": "bg-violet-500",
+  "score.overridden": "bg-amber-500",
+  "scoring_pattern.created": "bg-violet-500",
+  "scoring_pattern.version_published": "bg-violet-500",
+  "job.created": "bg-slate-400",
+  "job.published": "bg-emerald-500",
+};
+
+function initialsOf(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-orange-700">
+      {initialsOf(name) || "?"}
+    </span>
+  );
+}
+
 export default async function DashboardPage() {
   const tenant = await getCurrentTenant();
   const data = await getDashboardData(tenant.id);
@@ -48,18 +104,17 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-lg font-semibold text-slate-900">HR Operations Dashboard</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">HR Operations Dashboard</h1>
+        <p className="mt-0.5 text-sm text-slate-500">A live view of every application moving through your pipeline.</p>
       </div>
 
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Applications overview
-        </h2>
-        <p className="mb-3 -mt-2 text-xs text-slate-400">
+        <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Applications overview</h2>
+        <p className="mb-3 text-xs text-slate-400">
           Same stages as the Applications page&apos;s status filter — click any tile to see that list.
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatTile label="Total" value={data.stats.totalApplications} href="/applications" />
+          <StatTile label="Total" value={data.stats.totalApplications} href="/applications" tone="brand" icon={IconLayers} />
           {VISIBLE_APPLICATION_STATUSES.map((status) => (
             <StatTile
               key={status}
@@ -67,27 +122,40 @@ export default async function DashboardPage() {
               value={data.stats.byStatus[status]}
               tone={STATUS_TONE[status]}
               href={`/applications?status=${status}`}
+              icon={STATUS_ICON[status]}
             />
           ))}
-          <StatTile label="Docs Pending" value={data.stats.documentsPending} tone="warning" />
+          <StatTile label="Docs Pending" value={data.stats.documentsPending} tone="warning" icon={IconFileWarning} />
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Today&apos;s operations
-        </h2>
+      <section className="rounded-xl bg-orange-50/60 p-4 ring-1 ring-orange-100">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-500" />
+          </span>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-orange-700">Today&apos;s operations</h2>
+        </div>
         <div className="grid grid-cols-3 gap-3">
-          <StatTile label="New applications today" value={data.today.newApplications} href="/applications?since=today" />
+          <StatTile
+            label="New applications today"
+            value={data.today.newApplications}
+            href="/applications?since=today"
+            icon={IconClock}
+          />
           <StatTile
             label="Shortlisted today"
             value={data.today.shortlisted}
             href="/applications?status=shortlisted&since=today"
+            icon={IconStar}
           />
           <StatTile
             label="Rejected today"
             value={data.today.rejected}
+            tone="danger"
             href="/applications?status=rejected&since=today"
+            icon={IconXCircle}
           />
         </div>
       </section>
@@ -110,26 +178,28 @@ export default async function DashboardPage() {
                   <Link
                     key={app.id}
                     href={`/applications/${app.id}`}
-                    className="flex items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
+                    className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
                   >
-                    <span className="text-slate-700">
+                    <Avatar name={app.candidate.fullName} />
+                    <span className="min-w-0 flex-1 text-slate-700">
                       <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
                       awaiting review for {app.job.title}
                     </span>
-                    <span className="text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
                   </Link>
                 ))}
                 {data.attentionRequired.missingDocumentsApps.map((app) => (
                   <Link
                     key={app.id}
                     href={`/applications/${app.id}`}
-                    className="flex items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
+                    className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
                   >
-                    <span className="text-slate-700">
+                    <Avatar name={app.candidate.fullName} />
+                    <span className="min-w-0 flex-1 text-slate-700">
                       <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
                       has no documents uploaded
                     </span>
-                    <span className="text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
                   </Link>
                 ))}
               </>
@@ -146,12 +216,13 @@ export default async function DashboardPage() {
               </div>
             ) : (
               data.recentActivity.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                  <span className="text-slate-700">
+                <div key={entry.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ACTION_DOT[entry.action] ?? "bg-slate-400"}`} />
+                  <span className="min-w-0 flex-1 text-slate-700">
                     <span className="font-medium text-slate-900">{entry.actorName}</span>{" "}
                     {ACTION_LABELS[entry.action] ?? entry.action}
                   </span>
-                  <span className="text-xs text-slate-400">{timeAgo(entry.createdAt)}</span>
+                  <span className="shrink-0 text-xs text-slate-400">{timeAgo(entry.createdAt)}</span>
                 </div>
               ))
             )}

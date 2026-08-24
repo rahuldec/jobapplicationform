@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import type { ComponentType, SVGProps } from "react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-slate-200 bg-white ${className}`}>{children}</div>
+    <div className={`rounded-xl bg-white shadow-sm ring-1 ring-slate-200/70 ${className}`}>{children}</div>
   );
 }
 
@@ -27,30 +28,42 @@ export function CardHeader({
   );
 }
 
+const statTileTones = {
+  default: { text: "text-slate-900", chip: "bg-slate-100 text-slate-600" },
+  brand: { text: "text-orange-700", chip: "bg-orange-100 text-orange-600" },
+  warning: { text: "text-amber-600", chip: "bg-amber-50 text-amber-600" },
+  success: { text: "text-emerald-600", chip: "bg-emerald-50 text-emerald-600" },
+  danger: { text: "text-red-600", chip: "bg-red-50 text-red-600" },
+} as const;
+
 export function StatTile({
   label,
   value,
   sublabel,
   tone = "default",
   href,
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
   sublabel?: string;
-  tone?: "default" | "warning" | "success" | "danger";
+  tone?: keyof typeof statTileTones;
   href?: string;
+  icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }) {
-  const toneClasses: Record<string, string> = {
-    default: "text-slate-900",
-    warning: "text-amber-600",
-    success: "text-emerald-600",
-    danger: "text-red-600",
-  };
+  const tones = statTileTones[tone];
   const content = (
     <>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1.5 text-2xl font-semibold tabular-nums ${toneClasses[tone]}`}>{value}</p>
-      {sublabel ? <p className="mt-0.5 text-xs text-slate-500">{sublabel}</p> : null}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+        {Icon ? (
+          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tones.chip}`}>
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+      </div>
+      <p className={`mt-2 text-[1.75rem] font-semibold leading-none tabular-nums ${tones.text}`}>{value}</p>
+      {sublabel ? <p className="mt-1.5 text-xs text-slate-500">{sublabel}</p> : null}
     </>
   );
 
@@ -58,7 +71,7 @@ export function StatTile({
     return (
       <Link
         href={href}
-        className="block rounded-lg border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-orange-300 hover:bg-orange-50/40"
+        className="block rounded-xl bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-orange-200"
         title="Click to see the matching applications"
       >
         {content}
@@ -66,7 +79,7 @@ export function StatTile({
     );
   }
 
-  return <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5">{content}</div>;
+  return <div className="rounded-xl bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">{content}</div>;
 }
 
 const badgeTones: Record<string, string> = {
