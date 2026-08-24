@@ -187,13 +187,8 @@ export default async function ApplicationDetailPage({
                 <dl className="grid grid-cols-1 gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2">
                   {section.fields.map((field) => {
                     const value = valuesByField.get(field.id);
-                    return (
-                      <Detail
-                        key={field.id}
-                        label={field.label}
-                        value={value?.valueText || (value?.valueNumber !== null && value?.valueNumber !== undefined ? String(value.valueNumber) : "—")}
-                      />
-                    );
+                    const raw = value?.valueText || (value?.valueNumber !== null && value?.valueNumber !== undefined ? String(value.valueNumber) : "—");
+                    return <FieldValue key={field.id} label={field.label} value={raw} />;
                   })}
                 </dl>
               </Card>
@@ -309,6 +304,44 @@ export default async function ApplicationDetailPage({
           )}
         </Card>
       )}
+    </div>
+  );
+}
+
+// The original Sheet packed some cells into a single delimited string,
+// e.g. "Roll No.:75436,Year of Passing:2001,Division:Second,...". Splits
+// it back into labelled sub-fields instead of one unreadable line — only
+// where the comma is immediately followed by another "Label:" (so a
+// value that itself contains commas, like a subject list, stays intact).
+function parseCompoundValue(raw: string): { label: string; value: string }[] | null {
+  if (!raw.includes(":") || !raw.includes(",")) return null;
+  const parts = raw.split(/,(?=[A-Za-z][^,:]{0,40}:)/);
+  const pairs: { label: string; value: string }[] = [];
+  for (const part of parts) {
+    const idx = part.indexOf(":");
+    if (idx === -1) return null;
+    const label = part.slice(0, idx).trim();
+    if (!label) return null;
+    pairs.push({ label, value: part.slice(idx + 1).trim() });
+  }
+  return pairs.length >= 2 ? pairs : null;
+}
+
+function FieldValue({ label, value }: { label: string; value: string }) {
+  const pairs = parseCompoundValue(value);
+  if (!pairs) return <Detail label={label} value={value} />;
+
+  return (
+    <div className="sm:col-span-2">
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1.5 grid grid-cols-1 gap-x-6 gap-y-1 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2 sm:grid-cols-2">
+        {pairs.map((p, i) => (
+          <div key={i} className="flex flex-wrap gap-x-1.5 text-sm">
+            <span className="text-slate-500">{p.label}:</span>
+            <span className="font-medium text-slate-800">{p.value || "—"}</span>
+          </div>
+        ))}
+      </dd>
     </div>
   );
 }
