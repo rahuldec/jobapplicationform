@@ -6,6 +6,7 @@ import {
   calculateScoreAction,
   overrideScoreAction,
   verifyDocumentAction,
+  unverifyDocumentAction,
 } from "@/lib/actions/applications";
 import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
@@ -253,7 +254,14 @@ export default async function ApplicationDetailPage({
                       {doc.verified ? <Badge tone="green">Verified</Badge> : <Badge tone="amber">Pending</Badge>}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {!doc.verified && (
+                      {doc.verified ? (
+                        <form action={unverifyDocumentAction}>
+                          <input type="hidden" name="documentId" value={doc.id} />
+                          <Button type="submit" size="sm" variant="ghost">
+                            Unverify
+                          </Button>
+                        </form>
+                      ) : (
                         <form action={verifyDocumentAction}>
                           <input type="hidden" name="documentId" value={doc.id} />
                           <Button type="submit" size="sm" variant="secondary">

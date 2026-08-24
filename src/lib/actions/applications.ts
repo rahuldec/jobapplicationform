@@ -94,3 +94,24 @@ export async function verifyDocumentAction(formData: FormData) {
   revalidatePath(`/applications/${doc.applicationId}`);
   revalidatePath("/dashboard");
 }
+
+export async function unverifyDocumentAction(formData: FormData) {
+  const documentId = String(formData.get("documentId"));
+  const doc = await prisma.document.update({
+    where: { id: documentId },
+    data: { verified: false, verifiedBy: null, verifiedAt: null },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: doc.tenantId,
+      actorName: "Admin",
+      action: "document.unverified",
+      entityType: "Document",
+      entityId: doc.id,
+    },
+  });
+
+  revalidatePath(`/applications/${doc.applicationId}`);
+  revalidatePath("/dashboard");
+}
