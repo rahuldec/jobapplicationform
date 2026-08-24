@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { persistScore } from "@/lib/scoring/data";
@@ -24,12 +25,19 @@ export async function changeApplicationStatus(formData: FormData) {
       metadataJson: JSON.stringify({ status }),
     },
   });
+
+  revalidatePath(`/applications/${applicationId}`);
+  revalidatePath("/applications");
+  revalidatePath("/dashboard");
 }
 
 export async function calculateScoreAction(formData: FormData) {
   const applicationId = String(formData.get("applicationId"));
   const versionId = String(formData.get("versionId"));
   await persistScore(applicationId, versionId, "Admin");
+
+  revalidatePath(`/applications/${applicationId}`);
+  revalidatePath("/applications");
 }
 
 export async function overrideScoreAction(formData: FormData) {
@@ -61,6 +69,9 @@ export async function overrideScoreAction(formData: FormData) {
       metadataJson: JSON.stringify({ overrideScore, overrideReason }),
     },
   });
+
+  revalidatePath(`/applications/${application.id}`);
+  revalidatePath("/applications");
 }
 
 export async function verifyDocumentAction(formData: FormData) {
@@ -79,4 +90,7 @@ export async function verifyDocumentAction(formData: FormData) {
       entityId: doc.id,
     },
   });
+
+  revalidatePath(`/applications/${doc.applicationId}`);
+  revalidatePath("/dashboard");
 }

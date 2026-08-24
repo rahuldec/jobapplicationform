@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { JOB_STATUSES, type JobStatus } from "@/lib/enums";
@@ -67,6 +68,9 @@ export async function updateJobStatus(jobId: string, status: JobStatus) {
       entityId: job.id,
     },
   });
+
+  revalidatePath(`/jobs/${job.id}`);
+  revalidatePath("/jobs");
 }
 
 export async function publishJobAction(formData: FormData) {
