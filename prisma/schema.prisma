@@ -33,6 +33,15 @@ model Tenant {
   name        String
   slug        String   @unique
   brandingJson String? // logo url, colors, letterhead config — admin-defined
+
+  // Per-tenant Google Sheet source, so the sync engine (prisma/sheet-import)
+  // is generic across clients instead of hardcoded to one Sheet's column
+  // layout. sheetMappingJson parses to the SheetImportConfig type in
+  // prisma/sheet-import/types.ts — sections/fields/documents/core-field
+  // columns/job-title template, all admin-defined per tenant.
+  sheetSourceUrl   String?
+  sheetMappingJson String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

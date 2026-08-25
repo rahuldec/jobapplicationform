@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncNbgsmSheet } from "../../../../prisma/import-nbgsm-sheet";
+import { prisma } from "@/lib/prisma";
+import { syncTenantSheet } from "../../../../prisma/sheet-import/sync";
 
 export const maxDuration = 300;
 
@@ -13,11 +14,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await syncNbgsmSheet();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("Sheet sync failed:", err);
-    return NextResponse.json({ ok: false, error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+  const requestedSlug = request.nextUrl.searchParams.get("tenant");
+
+  // No `?tenant=` means "sync every tenant that has a Sheet configured" —
+  // so the one scheduled cron run stays correct as new clients get
+  // onboarded, instead of needing a new cron entry per client.
+  const slugs = requestedSlug
+    ? [requestedSlug]
+    : (await prisma.tenant.findMany({ where: { sheetSourceUrl: { not: null } }, select: { slug: true } })).map((t) => t.slug);
+
+  const results: Record<string, unknown> = {};
+  let anyFailed = false;
+  for (const slug of slugs) {
+    try {
+      results[slug] = await syncTenantSheet(prisma, slug);
+    } catch (err) {
+      anyFailed = true;
+      console.error(`Sheet sync failed for tenant "${slug}":`, err);
+      results[slug] = { error: err instanceof Error ? err.message : "Unknown error" };
+    }
   }
+
+  return NextResponse.json({ ok: !anyFailed, results }, { status: anyFailed ? 500 : 200 });
 }
