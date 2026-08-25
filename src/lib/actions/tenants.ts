@@ -2,9 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
 import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
+import { autoMapSheetColumns, type AutoMapResult } from "../../../prisma/sheet-import/auto-map";
 
 function slugify(raw: string) {
   return raw
@@ -82,6 +84,28 @@ export async function updateTenantSheetSourceUrl(input: { tenantId: string; shee
 
   revalidatePath(`/admin/${input.tenantId}`);
   return sheetSourceUrl;
+}
+
+// Fetches the Sheet's header row (+ one sample data row) and runs the
+// keyword-matching heuristic in prisma/sheet-import/auto-map.ts to build
+// a starting SheetImportConfig — so an admin pasting a new client's Sheet
+// doesn't have to hand-type every column number. Purely a suggestion:
+// nothing is saved here, the caller reviews/edits it in the builder and
+// saves via updateTenantSheetConfig when ready.
+export async function autoMapTenantSheet(sheetSourceUrl: string): Promise<AutoMapResult> {
+  const url = toSheetExportUrl(sheetSourceUrl.trim());
+  if (!url) throw new Error("Enter a Sheet export URL first.");
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch the Sheet: HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
+  const [headerRow, ...dataRows] = rows;
+  if (!headerRow || headerRow.length === 0) throw new Error("Couldn't find a header row in that Sheet.");
+
+  return autoMapSheetColumns(headerRow, dataRows.slice(0, 15));
 }
 
 export async function updateTenantSheetConfig(input: {

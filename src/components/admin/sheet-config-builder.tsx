@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
-import { updateTenantSheetConfig, updateTenantSheetSourceUrl } from "@/lib/actions/tenants";
-import { toSheetExportUrl, type SheetImportConfig, type FieldSpec, type SectionSpec, type DocSpec } from "../../../prisma/sheet-import/types";
+import { updateTenantSheetConfig, updateTenantSheetSourceUrl, autoMapTenantSheet } from "@/lib/actions/tenants";
+import { toSheetExportUrl, type SheetImportConfig, type FieldSpec, type SectionSpec, type DocSpec, type CoreFieldMap } from "../../../prisma/sheet-import/types";
+
+const CORE_ROLE_LABELS: Partial<Record<keyof CoreFieldMap, string>> = {
+  addedTimeCol: "Submitted time",
+  emailCol: "Email",
+  fullNameCol: "Full name",
+  jobSelectorCol: "Job selector (post applied for)",
+  applicationNumberCol: "Application/unique ID",
+};
 
 const FIELD_TYPES: FieldSpec["fieldType"][] = ["text", "textarea", "number", "date", "email", "phone"];
 const FIELD_TYPE_LABELS: Record<FieldSpec["fieldType"], string> = {
@@ -65,6 +73,9 @@ export function SheetConfigBuilder({
   const [error, setError] = useState<string | null>(null);
   const [savingUrl, setSavingUrl] = useState(false);
   const [urlSavedAt, setUrlSavedAt] = useState<number | null>(null);
+  const [autoMapping, setAutoMapping] = useState(false);
+  const [autoMapMessage, setAutoMapMessage] = useState<string | null>(null);
+  const [autoMapWarning, setAutoMapWarning] = useState<string | null>(null);
 
   const handleSaveUrlOnly = async () => {
     setSavingUrl(true);
@@ -74,6 +85,34 @@ export function SheetConfigBuilder({
       setUrlSavedAt(Date.now());
     } finally {
       setSavingUrl(false);
+    }
+  };
+
+  const handleAutoMap = async () => {
+    if (!sheetSourceUrl.trim()) return setError("Paste the Sheet export URL first.");
+    if (config.sections.length > 0 || config.documents.length > 0) {
+      const proceed = window.confirm(
+        "This replaces the sections, documents, and core columns currently in this form with a fresh guess from the Sheet. Continue?",
+      );
+      if (!proceed) return;
+    }
+    setError(null);
+    setAutoMapMessage(null);
+    setAutoMapWarning(null);
+    setAutoMapping(true);
+    try {
+      const { config: mapped, unmatchedCoreRoles } = await autoMapTenantSheet(sheetSourceUrl);
+      setConfig((c) => ({ ...mapped, formName: c.formName || `${tenantName} Application` }));
+      const fieldCount = mapped.sections.reduce((n, s) => n + s.fields.length, 0);
+      setAutoMapMessage(`Auto-mapped ${fieldCount} field(s) into ${mapped.sections.length} section(s) and ${mapped.documents.length} document column(s).`);
+      if (unmatchedCoreRoles.length > 0) {
+        const names = unmatchedCoreRoles.map((r) => CORE_ROLE_LABELS[r] ?? r).join(", ");
+        setAutoMapWarning(`Couldn't confidently detect: ${names}. Check these under "Core columns" below.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Auto-map failed.");
+    } finally {
+      setAutoMapping(false);
     }
   };
 
@@ -163,6 +202,20 @@ export function SheetConfigBuilder({
             </div>
             {urlSavedAt ? <p className="mt-1 text-xs text-emerald-600">Sheet URL saved.</p> : null}
           </Field>
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-orange-900">Auto-map columns</p>
+              <p className="mt-0.5 text-xs text-orange-800">
+                Reads this Sheet&apos;s header row and fills in the core columns, sections, fields, and document
+                columns below automatically. Review the result and fix anything mismatched before saving.
+              </p>
+            </div>
+            <Button type="button" size="sm" onClick={handleAutoMap} disabled={autoMapping} className="shrink-0">
+              {autoMapping ? "Mapping…" : "Auto-map from Sheet"}
+            </Button>
+          </div>
+          {autoMapMessage ? <p className="text-xs text-emerald-600">{autoMapMessage}</p> : null}
+          {autoMapWarning ? <p className="text-xs text-amber-600">{autoMapWarning}</p> : null}
         </div>
       </Card>
 
