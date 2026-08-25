@@ -35,15 +35,23 @@ function numOrNull(v: string): number | null {
 
 export function SheetConfigBuilder({
   tenantId,
+  tenantName,
   initialSheetSourceUrl,
   initialConfig,
 }: {
   tenantId: string;
+  tenantName: string;
   initialSheetSourceUrl: string;
   initialConfig: SheetImportConfig | null;
 }) {
   const [sheetSourceUrl, setSheetSourceUrl] = useState(initialSheetSourceUrl);
-  const [config, setConfig] = useState<SheetImportConfig>(initialConfig ?? EMPTY_CONFIG);
+  // formName/jobTitleTemplate/jobCodeTemplate/jobEmploymentType/
+  // applicationNumberPrefix are internal plumbing, not something an admin
+  // configuring a client should need to think about — auto-filled here
+  // instead of exposed as form fields.
+  const [config, setConfig] = useState<SheetImportConfig>(
+    initialConfig ?? { ...EMPTY_CONFIG, formName: `${tenantName} Application` },
+  );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,14 +101,13 @@ export function SheetConfigBuilder({
 
   const handleSave = async () => {
     setError(null);
-    if (!config.formName.trim()) return setError("Application form name is required.");
-    if (!hasIdColumn && !config.applicationNumberPrefix.trim())
-      return setError("Application number prefix is required when you don't map a unique-ID column below.");
+    if (!hasIdColumn) return setError("Map the \"Application/unique ID\" column below — every client's Sheet has one.");
     if (config.sections.length === 0) return setError("Add at least one section.");
 
     setSaving(true);
     try {
-      await updateTenantSheetConfig({ tenantId, sheetSourceUrl, config });
+      const toSave = config.formName.trim() ? config : { ...config, formName: `${tenantName} Application` };
+      await updateTenantSheetConfig({ tenantId, sheetSourceUrl, config: toSave });
       setSavedAt(Date.now());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save.");
@@ -148,67 +155,13 @@ export function SheetConfigBuilder({
             </div>
             {urlSavedAt ? <p className="mt-1 text-xs text-emerald-600">Sheet URL saved.</p> : null}
           </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Application form name" htmlFor="formName" required>
-              <input
-                id="formName"
-                value={config.formName}
-                onChange={(e) => update({ formName: e.target.value })}
-                className={inputClass}
-                placeholder="Assistant Professor Application — Standard"
-              />
-            </Field>
-            <Field
-              label="Application number prefix"
-              htmlFor="prefix"
-              required={!hasIdColumn}
-              hint={
-                hasIdColumn
-                  ? "Optional — prepended to the ID column mapped below. Leave blank to use that column's value as-is."
-                  : "Required since no unique-ID column is mapped below — applications get auto-numbered DN-2026-IMP-0001, -0002, ..."
-              }
-            >
-              <input
-                id="prefix"
-                value={config.applicationNumberPrefix}
-                onChange={(e) => update({ applicationNumberPrefix: e.target.value })}
-                className={inputClass}
-                placeholder="DN-2026-IMP-"
-              />
-            </Field>
-            <Field label="Job title template" htmlFor="jobTitleTemplate" hint="{value} = raw cell text">
-              <input
-                id="jobTitleTemplate"
-                value={config.jobTitleTemplate}
-                onChange={(e) => update({ jobTitleTemplate: e.target.value })}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Job code template" htmlFor="jobCodeTemplate" hint="{value3} = first 3 chars, uppercased">
-              <input
-                id="jobCodeTemplate"
-                value={config.jobCodeTemplate}
-                onChange={(e) => update({ jobCodeTemplate: e.target.value })}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Employment type" htmlFor="employmentType">
-              <input
-                id="employmentType"
-                value={config.jobEmploymentType ?? ""}
-                onChange={(e) => update({ jobEmploymentType: e.target.value })}
-                className={inputClass}
-                placeholder="e.g. Assistant Professor — Regular"
-              />
-            </Field>
-          </div>
         </div>
       </Card>
 
       <Card>
         <CardHeader
           title="Core columns"
-          description="Spreadsheet column numbers, 0-indexed (column A = 0, B = 1, C = 2, …). Leave optional ones blank if not present. If the sheet already has its own unique ID column, set it below — otherwise application numbers are auto-generated in order."
+          description="Spreadsheet column numbers, 0-indexed (column A = 0, B = 1, C = 2, …). Leave optional ones blank if not present."
         />
         <div className="grid grid-cols-2 gap-4 px-5 py-5 sm:grid-cols-4">
           <ColInput label="Submitted time" value={config.coreFields.addedTimeCol} onChange={(v) => update({ coreFields: { ...config.coreFields, addedTimeCol: v ?? 0 } })} />
@@ -216,7 +169,7 @@ export function SheetConfigBuilder({
           <ColInput label="Full name" value={config.coreFields.fullNameCol} onChange={(v) => update({ coreFields: { ...config.coreFields, fullNameCol: v ?? 0 } })} />
           <ColInput label="Job selector (post applied for)" value={config.coreFields.jobSelectorCol} onChange={(v) => update({ coreFields: { ...config.coreFields, jobSelectorCol: v ?? 0 } })} />
           <ColInput
-            label="Application/unique ID (optional)"
+            label="Application/unique ID"
             value={config.coreFields.applicationNumberCol}
             onChange={(v) => update({ coreFields: { ...config.coreFields, applicationNumberCol: v } })}
             optional

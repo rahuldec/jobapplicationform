@@ -80,6 +80,7 @@ export default async function AdminTenantPage({
       </div>
       <SheetConfigBuilder
         tenantId={tenant.id}
+        tenantName={tenant.name}
         initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
         initialConfig={initialConfig}
       />
