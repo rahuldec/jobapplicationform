@@ -35,10 +35,41 @@ function fmtDate(d: Date | null | undefined) {
   return d ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(d) : "—";
 }
 
+function extractDriveFileId(url: string): string | null {
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
 // Builds one candidate's synopsis PDF and resolves with the full buffer.
-// Kept format-agnostic from the caller's perspective (used both for a
-// single download and as one entry inside a bulk ZIP).
-export function renderSynopsisPdf(application: SynopsisApplication): Promise<Buffer> {
+// `embedImages` fetches each document from Google Drive and shows the
+// actual photo/scan inline instead of a link — only safe to enable for a
+// single-application download (a handful of extra network fetches). The
+// bulk ZIP (hundreds of applications) always leaves it off, since fetching
+// a document per application there would turn a pure-database, ~10s job
+// into thousands of external requests.
+export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
+  const embedImages = options?.embedImages ?? false;
+
+  const documentImages = new Map<string, Buffer>();
+  if (embedImages) {
+    await Promise.all(
+      application.documents.map(async (d) => {
+        if (!d.externalUrl) return;
+        const fileId = extractDriveFileId(d.externalUrl);
+        if (!fileId) return;
+        try {
+          const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+          if (!res.ok) return;
+          const contentType = res.headers.get("content-type") ?? "";
+          if (!contentType.startsWith("image/")) return; // pdfkit only embeds raster images, not PDFs
+          documentImages.set(d.id, Buffer.from(await res.arrayBuffer()));
+        } catch {
+          // Fall back to a link for this one document.
+        }
+      }),
+    );
+  }
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 44 });
     const chunks: Buffer[] = [];
@@ -103,7 +134,14 @@ export function renderSynopsisPdf(application: SynopsisApplication): Promise<Buf
           .filter((x): x is [string, string] => x !== null);
         if (values.length === 0) continue;
         sectionHeader(doc, section.name);
-        twoColRow(doc, pageWidth, values);
+        // Single-column, not two-column: these values (packed "Label:Value,..."
+        // cells from the original Sheet) are often long enough to wrap several
+        // lines, and pairing two of them side by side means the whole pair
+        // must fit together — one long neighbor strands a short one, and
+        // whichever pair doesn't fit gets pushed whole to a fresh page,
+        // leaving a large blank gap behind. One column lets each field
+        // paginate independently.
+        singleColRows(doc, pageWidth, values);
       }
     }
 
@@ -113,7 +151,12 @@ export function renderSynopsisPdf(application: SynopsisApplication): Promise<Buf
       doc.moveDown(0.5);
     } else {
       for (const d of application.documents) {
-        rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, d.externalUrl ?? "—", d.verified);
+        const image = documentImages.get(d.id);
+        if (image) {
+          embedDocumentImage(doc, pageWidth, d.documentType, image, d.verified);
+        } else {
+          rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, d.externalUrl ?? "—", d.verified);
+        }
       }
     }
 
@@ -138,10 +181,6 @@ function twoColRow(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, s
   for (let i = 0; i < pairs.length; i += 2) {
     const left = pairs[i];
     const right = pairs[i + 1];
-    // Check against this row's actual height, not a flat estimate — a
-    // long wrapped value (e.g. a packed "Label:Value,..." cell) can be
-    // much taller than a normal row, and starting it too close to the
-    // bottom otherwise strands most of it alone on the next page.
     const projectedHeight = rowHeight(doc, left[1], colWidth, right?.[1]);
     if (doc.y + projectedHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
     const y = doc.y;
@@ -149,6 +188,19 @@ function twoColRow(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, s
     if (right) writeField(doc, right[0], right[1], leftX + colWidth + 20, y, colWidth);
     doc.x = leftX;
     doc.y = y + rowHeight(doc, left[1], colWidth, right?.[1]);
+  }
+  doc.moveDown(0.4);
+}
+
+function singleColRows(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, string][]) {
+  const leftX = doc.page.margins.left;
+  for (const [label, value] of pairs) {
+    const height = doc.heightOfString(value, { width: pageWidth }) + 14;
+    if (doc.y + height > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    const y = doc.y;
+    writeField(doc, label, value, leftX, y, pageWidth);
+    doc.x = leftX;
+    doc.y = y + height;
   }
   doc.moveDown(0.4);
 }
@@ -175,6 +227,29 @@ function rowLine(doc: PDFKit.PDFDocument, pageWidth: number, left: string, right
     .text(right, leftX + pageWidth * 0.55, y, { width: pageWidth * 0.45, align: "right" });
   doc.x = leftX;
   doc.moveDown(0.5);
+  doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
+  doc.moveDown(0.4);
+}
+
+function embedDocumentImage(doc: PDFKit.PDFDocument, pageWidth: number, label: string, image: Buffer, verified?: boolean) {
+  const maxHeight = 220;
+  const leftX = doc.page.margins.left;
+  // Reserve the label row plus the image's max possible height; pdfkit's
+  // `fit` option scales down to whichever bound (width or height) is
+  // tighter, so this is a safe upper bound for the page-break check.
+  if (doc.y + 20 + maxHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
+
+  doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(label, leftX, doc.y, { width: pageWidth * 0.7, continued: false });
+  if (verified) {
+    doc.fillColor("#059669").fontSize(8).font("Helvetica").text("Verified", leftX + pageWidth * 0.7, doc.y - 11, { width: pageWidth * 0.3, align: "right" });
+  }
+  doc.x = leftX;
+  doc.moveDown(0.3);
+
+  const imageY = doc.y;
+  doc.image(image, leftX, imageY, { fit: [pageWidth * 0.5, maxHeight] });
+  doc.x = leftX;
+  doc.y = imageY + maxHeight + 10;
   doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
   doc.moveDown(0.4);
 }
