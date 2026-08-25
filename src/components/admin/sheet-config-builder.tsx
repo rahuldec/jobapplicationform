@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
-import { updateTenantSheetConfig } from "@/lib/actions/tenants";
+import { updateTenantSheetConfig, updateTenantSheetSourceUrl } from "@/lib/actions/tenants";
 import { toSheetExportUrl, type SheetImportConfig, type FieldSpec, type SectionSpec, type DocSpec } from "../../../prisma/sheet-import/types";
 
 const FIELD_TYPES: FieldSpec["fieldType"][] = ["text", "textarea", "number", "date", "email", "phone"];
@@ -47,6 +47,19 @@ export function SheetConfigBuilder({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingUrl, setSavingUrl] = useState(false);
+  const [urlSavedAt, setUrlSavedAt] = useState<number | null>(null);
+
+  const handleSaveUrlOnly = async () => {
+    setSavingUrl(true);
+    try {
+      const saved = await updateTenantSheetSourceUrl({ tenantId, sheetSourceUrl });
+      setSheetSourceUrl(saved ?? "");
+      setUrlSavedAt(Date.now());
+    } finally {
+      setSavingUrl(false);
+    }
+  };
 
   const update = (patch: Partial<SheetImportConfig>) => setConfig((c) => ({ ...c, ...patch }));
 
@@ -107,20 +120,33 @@ export function SheetConfigBuilder({
           <Field
             label="Sheet export URL"
             htmlFor="sheetSourceUrl"
-            hint="Paste the normal Share link (…/edit?usp=sharing) — it's converted to the export link automatically."
+            hint="Paste the normal Share link (…/edit?usp=sharing), then Convert — or just Save, it's applied automatically either way."
           >
-            <input
-              id="sheetSourceUrl"
-              value={sheetSourceUrl}
-              onChange={(e) => setSheetSourceUrl(e.target.value)}
-              className={inputClass}
-              placeholder="https://docs.google.com/spreadsheets/d/.../edit?usp=sharing"
-            />
-            {sheetSourceUrl && toSheetExportUrl(sheetSourceUrl) !== sheetSourceUrl ? (
-              <p className="mt-1 text-xs text-slate-500">
-                Will be saved as: <code className="text-slate-600">{toSheetExportUrl(sheetSourceUrl)}</code>
-              </p>
-            ) : null}
+            <div className="flex items-center gap-2">
+              <input
+                id="sheetSourceUrl"
+                value={sheetSourceUrl}
+                onChange={(e) => {
+                  setSheetSourceUrl(e.target.value);
+                  setUrlSavedAt(null);
+                }}
+                className={`${inputClass} flex-1`}
+                placeholder="https://docs.google.com/spreadsheets/d/.../edit?usp=sharing"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setSheetSourceUrl((url) => toSheetExportUrl(url))}
+                disabled={!sheetSourceUrl || toSheetExportUrl(sheetSourceUrl) === sheetSourceUrl}
+              >
+                Convert
+              </Button>
+              <Button type="button" size="sm" onClick={handleSaveUrlOnly} disabled={savingUrl}>
+                {savingUrl ? "Saving…" : "Save URL"}
+              </Button>
+            </div>
+            {urlSavedAt ? <p className="mt-1 text-xs text-emerald-600">Sheet URL saved.</p> : null}
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Application form name" htmlFor="formName" required>

@@ -57,10 +57,31 @@ export async function updateTenantBranding(formData: FormData) {
     },
   };
 
-  await prisma.tenant.update({ where: { id: tenantId }, data: { brandingJson: JSON.stringify(branding) } });
+  // Tenant.name is the canonical identity shown on the admin list/heading
+  // (and used as the branding fallback below) — keep it in sync with
+  // whatever display name is set here, so it never silently drifts from
+  // what the nav bar/PDF actually show.
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { name: branding.name, brandingJson: JSON.stringify(branding) },
+  });
 
   revalidatePath(`/admin/${tenantId}`);
+  revalidatePath("/admin");
   revalidatePath("/", "layout");
+}
+
+// Saves just the Sheet source URL, independent of the rest of the mapping
+// config — lets an admin lock in a converted export URL immediately
+// without first finishing the whole column-mapping form.
+export async function updateTenantSheetSourceUrl(input: { tenantId: string; sheetSourceUrl: string }) {
+  const trimmedUrl = input.sheetSourceUrl.trim();
+  const sheetSourceUrl = trimmedUrl ? toSheetExportUrl(trimmedUrl) : null;
+
+  await prisma.tenant.update({ where: { id: input.tenantId }, data: { sheetSourceUrl } });
+
+  revalidatePath(`/admin/${input.tenantId}`);
+  return sheetSourceUrl;
 }
 
 export async function updateTenantSheetConfig(input: {
