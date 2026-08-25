@@ -5,7 +5,9 @@ import { Card, EmptyState, inputClass, Button } from "@/components/ui/primitives
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, VISIBLE_APPLICATION_STATUSES } from "@/lib/enums";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 function startOfToday() {
   const d = new Date();
@@ -16,11 +18,12 @@ function startOfToday() {
 export default async function ApplicationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; jobId?: string; page?: string; since?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; jobId?: string; page?: string; pageSize?: string; since?: string }>;
 }) {
   const params = await searchParams;
   const tenant = await getCurrentTenant();
   const page = Math.max(1, Number(params.page ?? 1) || 1);
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(params.pageSize) || DEFAULT_PAGE_SIZE));
 
   const isToday = params.since === "today";
   // Supports comma-separated statuses (e.g. "submitted,under_review") so
@@ -56,14 +59,14 @@ export default async function ApplicationsPage({
       where,
       include: { candidate: true, job: true, scores: true },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     }),
     prisma.application.count({ where }),
     prisma.job.findMany({ where: { tenantId: tenant.id }, orderBy: { title: "asc" } }),
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const buildHref = (overrides: Record<string, string | undefined>, base = "/applications") => {
     const next = new URLSearchParams();
@@ -76,11 +79,12 @@ export default async function ApplicationsPage({
   };
   const exportHref = buildHref({ page: undefined }, "/api/export/applications");
 
-  const rows: ApplicationRow[] = applications.map((app) => {
+  const rows: ApplicationRow[] = applications.map((app, i) => {
     const score = app.scores[0];
     const finalScore = score?.overrideScore ?? score?.calculatedScore;
     return {
       id: app.id,
+      serial: (page - 1) * pageSize + i + 1,
       applicationNumber: app.applicationNumber,
       candidateName: app.candidate.fullName,
       candidateEmail: app.candidate.email,
@@ -152,10 +156,20 @@ export default async function ApplicationsPage({
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Per page</label>
+            <select name="pageSize" defaultValue={String(pageSize)} className={`${inputClass} mt-1`}>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
           <Button type="submit" variant="secondary">
             Apply Filters
           </Button>
-          {(params.q || params.status || params.jobId || params.since) && (
+          {(params.q || params.status || params.jobId || params.since || params.pageSize) && (
             <Link href="/applications" className="text-xs text-slate-500 hover:underline">
               Clear
             </Link>

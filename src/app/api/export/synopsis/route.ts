@@ -12,10 +12,10 @@ export const maxDuration = 60;
 // checkboxes) embeds real document images/PDFs into each report, same as
 // the single-application download — each one now fetches every document
 // from Google Drive, so unlike the plain filtered export below, this
-// can't scale to the full dataset. Measured well within budget up to
-// this count; beyond it, ask the user to narrow their selection instead
-// of risking a timeout partway through the ZIP.
-const MAX_EMBEDDED_IDS = 30;
+// can't scale to the full dataset. The Applications page enforces the
+// same limit on the checkboxes themselves; this is the server-side
+// backstop for any request that bypasses that UI.
+const MAX_EMBEDDED_IDS = 20;
 
 function startOfToday() {
   const d = new Date();
