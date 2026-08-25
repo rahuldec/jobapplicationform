@@ -95,9 +95,20 @@ export default async function ApplicationsPage({
           </p>
         </div>
         {total > 0 && (
-          <a href={exportHref}>
-            <Button variant="secondary">Export to Excel</Button>
-          </a>
+          <div className="flex flex-wrap justify-end gap-2">
+            <a href={exportHref}>
+              <Button variant="secondary">Export to Excel</Button>
+            </a>
+            <a href={buildHref({ page: undefined }, "/api/export/synopsis")}>
+              <Button variant="secondary">Bulk Download Synopsis</Button>
+            </a>
+            <a href={buildHref({ page: undefined, groupBy: "candidate" }, "/api/export/documents")}>
+              <Button variant="secondary">Documents by Candidate</Button>
+            </a>
+            <a href={buildHref({ page: undefined, groupBy: "type" }, "/api/export/documents")}>
+              <Button variant="secondary">Documents by Type</Button>
+            </a>
+          </div>
         )}
       </div>
 

@@ -99,19 +99,26 @@ export default async function ApplicationDetailPage({
               </p>
             </div>
           </div>
-          <form action={changeApplicationStatus} className="flex items-center gap-2">
-            <input type="hidden" name="applicationId" value={application.id} />
-            <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
-              {SETTABLE_APPLICATION_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {APPLICATION_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-            <Button type="submit" variant="secondary" size="sm">
-              Update Status
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <a href={`/api/applications/${application.id}/synopsis`}>
+              <Button variant="secondary" size="sm">
+                Download Synopsis
+              </Button>
+            </a>
+            <form action={changeApplicationStatus} className="flex items-center gap-2">
+              <input type="hidden" name="applicationId" value={application.id} />
+              <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
+                {SETTABLE_APPLICATION_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {APPLICATION_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+              <Button type="submit" variant="secondary" size="sm">
+                Update Status
+              </Button>
+            </form>
+          </div>
         </div>
       </Card>
 
