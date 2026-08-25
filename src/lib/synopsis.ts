@@ -73,6 +73,23 @@ function parseCompoundValue(raw: string): { label: string; value: string }[] | n
   return pairs.length >= 2 ? pairs : null;
 }
 
+// Some single-answer fields were exported from the Sheet as
+// "Yes/No:NO" — the literal question-type stem baked into the answer,
+// with the real value after the colon. There's only one pair here (no
+// comma), so parseCompoundValue skips it and it would otherwise render
+// as the raw "Yes/No:NO" string. Strip the stem when it reads like a
+// short label rather than genuine data (a time, a ratio, a URL) that
+// just happens to contain a colon.
+function stripAnswerPrefix(raw: string): string {
+  if (raw.includes(",")) return raw;
+  const idx = raw.indexOf(":");
+  if (idx === -1) return raw;
+  const prefix = raw.slice(0, idx).trim();
+  const rest = raw.slice(idx + 1).trim();
+  if (!rest || !/^[A-Za-z][A-Za-z/'" ]{0,24}$/.test(prefix)) return raw;
+  return rest;
+}
+
 // Builds one candidate's synopsis PDF and resolves with the full buffer.
 // `embedImages` fetches each document from Google Drive: image documents
 // (photo, signature, scanned certificates) render inline; genuine PDF
@@ -201,7 +218,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
         for (const { label, value } of rawValues) {
           const parsed = parseCompoundValue(value);
           if (parsed) compound.push({ label, pairs: parsed });
-          else simple.push([label, value]);
+          else simple.push([label, stripAnswerPrefix(value)]);
         }
 
         sectionHeader(doc, section.name);
