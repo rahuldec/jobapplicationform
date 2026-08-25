@@ -27,21 +27,33 @@ export type CoreFieldMap = {
   // to — e.g. "Subject Applied For". Rows whose value doesn't resolve to
   // a configured job get skipped, same as a missing name/email.
   jobSelectorCol: number;
+  // Some clients' Sheets already assign a unique ID/reference number per
+  // row (form-generated or manually maintained) — when set, that column's
+  // value (prefixed by applicationNumberPrefix) becomes the application
+  // number, and matching against already-imported numbers replaces the
+  // row-position bookkeeping. Leave null to auto-generate one from row
+  // position instead (the original behavior).
+  applicationNumberCol: number | null;
 };
 
 export type SheetImportConfig = {
   // Name for the ApplicationForm record created to hold `sections` —
   // shown in the Jobs page's "Application form" card.
   formName: string;
-  // Prefix for generated application numbers, e.g. "NBGSM-2026-IMP-" —
-  // the sync's "how far have we already imported" check parses this
-  // prefix back out, so changing it after go-live would restart numbering.
+  // Prefix prepended to the application number, e.g. "NBGSM-2026-IMP-".
+  // Without coreFields.applicationNumberCol set, this also anchors the
+  // "how far have we already imported" row-position check, so changing it
+  // after go-live would restart numbering. With applicationNumberCol set,
+  // it's just a namespace and can change freely — uniqueness comes from
+  // the Sheet's own ID column instead.
   applicationNumberPrefix: string;
   // Job title/code derived from the jobSelectorCol's value. "{value}" is
   // replaced with the raw cell text; "{value3}" with its first 3
   // characters, uppercased (handy for short job codes).
   jobTitleTemplate: string;
-  jobCodeTemplate: string;
+  // Leave unset/blank when this client doesn't need job codes — the job's
+  // `code` field is optional, so the sync just leaves it null.
+  jobCodeTemplate?: string;
   jobEmploymentType?: string;
   coreFields: CoreFieldMap;
   sections: SectionSpec[];

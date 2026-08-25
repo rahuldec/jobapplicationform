@@ -11,7 +11,7 @@ const EMPTY_CONFIG: SheetImportConfig = {
   formName: "",
   applicationNumberPrefix: "",
   jobTitleTemplate: "{value}",
-  jobCodeTemplate: "{value3}",
+  jobCodeTemplate: "",
   jobEmploymentType: "",
   coreFields: {
     addedTimeCol: 0,
@@ -21,6 +21,7 @@ const EMPTY_CONFIG: SheetImportConfig = {
     dobCol: null,
     genderCol: null,
     jobSelectorCol: 0,
+    applicationNumberCol: null,
   },
   sections: [],
   documents: [],
@@ -119,7 +120,12 @@ export function SheetConfigBuilder({
                 placeholder="Assistant Professor Application — Standard"
               />
             </Field>
-            <Field label="Application number prefix" htmlFor="prefix" required hint="e.g. DN-2026-IMP-">
+            <Field
+              label="Application number prefix"
+              htmlFor="prefix"
+              required
+              hint="e.g. DN-2026-IMP- — prepended to the ID from the sheet below, or auto-numbered if you don't set one."
+            >
               <input
                 id="prefix"
                 value={config.applicationNumberPrefix}
@@ -160,13 +166,19 @@ export function SheetConfigBuilder({
       <Card>
         <CardHeader
           title="Core columns"
-          description="Spreadsheet column numbers, 0-indexed (column A = 0, B = 1, C = 2, …). Leave optional ones blank if not present."
+          description="Spreadsheet column numbers, 0-indexed (column A = 0, B = 1, C = 2, …). Leave optional ones blank if not present. If the sheet already has its own unique ID column, set it below — otherwise application numbers are auto-generated in order."
         />
         <div className="grid grid-cols-2 gap-4 px-5 py-5 sm:grid-cols-4">
           <ColInput label="Submitted time" value={config.coreFields.addedTimeCol} onChange={(v) => update({ coreFields: { ...config.coreFields, addedTimeCol: v ?? 0 } })} />
           <ColInput label="Email" value={config.coreFields.emailCol} onChange={(v) => update({ coreFields: { ...config.coreFields, emailCol: v ?? 0 } })} />
           <ColInput label="Full name" value={config.coreFields.fullNameCol} onChange={(v) => update({ coreFields: { ...config.coreFields, fullNameCol: v ?? 0 } })} />
-          <ColInput label="Job selector" value={config.coreFields.jobSelectorCol} onChange={(v) => update({ coreFields: { ...config.coreFields, jobSelectorCol: v ?? 0 } })} />
+          <ColInput label="Job selector (post applied for)" value={config.coreFields.jobSelectorCol} onChange={(v) => update({ coreFields: { ...config.coreFields, jobSelectorCol: v ?? 0 } })} />
+          <ColInput
+            label="Application/unique ID (optional)"
+            value={config.coreFields.applicationNumberCol}
+            onChange={(v) => update({ coreFields: { ...config.coreFields, applicationNumberCol: v } })}
+            optional
+          />
           <ColInput label="Mobile (optional)" value={config.coreFields.mobileCol} onChange={(v) => update({ coreFields: { ...config.coreFields, mobileCol: v } })} optional />
           <ColInput label="Date of birth (optional)" value={config.coreFields.dobCol} onChange={(v) => update({ coreFields: { ...config.coreFields, dobCol: v } })} optional />
           <ColInput label="Gender (optional)" value={config.coreFields.genderCol} onChange={(v) => update({ coreFields: { ...config.coreFields, genderCol: v } })} optional />

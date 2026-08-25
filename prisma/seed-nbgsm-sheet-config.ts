@@ -30,6 +30,7 @@ const config: SheetImportConfig = {
     dobCol: 13,
     genderCol: 14,
     jobSelectorCol: 3,
+    applicationNumberCol: null,
   },
   sections: [
     {

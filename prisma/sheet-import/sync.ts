@@ -4,10 +4,12 @@
 // nothing here is specific to any one client's form.
 //
 // Safe to run on a schedule: matches each Sheet row to a stable
-// application number (its row position) and upserts, so re-running never
-// duplicates a row and never touches workflow state (status, assigned
-// recruiter, scores) that HR has already set on an existing application —
-// only its supplementary field values/documents get refreshed.
+// application number — either its row position, or (when
+// coreFields.applicationNumberCol is set) a unique ID the Sheet itself
+// already assigns — and upserts, so re-running never duplicates a row and
+// never touches workflow state (status, assigned recruiter) that HR has
+// already set on an existing application — only its supplementary field
+// values/documents get refreshed.
 // Deliberately does NOT deduplicate candidates who submitted the same
 // job's form more than once; each Sheet row stays its own application.
 import { PrismaClient } from "../../src/generated/prisma/client";
@@ -96,33 +98,64 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     });
   });
 
-  // The Sheet is append-only for every client we support so far (fed by a
-  // form that can't be edited post-submission) — existing rows never
-  // change, only new ones get added at the end. That means a sync never
-  // needs to touch a row it has already imported; it only needs to find
-  // where it left off. This keeps every sync fast (a no-op most days) and
-  // never risks overwriting a status/assignment HR has already set.
-  const [{ max_row_index: alreadyImportedRaw }] = await prisma.$queryRawUnsafe<{ max_row_index: number | null }[]>(
-    `SELECT MAX(CAST(SUBSTRING("applicationNumber" FROM $1) AS INTEGER)) AS max_row_index
-     FROM applications
-     WHERE "tenantId" = $2 AND "applicationNumber" LIKE $3`,
-    `${config.applicationNumberPrefix}(\\d+)`,
-    tenant.id,
-    `${config.applicationNumberPrefix}%`,
-  );
-  const alreadyImported = alreadyImportedRaw ?? 0;
+  const { jobSelectorCol, emailCol, fullNameCol, mobileCol, dobCol, genderCol, addedTimeCol, applicationNumberCol } =
+    config.coreFields;
 
-  if (dataRows.length <= alreadyImported) {
+  // Two ways to derive a stable, already-imported-safe application number:
+  //
+  // 1. applicationNumberCol set: the Sheet already assigns its own unique
+  //    ID per row. Prefix + that ID becomes the application number, and
+  //    "already imported" is a plain membership check against every
+  //    number already on file for this tenant — robust even if rows get
+  //    reordered or inserted, not just appended.
+  // 2. Not set (original behavior): the Sheet is append-only (fed by a
+  //    form that can't be edited post-submission), so a row's position IS
+  //    its stable identity. "Already imported" is just the highest
+  //    row-derived number seen so far, parsed back out of existing
+  //    application numbers — cheap, and never touches a row already in.
+  let newRows: { row: unknown[]; applicationNumber: string }[];
+  let alreadyImported: number;
+
+  if (applicationNumberCol !== null && applicationNumberCol !== undefined) {
+    const existing = await prisma.application.findMany({
+      where: { tenantId: tenant.id },
+      select: { applicationNumber: true },
+    });
+    const existingNumbers = new Set(existing.map((a) => a.applicationNumber));
+    alreadyImported = existingNumbers.size;
+
+    newRows = [];
+    for (const row of dataRows) {
+      const rawId = cell(row, applicationNumberCol);
+      if (!rawId) continue;
+      const applicationNumber = `${config.applicationNumberPrefix}${rawId}`;
+      if (existingNumbers.has(applicationNumber)) continue;
+      newRows.push({ row, applicationNumber });
+    }
+  } else {
+    const [{ max_row_index: alreadyImportedRaw }] = await prisma.$queryRawUnsafe<{ max_row_index: number | null }[]>(
+      `SELECT MAX(CAST(SUBSTRING("applicationNumber" FROM $1) AS INTEGER)) AS max_row_index
+       FROM applications
+       WHERE "tenantId" = $2 AND "applicationNumber" LIKE $3`,
+      `${config.applicationNumberPrefix}(\\d+)`,
+      tenant.id,
+      `${config.applicationNumberPrefix}%`,
+    );
+    alreadyImported = alreadyImportedRaw ?? 0;
+
+    newRows = dataRows.slice(alreadyImported).map((row, n) => ({
+      row,
+      applicationNumber: `${config.applicationNumberPrefix}${String(alreadyImported + n + 1).padStart(4, "0")}`,
+    }));
+  }
+
+  if (newRows.length === 0) {
     console.log(`[${tenantSlug}] Nothing new — already imported all ${alreadyImported} rows.`);
     return { created: 0, skipped: 0, alreadyImported };
   }
-
-  const newRows = dataRows.slice(alreadyImported);
   console.log(`[${tenantSlug}] ${alreadyImported} rows already imported, ${newRows.length} new row(s) to add.`);
 
-  const { jobSelectorCol, emailCol, fullNameCol, mobileCol, dobCol, genderCol, addedTimeCol } = config.coreFields;
-
-  const selectorValues = Array.from(new Set(newRows.map((r) => cell(r, jobSelectorCol)).filter((s): s is string => !!s)));
+  const selectorValues = Array.from(new Set(newRows.map((r) => cell(r.row, jobSelectorCol)).filter((s): s is string => !!s)));
 
   const jobBySelector = new Map<string, string>();
   for (const value of selectorValues) {
@@ -138,7 +171,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
           tenantId: tenant.id,
           departmentId: department.id,
           title,
-          code: applyTemplate(config.jobCodeTemplate, value),
+          code: config.jobCodeTemplate ? applyTemplate(config.jobCodeTemplate, value) : null,
           employmentType: config.jobEmploymentType,
           status: "published",
           publishedAt: new Date(),
@@ -160,9 +193,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     createdAt: Date;
   }[] = [];
 
-  for (let n = 0; n < newRows.length; n++) {
-    const row = newRows[n];
-    const i = alreadyImported + n; // absolute row index, for applicationNumber
+  for (const { row, applicationNumber } of newRows) {
     const selectorValue = cell(row, jobSelectorCol);
     const email = cell(row, emailCol)?.toLowerCase();
     const fullName = cell(row, fullNameCol);
@@ -186,11 +217,6 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
         create: { tenantId: tenant.id, fullName, email, mobile, dateOfBirth: dob, gender },
       }),
     );
-
-    // Stable per-row identity: row position in this append-only Sheet.
-    // Each row — including a candidate resubmitting the same job — gets
-    // its own distinct application.
-    const applicationNumber = `${config.applicationNumberPrefix}${String(i + 1).padStart(4, "0")}`;
 
     const application = await withRetry(() =>
       prisma.application.create({
