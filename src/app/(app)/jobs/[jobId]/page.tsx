@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { publishJobAction, updateJobDeadlineAction } from "@/lib/actions/jobs";
-import { Card, CardHeader, StatusBadge, Button, EmptyState, inputClass } from "@/components/ui/primitives";
+import { updateJobDeadlineAction } from "@/lib/actions/jobs";
+import { Card, CardHeader, StatusBadge, EmptyState, inputClass } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 
 export default async function JobDetailPage({
@@ -31,27 +31,15 @@ export default async function JobDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-slate-900">{job.title}</h1>
-            <StatusBadge status={job.status} label={job.status[0].toUpperCase() + job.status.slice(1)} />
-          </div>
-          <p className="text-sm text-slate-500">
-            {job.department?.name ?? "No department"} · {job.numberOfPositions} position(s)
-            {job.code ? ` · ${job.code}` : ""}
-          </p>
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-slate-900">{job.title}</h1>
+          <StatusBadge status={job.status} label={job.status[0].toUpperCase() + job.status.slice(1)} />
         </div>
-        <div className="flex gap-2">
-          {job.status !== "published" && (
-            <form action={publishJobAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <Button type="submit" variant="secondary">
-                Publish
-              </Button>
-            </form>
-          )}
-        </div>
+        <p className="text-sm text-slate-500">
+          {job.department?.name ?? "No department"} · {job.numberOfPositions} position(s)
+          {job.code ? ` · ${job.code}` : ""}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
