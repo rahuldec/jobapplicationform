@@ -24,6 +24,14 @@ export async function GET(request: NextRequest) {
   const tenant = await getCurrentTenant();
   const params = request.nextUrl.searchParams;
 
+  // A specific selection from the Applications page's multi-select checkboxes
+  // takes priority over the filter fields below (which drive the "download
+  // everything matching the current filters" flow instead).
+  const ids = (params.get("ids") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const q = params.get("q") ?? "";
   const jobId = params.get("jobId") ?? "";
   const isToday = params.get("since") === "today";
@@ -34,19 +42,23 @@ export async function GET(request: NextRequest) {
 
   const where = {
     tenantId: tenant.id,
-    status: hasStatus ? { in: statusList } : undefined,
-    jobId: jobId || undefined,
-    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
-    ...(q
-      ? {
-          OR: [
-            { applicationNumber: { contains: q } },
-            { candidate: { fullName: { contains: q } } },
-            { candidate: { email: { contains: q } } },
-            { candidate: { mobile: { contains: q } } },
-          ],
-        }
-      : {}),
+    ...(ids.length > 0
+      ? { id: { in: ids } }
+      : {
+          status: hasStatus ? { in: statusList } : undefined,
+          jobId: jobId || undefined,
+          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+          ...(q
+            ? {
+                OR: [
+                  { applicationNumber: { contains: q } },
+                  { candidate: { fullName: { contains: q } } },
+                  { candidate: { email: { contains: q } } },
+                  { candidate: { mobile: { contains: q } } },
+                ],
+              }
+            : {}),
+        }),
   };
 
   const applications = await prisma.application.findMany({

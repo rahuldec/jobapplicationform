@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, StatusBadge, inputClass, Button } from "@/components/ui/primitives";
+import { Card, EmptyState, inputClass, Button } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, VISIBLE_APPLICATION_STATUSES } from "@/lib/enums";
+import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 
 const PAGE_SIZE = 20;
 
@@ -75,6 +76,21 @@ export default async function ApplicationsPage({
   };
   const exportHref = buildHref({ page: undefined }, "/api/export/applications");
 
+  const rows: ApplicationRow[] = applications.map((app) => {
+    const score = app.scores[0];
+    const finalScore = score?.overrideScore ?? score?.calculatedScore;
+    return {
+      id: app.id,
+      applicationNumber: app.applicationNumber,
+      candidateName: app.candidate.fullName,
+      candidateEmail: app.candidate.email,
+      jobTitle: app.job.title,
+      status: app.status,
+      scoreLabel: finalScore !== undefined ? `${finalScore} / ${score?.calculatedMaxScore ?? "?"}` : "—",
+      appliedLabel: app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "Draft",
+    };
+  });
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
@@ -98,15 +114,6 @@ export default async function ApplicationsPage({
           <div className="flex flex-wrap justify-end gap-2">
             <a href={exportHref}>
               <Button variant="secondary">Export to Excel</Button>
-            </a>
-            <a href={buildHref({ page: undefined }, "/api/export/synopsis")}>
-              <Button variant="secondary">Bulk Download Synopsis</Button>
-            </a>
-            <a href={buildHref({ page: undefined, groupBy: "candidate" }, "/api/export/documents")}>
-              <Button variant="secondary">Documents by Candidate</Button>
-            </a>
-            <a href={buildHref({ page: undefined, groupBy: "type" }, "/api/export/documents")}>
-              <Button variant="secondary">Documents by Type</Button>
             </a>
           </div>
         )}
@@ -161,49 +168,7 @@ export default async function ApplicationsPage({
           <EmptyState title="No applications found" description="Try adjusting your filters." />
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-2.5">Application #</th>
-                  <th className="px-4 py-2.5">Candidate</th>
-                  <th className="px-4 py-2.5">Job</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Score</th>
-                  <th className="px-4 py-2.5">Applied</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {applications.map((app) => {
-                  const score = app.scores[0];
-                  const finalScore = score?.overrideScore ?? score?.calculatedScore;
-                  return (
-                    <tr key={app.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <Link href={`/applications/${app.id}`} className="font-medium text-orange-600 hover:underline">
-                          {app.applicationNumber}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {app.candidate.fullName}
-                        <p className="text-xs text-slate-400">{app.candidate.email}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{app.job.title}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
-                      </td>
-                      <td className="px-4 py-3 tabular-nums text-slate-700">
-                        {finalScore !== undefined ? `${finalScore} / ${score?.calculatedMaxScore ?? "?"}` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {app.submittedAt
-                          ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
-                          : "Draft"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ApplicationsTable rows={rows} />
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
                 <span>

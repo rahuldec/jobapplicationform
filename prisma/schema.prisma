@@ -231,6 +231,10 @@ model Application {
   assignedRecruiterId String?
   assignedRecruiter   User?   @relation("AssignedRecruiter", fields: [assignedRecruiterId], references: [id])
 
+  // Manually set by HR per application (e.g. interview/document deadline) —
+  // not derived from anything else in the workflow.
+  dueDate DateTime?
+
   submittedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

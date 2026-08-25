@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { publishJobAction, closeJobAction } from "@/lib/actions/jobs";
-import { Card, CardHeader, StatusBadge, Button, EmptyState } from "@/components/ui/primitives";
+import { publishJobAction } from "@/lib/actions/jobs";
+import { updateApplicationDueDateAction } from "@/lib/actions/applications";
+import { Card, CardHeader, StatusBadge, Button, EmptyState, inputClass } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 
 export default async function JobDetailPage({
@@ -48,14 +49,6 @@ export default async function JobDetailPage({
               <input type="hidden" name="jobId" value={job.id} />
               <Button type="submit" variant="secondary">
                 Publish
-              </Button>
-            </form>
-          )}
-          {job.status !== "closed" && (
-            <form action={closeJobAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <Button type="submit" variant="danger">
-                Close
               </Button>
             </form>
           )}
@@ -113,6 +106,7 @@ export default async function JobDetailPage({
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5">Score</th>
                 <th className="px-4 py-2.5">Applied</th>
+                <th className="px-4 py-2.5">Due Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -137,6 +131,20 @@ export default async function JobDetailPage({
                       {app.submittedAt
                         ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
                         : "Draft"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <form action={updateApplicationDueDateAction} className="flex items-center gap-1.5">
+                        <input type="hidden" name="applicationId" value={app.id} />
+                        <input
+                          type="date"
+                          name="dueDate"
+                          defaultValue={app.dueDate ? app.dueDate.toISOString().slice(0, 10) : ""}
+                          className={`${inputClass} py-1 text-xs`}
+                        />
+                        <button type="submit" className="text-xs font-medium text-orange-600 hover:underline">
+                          Save
+                        </button>
+                      </form>
                     </td>
                   </tr>
                 );
