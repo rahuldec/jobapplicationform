@@ -64,33 +64,41 @@ export default async function ApplicationsPage({
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const buildHref = (overrides: Record<string, string | undefined>) => {
+  const buildHref = (overrides: Record<string, string | undefined>, base = "/applications") => {
     const next = new URLSearchParams();
     const merged = { ...params, ...overrides };
     for (const [k, v] of Object.entries(merged)) {
       if (v) next.set(k, v);
     }
     const qs = next.toString();
-    return qs ? `/applications?${qs}` : "/applications";
+    return qs ? `${base}?${qs}` : base;
   };
+  const exportHref = buildHref({ page: undefined }, "/api/export/applications");
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">Applications</h1>
-        <p className="text-sm text-slate-500">
-          {total} {isToday ? "matching" : "total"} · {tenant.name}
-          {isToday && (
-            <>
-              {" · "}
-              <span className="font-medium text-orange-600">filtered to today</span>
-              {" · "}
-              <Link href={buildHref({ since: undefined })} className="text-orange-600 hover:underline">
-                show all
-              </Link>
-            </>
-          )}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">Applications</h1>
+          <p className="text-sm text-slate-500">
+            {total} {isToday ? "matching" : "total"} · {tenant.name}
+            {isToday && (
+              <>
+                {" · "}
+                <span className="font-medium text-orange-600">filtered to today</span>
+                {" · "}
+                <Link href={buildHref({ since: undefined })} className="text-orange-600 hover:underline">
+                  show all
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
+        {total > 0 && (
+          <a href={exportHref}>
+            <Button variant="secondary">Export to Excel</Button>
+          </a>
+        )}
       </div>
 
       <Card className="p-4">
