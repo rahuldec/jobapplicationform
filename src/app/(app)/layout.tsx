@@ -21,13 +21,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
           </Link>
         </div>
-        <div className="w-full bg-gradient-to-r from-blue-50 via-sky-100 to-blue-50 py-2">
+        <div className="w-full py-2" style={{ backgroundColor: "#1b449c" }}>
           <nav className="flex items-center justify-center gap-8">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-base font-bold text-slate-700 transition-colors hover:text-slate-950"
+                className="text-base font-bold text-white/85 transition-colors hover:text-white"
               >
                 {item.label}
               </Link>

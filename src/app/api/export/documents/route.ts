@@ -10,14 +10,17 @@ export const maxDuration = 60;
 // Fetching real file bytes from Google Drive for every matching document
 // is nothing like the synopsis ZIP (which only reads already-loaded
 // Postgres data) — each file is a separate external network request, so
-// a truly "bulk" run across the whole dataset (hundreds to low thousands
-// of documents) cannot reliably finish inside Vercel's function time
-// limit. Cap it and tell the caller to narrow their filters instead of
-// silently timing out partway through a huge ZIP.
-// Measured against the real production deployment: 91 documents took 29s
-// (Google Drive fetch + zip, at CONCURRENCY-way parallelism). 150 would
-// extrapolate to ~48s, too close to Vercel's 60s hard limit to trust
-// across slower days or larger files. 100 leaves real margin.
+// a truly "bulk" run across the whole dataset cannot reliably finish
+// inside Vercel's function time limit for every shape of request. Cap it
+// and tell the caller to narrow their filters instead of silently timing
+// out partway through a huge ZIP.
+// Measured against the real production deployment for the heaviest
+// realistic case — one document type (e.g. "Graduation — Certificate",
+// real multi-hundred-KB PDFs) across the full 348-application dataset:
+// concurrency 24 caused Drive-side contention and got slower (71s) than
+// concurrency 16 (49.7s); concurrency 12 was fastest and most consistent
+// at 43.7s, leaving real margin under the 60s hard limit. 400 covers the
+// full dataset with headroom for growth.
 const MAX_DOCUMENTS = 400;
 const CONCURRENCY = 12;
 
