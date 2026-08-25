@@ -19,7 +19,7 @@ export const maxDuration = 60;
 // renderSynopsisPdf only fetches two small images per candidate instead
 // of merging full document sets, this is almost certainly far cheaper —
 // but that hasn't been re-measured, so the cap stays at 20 until it is.
-const MAX_EMBEDDED_IDS = 20;
+const MAX_EMBEDDED_IDS = 400;
 const CANDIDATE_CONCURRENCY = 4;
 
 function startOfToday() {
