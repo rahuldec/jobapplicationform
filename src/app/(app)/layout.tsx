@@ -15,10 +15,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center justify-center gap-3 px-5 py-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <Image src="/brand/nbgsm-logo.png" alt="" width={44} height={56} className="shrink-0" />
-            <span className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline">
+            <span
+              style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
+              className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline"
+            >
               Nirankari Baba Gurbachan Singh Memorial College
             </span>
-            <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
+            <span style={{ fontFamily: "Helvetica, Arial, sans-serif" }} className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">
+              NBGSM
+            </span>
           </Link>
         </div>
         <div className="w-full py-2" style={{ background: "linear-gradient(90deg, #0f2359 0%, #1b449c 50%, #3465c9 100%)" }}>
@@ -37,17 +42,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-6 text-center">
+      <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-10 text-center">
         <a
           href="https://okiedokiepay.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-slate-500 transition-colors hover:text-slate-900"
+          className="inline-flex items-center gap-2.5 text-slate-500 transition-colors hover:text-slate-900"
         >
-          <Image src="/brand/okie-dokie-logo.png" alt="Okie Dokie" width={16} height={16} className="opacity-80" />
-          <span className="text-xs font-medium">Okie Dokie</span>
+          <Image src="/brand/okie-dokie-logo.png" alt="Okie Dokie" width={26} height={26} className="opacity-80" />
+          <span className="text-base font-medium">Okie Dokie</span>
         </a>
-        <p className="mt-2 text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Okie Dokie. All rights reserved.</p>
+        <p className="mt-3 text-xs text-slate-400">&copy; {new Date().getFullYear()} Okie Dokie. All rights reserved.</p>
       </footer>
     </div>
   );
