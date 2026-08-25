@@ -6,6 +6,14 @@ import { updateTenantSheetConfig, updateTenantSheetSourceUrl } from "@/lib/actio
 import { toSheetExportUrl, type SheetImportConfig, type FieldSpec, type SectionSpec, type DocSpec } from "../../../prisma/sheet-import/types";
 
 const FIELD_TYPES: FieldSpec["fieldType"][] = ["text", "textarea", "number", "date", "email", "phone"];
+const FIELD_TYPE_LABELS: Record<FieldSpec["fieldType"], string> = {
+  text: "Single Text",
+  textarea: "Multiple Text",
+  number: "Number",
+  date: "Date",
+  email: "Email",
+  phone: "Phone",
+};
 
 const EMPTY_CONFIG: SheetImportConfig = {
   formName: "",
@@ -242,11 +250,11 @@ export function SheetConfigBuilder({
                           value={field.fieldType}
                           onChange={(e) => updateField(si, fi, { fieldType: e.target.value as FieldSpec["fieldType"] })}
                           className={`${inputClass} col-span-2`}
-                          title="text = short answer, one line (e.g. a name). textarea = long answer, multiple lines (e.g. an address)."
+                          title="Single Text = short answer, one line (e.g. a name). Multiple Text = long answer, multiple lines (e.g. an address)."
                         >
                           {FIELD_TYPES.map((t) => (
                             <option key={t} value={t}>
-                              {t}
+                              {FIELD_TYPE_LABELS[t]}
                             </option>
                           ))}
                         </select>
