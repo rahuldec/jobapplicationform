@@ -220,21 +220,23 @@ export function SheetConfigBuilder({
                           type="number"
                           value={field.col}
                           onChange={(e) => updateField(si, fi, { col: Number(e.target.value) })}
-                          className={`${inputClass} col-span-2`}
+                          className={`${inputClass} col-span-1`}
                           placeholder="Col"
                           title="Spreadsheet column number (0-indexed)"
                         />
                         <input
                           value={field.fieldKey}
                           onChange={(e) => updateField(si, fi, { fieldKey: e.target.value })}
-                          className={`${inputClass} col-span-3`}
+                          className={`${inputClass} col-span-4`}
                           placeholder="Google Sheet column name"
+                          title="The exact column header text from your Google Sheet"
                         />
                         <input
                           value={field.label}
                           onChange={(e) => updateField(si, fi, { label: e.target.value })}
                           className={`${inputClass} col-span-4`}
                           placeholder="Display as"
+                          title="What this field is called on the application — shown to HR"
                         />
                         <select
                           value={field.fieldType}
