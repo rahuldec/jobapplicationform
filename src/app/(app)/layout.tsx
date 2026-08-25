@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { getCurrentTenant } from "@/lib/tenant";
+import { getTenantBranding } from "@/lib/branding";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -8,25 +10,31 @@ const NAV = [
   { href: "/applications", label: "Applications" },
 ];
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const tenant = await getCurrentTenant();
+  const branding = getTenantBranding(tenant);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
         <div className="flex items-center justify-center gap-3 px-5 py-3">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <Image src="/brand/nbgsm-logo.png" alt="" width={44} height={56} className="shrink-0" />
+            {branding.logoDataUrl && <img src={branding.logoDataUrl} alt="" width={44} height={56} className="h-14 w-11 shrink-0 object-contain" />}
             <span
               style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
               className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline"
             >
-              Nirankari Baba Gurbachan Singh Memorial College
+              {branding.name}
             </span>
             <span style={{ fontFamily: "Helvetica, Arial, sans-serif" }} className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">
-              NBGSM
+              {branding.shortName}
             </span>
           </Link>
         </div>
-        <div className="w-full py-2" style={{ background: "linear-gradient(90deg, #0f2359 0%, #1b449c 50%, #3465c9 100%)" }}>
+        <div
+          className="w-full py-2"
+          style={{ background: `linear-gradient(90deg, ${branding.gradient.from} 0%, ${branding.gradient.via} 50%, ${branding.gradient.to} 100%)` }}
+        >
           <nav className="flex items-center justify-center gap-8">
             {NAV.map((item) => (
               <Link

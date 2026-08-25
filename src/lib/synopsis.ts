@@ -2,11 +2,13 @@ import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
-import { NBGSM_LOGO } from "@/lib/nbgsm-logo";
+import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
 
-// Natural pixel dimensions of the embedded logo (235 x 300) — used to
-// scale it to a fixed header height while keeping its aspect ratio.
-const LOGO_ASPECT = 235 / 300;
+// Fallback when a logo's format can't be read (getImageDimensions
+// returned null) — matches the previous fixed NBGSM logo's proportions
+// so layout doesn't visibly break, just isn't pixel-perfect for that
+// one edge case.
+const FALLBACK_LOGO_ASPECT = 235 / 300;
 
 const BRAND_ORANGE = "#ea580c";
 const SLATE_900 = "#0f172a";
@@ -144,8 +146,12 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     const leftX = doc.page.margins.left;
     const headerTop = doc.y;
     const logoHeight = 48;
-    const logoWidth = logoHeight * LOGO_ASPECT;
-    doc.image(NBGSM_LOGO, leftX, headerTop, { height: logoHeight });
+    const branding = getTenantBranding(application.tenant);
+    const logoBuffer = branding.logoDataUrl ? logoDataUrlToBuffer(branding.logoDataUrl) : null;
+    const logoDims = logoBuffer ? getImageDimensions(logoBuffer) : null;
+    const logoAspect = logoDims ? logoDims.width / logoDims.height : FALLBACK_LOGO_ASPECT;
+    const logoWidth = logoBuffer ? logoHeight * logoAspect : 0;
+    if (logoBuffer) doc.image(logoBuffer, leftX, headerTop, { height: logoHeight });
 
     // A framed photo in the top-right corner of page 1 — the same "photo
     // ID card" placement as the paper application form this replaces.
@@ -168,7 +174,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       .fillColor(SLATE_900)
       .fontSize(14)
       .font("Helvetica-Bold")
-      .text(application.tenant.name.toUpperCase(), textX, headerTop, { width: textWidth, characterSpacing: 0.3 });
+      .text(branding.name.toUpperCase(), textX, headerTop, { width: textWidth, characterSpacing: 0.3 });
     doc.fillColor(SLATE_500).fontSize(9).font("Helvetica").text("Application Synopsis", textX, doc.y + 3, { width: textWidth });
 
     doc.x = leftX;
