@@ -36,6 +36,32 @@ export async function getDashboardData(tenantId: string) {
     take: 5,
   });
 
+  const [byJobGroups, jobs, byDayRows] = await Promise.all([
+    prisma.application.groupBy({ by: ["jobId"], where: { tenantId }, _count: { _all: true } }),
+    prisma.job.findMany({ where: { tenantId }, select: { id: true, title: true } }),
+    // Postgres-specific date_trunc grouping — Prisma's groupBy can't bucket
+    // by day directly, and the date range here is small enough (a few
+    // weeks) that a raw query is simpler than pulling every row into JS.
+    prisma.$queryRawUnsafe<{ day: Date; count: bigint }[]>(
+      `SELECT date_trunc('day', "submittedAt") as day, COUNT(*) as count
+       FROM applications
+       WHERE "tenantId" = $1 AND "submittedAt" IS NOT NULL
+       GROUP BY day
+       ORDER BY day ASC`,
+      tenantId,
+    ),
+  ]);
+
+  const jobTitleById = new Map(jobs.map((j) => [j.id, j.title]));
+  const byJob = byJobGroups
+    .map((g) => ({ jobTitle: jobTitleById.get(g.jobId) ?? "Unknown", count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+
+  const byDay = byDayRows.map((r) => ({
+    date: new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(r.day),
+    count: Number(r.count),
+  }));
+
   // Same statuses as the Applications page's own filter dropdown, so the
   // dashboard's stages always match 1:1 with what you can filter by there.
   const byStatus = Object.fromEntries(APPLICATION_STATUSES.map((s) => [s, 0])) as Record<ApplicationStatus, number>;
@@ -47,6 +73,10 @@ export async function getDashboardData(tenantId: string) {
     stats: {
       totalApplications,
       byStatus,
+    },
+    analytics: {
+      byJob,
+      byDay,
     },
     today: {
       newApplications: todaysApplications,

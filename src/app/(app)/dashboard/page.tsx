@@ -3,6 +3,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { EmptyState } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
+import { ApplicationsTrendChart, ApplicationsByJobChart, ApplicationsByStatusChart } from "./charts";
 import {
   IconLayers,
   IconSearch,
@@ -133,6 +134,14 @@ export default async function DashboardPage() {
                 valueClassName={STATUS_NUMBER_CLASS[status]}
               />
             ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <ApplicationsTrendChart data={data.analytics.byDay} />
+            <ApplicationsByJobChart data={data.analytics.byJob} />
+            <ApplicationsByStatusChart byStatus={data.stats.byStatus} />
           </div>
         </section>
 
