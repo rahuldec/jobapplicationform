@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { PDFDocument as PDFLibDocument, StandardFonts, rgb } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
@@ -7,6 +8,7 @@ const BRAND_ORANGE = "#ea580c";
 const SLATE_900 = "#0f172a";
 const SLATE_500 = "#64748b";
 const SLATE_200 = "#e2e8f0";
+const CARD_BG = "#f8fafc";
 
 export async function getSynopsisData(applicationId: string) {
   const application = await prisma.application.findUnique({
@@ -40,17 +42,39 @@ function extractDriveFileId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+// The original Sheet packed some cells into one delimited string, e.g.
+// "Roll No.:75436,Year of Passing:2001,Division:Second,...". Splits it
+// back into labelled sub-fields — only where a comma is immediately
+// followed by another "Label:", so a value that itself contains commas
+// (a subject list) stays intact. Same logic as the web app's version.
+function parseCompoundValue(raw: string): { label: string; value: string }[] | null {
+  if (!raw.includes(":") || !raw.includes(",")) return null;
+  const parts = raw.split(/,(?=[A-Za-z][^,:]{0,40}:)/);
+  const pairs: { label: string; value: string }[] = [];
+  for (const part of parts) {
+    const idx = part.indexOf(":");
+    if (idx === -1) return null;
+    const label = part.slice(0, idx).trim();
+    if (!label) return null;
+    pairs.push({ label, value: part.slice(idx + 1).trim() });
+  }
+  return pairs.length >= 2 ? pairs : null;
+}
+
 // Builds one candidate's synopsis PDF and resolves with the full buffer.
-// `embedImages` fetches each document from Google Drive and shows the
-// actual photo/scan inline instead of a link — only safe to enable for a
-// single-application download (a handful of extra network fetches). The
-// bulk ZIP (hundreds of applications) always leaves it off, since fetching
-// a document per application there would turn a pure-database, ~10s job
-// into thousands of external requests.
+// `embedImages` fetches each document from Google Drive: image documents
+// (photo, signature, scanned certificates) render inline; genuine PDF
+// documents (score sheets, publication PDFs) get their real pages merged
+// onto the end of the report via pdf-lib, since pdfkit itself can only
+// draw fresh content, not import pages from an existing PDF. Only safe to
+// enable for a single-application download — the bulk ZIP leaves it off,
+// since fetching every document for hundreds of applications would turn a
+// pure-database ~10s job into thousands of external requests.
 export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
   const embedImages = options?.embedImages ?? false;
 
   const documentImages = new Map<string, Buffer>();
+  const documentPdfs = new Map<string, Buffer>();
   if (embedImages) {
     await Promise.all(
       application.documents.map(async (d) => {
@@ -61,16 +85,20 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
           const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
           if (!res.ok) return;
           const contentType = res.headers.get("content-type") ?? "";
-          if (!contentType.startsWith("image/")) return; // pdfkit only embeds raster images, not PDFs
-          documentImages.set(d.id, Buffer.from(await res.arrayBuffer()));
+          const buf = Buffer.from(await res.arrayBuffer());
+          if (contentType.startsWith("image/")) documentImages.set(d.id, buf);
+          // Google's direct-download endpoint serves PDFs as generic
+          // application/octet-stream, not application/pdf — the header is
+          // unreliable here, so check the file's actual magic bytes.
+          else if (buf.subarray(0, 5).toString("latin1") === "%PDF-") documentPdfs.set(d.id, buf);
         } catch {
-          // Fall back to a link for this one document.
+          // Falls back to a plain link for this one document.
         }
       }),
     );
   }
 
-  return new Promise((resolve, reject) => {
+  const mainBuffer = await new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 44 });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
@@ -96,7 +124,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     const finalScore = score?.overrideScore ?? score?.calculatedScore;
 
     sectionHeader(doc, "Candidate Details");
-    twoColRow(doc, pageWidth, [
+    gridRows(doc, pageWidth, [
       ["Full Name", application.candidate.fullName],
       ["Email", application.candidate.email],
       ["Mobile", application.candidate.mobile ?? "—"],
@@ -106,7 +134,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     ]);
 
     sectionHeader(doc, "Application Details");
-    twoColRow(doc, pageWidth, [
+    gridRows(doc, pageWidth, [
       ["Job", application.job.title],
       ["Department", application.job.department?.name ?? "—"],
       ["Applied On", fmtDate(application.submittedAt)],
@@ -125,23 +153,31 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
 
     if (application.job.form) {
       for (const section of application.job.form.sections) {
-        const values = section.fields
+        const rawValues = section.fields
           .map((f) => {
             const v = application.fieldValues.find((fv) => fv.fieldId === f.id);
             const text = v?.valueText || (v?.valueNumber !== null && v?.valueNumber !== undefined ? String(v.valueNumber) : "");
-            return text ? ([f.label, text] as [string, string]) : null;
+            return text ? { label: f.label, value: text } : null;
           })
-          .filter((x): x is [string, string] => x !== null);
-        if (values.length === 0) continue;
+          .filter((x): x is { label: string; value: string } => x !== null);
+        if (rawValues.length === 0) continue;
+
+        // Split each section into short, simple fields (a compact grid)
+        // and packed "Label:Value,..." fields (their own card, broken back
+        // into labelled sub-fields) instead of forcing every field into
+        // one layout — a bare "Yes"/"Na" and a 7-part qualification record
+        // don't read well side by side.
+        const simple: [string, string][] = [];
+        const compound: { label: string; pairs: { label: string; value: string }[] }[] = [];
+        for (const { label, value } of rawValues) {
+          const parsed = parseCompoundValue(value);
+          if (parsed) compound.push({ label, pairs: parsed });
+          else simple.push([label, value]);
+        }
+
         sectionHeader(doc, section.name);
-        // Single-column, not two-column: these values (packed "Label:Value,..."
-        // cells from the original Sheet) are often long enough to wrap several
-        // lines, and pairing two of them side by side means the whole pair
-        // must fit together — one long neighbor strands a short one, and
-        // whichever pair doesn't fit gets pushed whole to a fresh page,
-        // leaving a large blank gap behind. One column lets each field
-        // paginate independently.
-        singleColRows(doc, pageWidth, values);
+        if (simple.length) gridRows(doc, pageWidth, simple);
+        for (const c of compound) compoundCard(doc, pageWidth, c.label, c.pairs);
       }
     }
 
@@ -154,6 +190,8 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
         const image = documentImages.get(d.id);
         if (image) {
           embedDocumentImage(doc, pageWidth, d.documentType, image, d.verified);
+        } else if (documentPdfs.has(d.id)) {
+          rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, "Attached as pages below", d.verified);
         } else {
           rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, d.externalUrl ?? "—", d.verified);
         }
@@ -162,6 +200,36 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
 
     doc.end();
   });
+
+  if (documentPdfs.size === 0) return mainBuffer;
+
+  // Merge each real PDF document's actual pages onto the end of the
+  // report — pdfkit can't import pages from an existing PDF, so this
+  // second pass uses pdf-lib, which can.
+  const merged = await PDFLibDocument.load(mainBuffer);
+  const titleFont = await merged.embedFont(StandardFonts.HelveticaBold);
+  const orange = rgb(0.918, 0.345, 0.047);
+  const gray = rgb(0.392, 0.455, 0.545);
+
+  for (const d of application.documents) {
+    const pdfBytes = documentPdfs.get(d.id);
+    if (!pdfBytes) continue;
+    try {
+      const divider = merged.addPage([595.28, 841.89]);
+      divider.drawText(d.documentType.toUpperCase(), { x: 44, y: 841.89 - 100, size: 16, font: titleFont, color: orange });
+      divider.drawText(`Attached document — ${application.candidate.fullName}`, { x: 44, y: 841.89 - 122, size: 10, font: titleFont, color: gray });
+
+      const src = await PDFLibDocument.load(pdfBytes, { ignoreEncryption: true });
+      const copiedPages = await merged.copyPages(src, src.getPageIndices());
+      copiedPages.forEach((p) => merged.addPage(p));
+    } catch {
+      // A malformed/unreadable source PDF shouldn't take down the whole
+      // report — the divider page (if it was added) still tells the
+      // reader this document exists and where to find it via the link.
+    }
+  }
+
+  return Buffer.from(await merged.save());
 }
 
 function sectionHeader(doc: PDFKit.PDFDocument, title: string) {
@@ -173,42 +241,63 @@ function sectionHeader(doc: PDFKit.PDFDocument, title: string) {
 
 // pdfkit's `doc.x`/`doc.y` cursor can drift after an explicit-coordinate
 // `.text()` call, so every helper below anchors to the page's left margin
-// directly rather than re-reading `doc.x` — otherwise a second column
-// silently inherits a shifted x from the first and renders off the page.
-function twoColRow(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, string][]) {
+// directly rather than re-reading `doc.x` — otherwise a later column
+// silently inherits a shifted x from an earlier one and renders off the
+// page.
+function gridRows(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, string][], cols = 3) {
   const leftX = doc.page.margins.left;
-  const colWidth = pageWidth / 2 - 10;
-  for (let i = 0; i < pairs.length; i += 2) {
-    const left = pairs[i];
-    const right = pairs[i + 1];
-    const projectedHeight = rowHeight(doc, left[1], colWidth, right?.[1]);
-    if (doc.y + projectedHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
+  const gap = 16;
+  const colWidth = (pageWidth - gap * (cols - 1)) / cols;
+  for (let i = 0; i < pairs.length; i += cols) {
+    const rowItems = pairs.slice(i, i + cols);
+    const rowH = Math.max(...rowItems.map(([, v]) => doc.heightOfString(v, { width: colWidth })), 12) + 14;
+    if (doc.y + rowH > doc.page.height - doc.page.margins.bottom) doc.addPage();
     const y = doc.y;
-    writeField(doc, left[0], left[1], leftX, y, colWidth);
-    if (right) writeField(doc, right[0], right[1], leftX + colWidth + 20, y, colWidth);
+    rowItems.forEach(([label, value], idx) => {
+      writeField(doc, label, value, leftX + idx * (colWidth + gap), y, colWidth);
+    });
     doc.x = leftX;
-    doc.y = y + rowHeight(doc, left[1], colWidth, right?.[1]);
+    doc.y = y + rowH;
   }
   doc.moveDown(0.4);
 }
 
-function singleColRows(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, string][]) {
+// Renders one packed field (e.g. "Matriculation") as a titled, tinted
+// card containing its parsed sub-fields in a small 3-column grid — much
+// easier to scan than the original "Roll No.:X,Year of Passing:Y,..."
+// as one dense run-on line.
+function compoundCard(doc: PDFKit.PDFDocument, pageWidth: number, title: string, pairs: { label: string; value: string }[]) {
   const leftX = doc.page.margins.left;
-  for (const [label, value] of pairs) {
-    const height = doc.heightOfString(value, { width: pageWidth }) + 14;
-    if (doc.y + height > doc.page.height - doc.page.margins.bottom) doc.addPage();
-    const y = doc.y;
-    writeField(doc, label, value, leftX, y, pageWidth);
-    doc.x = leftX;
-    doc.y = y + height;
-  }
-  doc.moveDown(0.4);
-}
+  const padding = 10;
+  const innerWidth = pageWidth - padding * 2;
+  const cols = 3;
+  const gap = 12;
+  const colWidth = (innerWidth - gap * (cols - 1)) / cols;
 
-function rowHeight(doc: PDFKit.PDFDocument, leftVal: string, colWidth: number, rightVal?: string) {
-  const h1 = doc.heightOfString(leftVal, { width: colWidth });
-  const h2 = rightVal ? doc.heightOfString(rightVal, { width: colWidth }) : 0;
-  return Math.max(h1, h2, 12) + 14;
+  const rows: { label: string; value: string }[][] = [];
+  for (let i = 0; i < pairs.length; i += cols) rows.push(pairs.slice(i, i + cols));
+  const rowHeights = rows.map((row) => Math.max(...row.map((p) => doc.heightOfString(p.value, { width: colWidth })), 10) + 13);
+  const headerHeight = 18;
+  const totalHeight = padding * 2 + headerHeight + rowHeights.reduce((a, b) => a + b, 0);
+
+  if (doc.y + totalHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
+  const cardY = doc.y;
+
+  doc.roundedRect(leftX, cardY, pageWidth, totalHeight, 4).fillAndStroke(CARD_BG, SLATE_200);
+  doc.fillColor(SLATE_900).fontSize(9.5).font("Helvetica-Bold").text(title, leftX + padding, cardY + padding, { width: innerWidth });
+
+  let rowY = cardY + padding + headerHeight;
+  for (let r = 0; r < rows.length; r++) {
+    rows[r].forEach((p, idx) => {
+      const x = leftX + padding + idx * (colWidth + gap);
+      doc.fillColor(SLATE_500).fontSize(6.5).font("Helvetica").text(p.label.toUpperCase(), x, rowY, { width: colWidth, characterSpacing: 0.2 });
+      doc.fillColor(SLATE_900).fontSize(8.5).font("Helvetica").text(p.value || "—", x, rowY + 9, { width: colWidth });
+    });
+    rowY += rowHeights[r];
+  }
+
+  doc.x = leftX;
+  doc.y = cardY + totalHeight + 8;
 }
 
 function writeField(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number) {
