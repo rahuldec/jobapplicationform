@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/applications";
 import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
-import { IconCalendar, IconStar, IconCheckCircle, IconUsers } from "@/components/ui/icons";
+import { IconCalendar, IconStar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 
@@ -47,7 +47,6 @@ export default async function ApplicationDetailPage({
       fieldValues: { include: { field: true } },
       documents: { orderBy: { uploadedAt: "desc" } },
       scores: { include: { version: true }, orderBy: { calculatedAt: "desc" } },
-      assignedRecruiter: true,
     },
   });
 
@@ -116,7 +115,7 @@ export default async function ApplicationDetailPage({
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatTile
           label="Applied"
           icon={IconCalendar}
@@ -138,7 +137,6 @@ export default async function ApplicationDetailPage({
           tone={verifiedDocs === application.documents.length && application.documents.length > 0 ? "success" : "warning"}
           value={`${verifiedDocs} / ${application.documents.length} verified`}
         />
-        <StatTile label="Recruiter" icon={IconUsers} value={application.assignedRecruiter?.name ?? "Unassigned"} />
       </div>
 
       <div className="flex gap-1 border-b border-slate-200">
@@ -173,7 +171,6 @@ export default async function ApplicationDetailPage({
               }
             />
             <Detail label="Gender" value={application.candidate.gender} />
-            <Detail label="Candidate since" value={new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(application.candidate.createdAt)} />
           </dl>
         </Card>
       )}

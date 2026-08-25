@@ -13,7 +13,6 @@ import {
   IconCheckCircle,
   IconXCircle,
   IconArchive,
-  IconFileWarning,
   IconClock,
 } from "@/components/ui/icons";
 
@@ -51,34 +50,6 @@ function timeAgo(date: Date) {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
-
-const ACTION_LABELS: Record<string, string> = {
-  "application.submitted": "submitted an application",
-  "application.reviewed": "reviewed an application",
-  "application.status_changed": "changed application status",
-  "document.uploaded": "uploaded a document",
-  "document.verified": "verified a document",
-  "score.calculated": "calculated a score",
-  "score.overridden": "overrode a score",
-  "scoring_pattern.created": "created a scoring pattern",
-  "scoring_pattern.version_published": "published a scoring pattern version",
-  "job.created": "created a job",
-  "job.published": "published a job",
-};
-
-const ACTION_DOT: Record<string, string> = {
-  "application.submitted": "bg-orange-500",
-  "application.reviewed": "bg-blue-500",
-  "application.status_changed": "bg-amber-500",
-  "document.uploaded": "bg-blue-500",
-  "document.verified": "bg-emerald-500",
-  "score.calculated": "bg-violet-500",
-  "score.overridden": "bg-amber-500",
-  "scoring_pattern.created": "bg-violet-500",
-  "scoring_pattern.version_published": "bg-violet-500",
-  "job.created": "bg-slate-400",
-  "job.published": "bg-emerald-500",
-};
 
 function initialsOf(name: string) {
   return name
@@ -125,7 +96,6 @@ export default async function DashboardPage() {
               icon={STATUS_ICON[status]}
             />
           ))}
-          <StatTile label="Docs Pending" value={data.stats.documentsPending} tone="warning" icon={IconFileWarning} />
         </div>
       </section>
 
@@ -160,75 +130,51 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Attention required"
-            description="Items that need action, most recent first"
-          />
-          <div className="divide-y divide-slate-100">
-            {data.attentionRequired.pendingReviewApps.length === 0 &&
-            data.attentionRequired.missingDocumentsApps.length === 0 ? (
-              <div className="p-5">
-                <EmptyState title="Nothing needs attention right now" />
-              </div>
-            ) : (
-              <>
-                {data.attentionRequired.pendingReviewApps.map((app) => (
-                  <Link
-                    key={app.id}
-                    href={`/applications/${app.id}`}
-                    className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
-                  >
-                    <Avatar name={app.candidate.fullName} />
-                    <span className="min-w-0 flex-1 text-slate-700">
-                      <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
-                      awaiting review for {app.job.title}
-                    </span>
-                    <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
-                  </Link>
-                ))}
-                {data.attentionRequired.missingDocumentsApps.map((app) => (
-                  <Link
-                    key={app.id}
-                    href={`/applications/${app.id}`}
-                    className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
-                  >
-                    <Avatar name={app.candidate.fullName} />
-                    <span className="min-w-0 flex-1 text-slate-700">
-                      <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
-                      has no documents uploaded
-                    </span>
-                    <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
-                  </Link>
-                ))}
-              </>
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader title="Activity timeline" description="Latest actions across the tenant" />
-          <div className="divide-y divide-slate-100">
-            {data.recentActivity.length === 0 ? (
-              <div className="p-5">
-                <EmptyState title="No activity yet" />
-              </div>
-            ) : (
-              data.recentActivity.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ACTION_DOT[entry.action] ?? "bg-slate-400"}`} />
+      <Card>
+        <CardHeader
+          title="Attention required"
+          description="Items that need action, most recent first"
+        />
+        <div className="divide-y divide-slate-100">
+          {data.attentionRequired.pendingReviewApps.length === 0 &&
+          data.attentionRequired.missingDocumentsApps.length === 0 ? (
+            <div className="p-5">
+              <EmptyState title="Nothing needs attention right now" />
+            </div>
+          ) : (
+            <>
+              {data.attentionRequired.pendingReviewApps.map((app) => (
+                <Link
+                  key={app.id}
+                  href={`/applications/${app.id}`}
+                  className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
+                >
+                  <Avatar name={app.candidate.fullName} />
                   <span className="min-w-0 flex-1 text-slate-700">
-                    <span className="font-medium text-slate-900">{entry.actorName}</span>{" "}
-                    {ACTION_LABELS[entry.action] ?? entry.action}
+                    <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
+                    awaiting review for {app.job.title}
                   </span>
-                  <span className="shrink-0 text-xs text-slate-400">{timeAgo(entry.createdAt)}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      </div>
+                  <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
+                </Link>
+              ))}
+              {data.attentionRequired.missingDocumentsApps.map((app) => (
+                <Link
+                  key={app.id}
+                  href={`/applications/${app.id}`}
+                  className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
+                >
+                  <Avatar name={app.candidate.fullName} />
+                  <span className="min-w-0 flex-1 text-slate-700">
+                    <span className="font-medium text-slate-900">{app.candidate.fullName}</span>{" "}
+                    has no documents uploaded
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">{timeAgo(app.createdAt)}</span>
+                </Link>
+              ))}
+            </>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

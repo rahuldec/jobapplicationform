@@ -51,7 +51,7 @@ export default async function JobsPage({
         <FilterLink href={buildHref({ status: undefined })} active={!params.status}>
           All statuses
         </FilterLink>
-        {JOB_STATUSES.map((s) => (
+        {JOB_STATUSES.filter((s) => s !== "draft").map((s) => (
           <FilterLink key={s} href={buildHref({ status: s })} active={params.status === s}>
             {s[0].toUpperCase() + s.slice(1)}
           </FilterLink>
@@ -85,7 +85,6 @@ export default async function JobsPage({
                 <th className="px-4 py-2.5">Job</th>
                 <th className="px-4 py-2.5">Department</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Positions</th>
                 <th className="px-4 py-2.5">Applications</th>
                 <th className="px-4 py-2.5">Deadline</th>
               </tr>
@@ -103,7 +102,6 @@ export default async function JobsPage({
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} label={job.status[0].toUpperCase() + job.status.slice(1)} />
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{job.numberOfPositions}</td>
                   <td className="px-4 py-3 text-slate-600">{job._count.applications}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {job.applicationDeadline

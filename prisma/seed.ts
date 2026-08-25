@@ -50,7 +50,7 @@ async function main() {
   // ---------------------------------------------------------------------
   const nbgsm = await prisma.tenant.create({
     data: {
-      name: "North Bengal Girls' Sanskrit Mahavidyalaya",
+      name: "Nirankari Baba Gurbachan Singh Memorial College",
       slug: "nbgsm",
       brandingJson: JSON.stringify({ primaryColor: "#7C2D12", shortName: "NBGSM" }),
     },

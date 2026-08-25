@@ -28,11 +28,13 @@ export const APPLICATION_STATUSES = [
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-// "draft" and "submitted" stay valid statuses, but are hidden from the
-// status filter and dashboard tiles: draft only ever reads as a permanent
-// zero for tenants without a save-as-draft flow, and submitted is covered
-// by the Total tile once an application has no further-along status yet.
-export const VISIBLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft" && s !== "submitted");
+// "draft", "submitted", "shortlisted", and "withdrawn" stay valid
+// statuses, but are hidden from the status filter and dashboard tiles:
+// draft only ever reads as a permanent zero for tenants without a
+// save-as-draft flow, submitted is covered by the Total tile, and
+// shortlisted/withdrawn were dropped from these two surfaces on request.
+const HIDDEN_APPLICATION_STATUSES: readonly ApplicationStatus[] = ["draft", "submitted", "shortlisted", "withdrawn"];
+export const VISIBLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => !HIDDEN_APPLICATION_STATUSES.includes(s));
 
 // For the "change this application's status" action (not display/filter):
 // still lets HR move an application back to "submitted" if needed, just
