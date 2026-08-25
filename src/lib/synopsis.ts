@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import { PDFDocument as PDFLibDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument as PDFLibDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
@@ -205,27 +205,21 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
 
   // Merge each real PDF document's actual pages onto the end of the
   // report — pdfkit can't import pages from an existing PDF, so this
-  // second pass uses pdf-lib, which can.
+  // second pass uses pdf-lib, which can. No divider/title page in
+  // between: the Documents section already lists each one, in the same
+  // order they're appended here, as "Attached as pages below".
   const merged = await PDFLibDocument.load(mainBuffer);
-  const titleFont = await merged.embedFont(StandardFonts.HelveticaBold);
-  const orange = rgb(0.918, 0.345, 0.047);
-  const gray = rgb(0.392, 0.455, 0.545);
 
   for (const d of application.documents) {
     const pdfBytes = documentPdfs.get(d.id);
     if (!pdfBytes) continue;
     try {
-      const divider = merged.addPage([595.28, 841.89]);
-      divider.drawText(d.documentType.toUpperCase(), { x: 44, y: 841.89 - 100, size: 16, font: titleFont, color: orange });
-      divider.drawText(`Attached document — ${application.candidate.fullName}`, { x: 44, y: 841.89 - 122, size: 10, font: titleFont, color: gray });
-
       const src = await PDFLibDocument.load(pdfBytes, { ignoreEncryption: true });
       const copiedPages = await merged.copyPages(src, src.getPageIndices());
       copiedPages.forEach((p) => merged.addPage(p));
     } catch {
       // A malformed/unreadable source PDF shouldn't take down the whole
-      // report — the divider page (if it was added) still tells the
-      // reader this document exists and where to find it via the link.
+      // report — just skip it silently.
     }
   }
 
