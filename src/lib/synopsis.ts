@@ -3,12 +3,24 @@ import { PDFDocument as PDFLibDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
+import { NBGSM_LOGO } from "@/lib/nbgsm-logo";
+
+// Natural pixel dimensions of the embedded logo (235 x 300) — used to
+// scale it to a fixed header height while keeping its aspect ratio.
+const LOGO_ASPECT = 235 / 300;
 
 const BRAND_ORANGE = "#ea580c";
 const SLATE_900 = "#0f172a";
 const SLATE_500 = "#64748b";
 const SLATE_200 = "#e2e8f0";
 const CARD_BG = "#f8fafc";
+
+// These dynamic form sections each start on a fresh page rather than
+// wherever they happen to fall — keeps the report's overall shape
+// (candidate summary, then qualifications, then experience, then
+// research) consistent across candidates regardless of how much content
+// precedes them.
+const FORCE_NEW_PAGE_SECTIONS = new Set(["Educational Qualifications", "Teaching Experience", "Research & Co-Curricular"]);
 
 export async function getSynopsisData(applicationId: string) {
   const application = await prisma.application.findUnique({
@@ -108,15 +120,30 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
     // --- Header -----------------------------------------------------
-    doc.fillColor(SLATE_500).fontSize(9).text(application.tenant.name.toUpperCase(), { characterSpacing: 0.5 });
-    doc.fillColor(SLATE_900).fontSize(18).font("Helvetica-Bold").text("Application Synopsis", { paragraphGap: 2 });
+    const leftX = doc.page.margins.left;
+    const headerTop = doc.y;
+    const logoHeight = 48;
+    const logoWidth = logoHeight * LOGO_ASPECT;
+    doc.image(NBGSM_LOGO, leftX, headerTop, { height: logoHeight });
+
+    const textX = leftX + logoWidth + 12;
+    const textWidth = pageWidth - logoWidth - 12;
+    doc
+      .fillColor(SLATE_900)
+      .fontSize(14)
+      .font("Helvetica-Bold")
+      .text(application.tenant.name.toUpperCase(), textX, headerTop, { width: textWidth, characterSpacing: 0.3 });
+    doc.fillColor(SLATE_500).fontSize(9).font("Helvetica").text("Application Synopsis", textX, doc.y + 3, { width: textWidth });
+
+    doc.x = leftX;
+    doc.y = Math.max(headerTop + logoHeight, doc.y) + 10;
     doc
       .fillColor(SLATE_500)
       .fontSize(9)
       .font("Helvetica")
-      .text(`${application.applicationNumber}  ·  Generated ${fmtDate(new Date())}`);
+      .text(`${application.applicationNumber}  ·  Generated ${fmtDate(new Date())}`, leftX, doc.y, { width: pageWidth });
     doc.moveDown(0.6);
-    doc.strokeColor(BRAND_ORANGE).lineWidth(2).moveTo(doc.x, doc.y).lineTo(doc.x + pageWidth, doc.y).stroke();
+    doc.strokeColor(BRAND_ORANGE).lineWidth(2).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
     doc.moveDown(1);
 
     const status = APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] ?? application.status;
@@ -161,6 +188,8 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
           })
           .filter((x): x is { label: string; value: string } => x !== null);
         if (rawValues.length === 0) continue;
+
+        if (FORCE_NEW_PAGE_SECTIONS.has(section.name) && doc.y > doc.page.margins.top) doc.addPage();
 
         // Split each section into short, simple fields (a compact grid)
         // and packed "Label:Value,..." fields (their own card, broken back
