@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, inputClass, Button } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, APPLICATION_STATUSES, VISIBLE_APPLICATION_STATUSES } from "@/lib/enums";
+import { Card, EmptyState, Button } from "@/components/ui/primitives";
+import { APPLICATION_STATUSES } from "@/lib/enums";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
+import { ApplicationsFilters } from "./applications-filters";
 
-const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
@@ -124,57 +125,9 @@ export default async function ApplicationsPage({
       </div>
 
       <Card className="p-4">
-        <form className="flex flex-wrap items-end gap-3" action="/applications">
-          <div className="min-w-[220px] flex-1">
-            <label className="block text-xs font-medium text-slate-600">Search</label>
-            <input
-              name="q"
-              defaultValue={params.q}
-              placeholder="Name, application #, email, mobile"
-              className={`${inputClass} mt-1`}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">Status</label>
-            <select name="status" defaultValue={params.status ?? ""} className={`${inputClass} mt-1`}>
-              <option value="">All</option>
-              {VISIBLE_APPLICATION_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {APPLICATION_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">Job</label>
-            <select name="jobId" defaultValue={params.jobId ?? ""} className={`${inputClass} mt-1`}>
-              <option value="">All jobs</option>
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600">Per page</label>
-            <select name="pageSize" defaultValue={String(pageSize)} className={`${inputClass} mt-1`}>
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button type="submit" variant="secondary">
-            Apply Filters
-          </Button>
-          {(params.q || params.status || params.jobId || params.since || params.pageSize) && (
-            <Link href="/applications" className="text-xs text-slate-500 hover:underline">
-              Clear
-            </Link>
-          )}
-        </form>
+        <Suspense fallback={null}>
+          <ApplicationsFilters jobs={jobs} />
+        </Suspense>
       </Card>
 
       <Card className="overflow-hidden">

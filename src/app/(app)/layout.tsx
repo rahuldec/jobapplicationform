@@ -19,17 +19,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </span>
           <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
         </Link>
-        <nav className="flex items-center gap-8">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-base font-bold text-slate-600 transition-colors hover:text-slate-900"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="rounded-full bg-gradient-to-r from-blue-100 via-amber-100 to-rose-100 px-8 py-2.5">
+          <nav className="flex items-center gap-8">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-base font-bold text-slate-700 transition-colors hover:text-slate-950"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
