@@ -14,7 +14,7 @@
 // job's form more than once; each Sheet row stays its own application.
 import { PrismaClient } from "../../src/generated/prisma/client";
 import * as XLSX from "xlsx";
-import { parseSheetImportConfig, type SheetImportConfig } from "./types";
+import { parseSheetImportConfig, toSheetExportUrl } from "./types";
 
 // The remote connection occasionally hits a transient socket timeout over
 // a long-running script. Retry a few times with backoff rather than losing
@@ -50,7 +50,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   }
   const config = parseSheetImportConfig(tenant.sheetMappingJson);
 
-  const res = await fetch(tenant.sheetSourceUrl);
+  const res = await fetch(toSheetExportUrl(tenant.sheetSourceUrl));
   if (!res.ok) throw new Error(`Failed to fetch Sheet export: HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });

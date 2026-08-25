@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
-import type { SheetImportConfig } from "../../../prisma/sheet-import/types";
+import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
 
 function slugify(raw: string) {
   return raw
@@ -68,7 +68,8 @@ export async function updateTenantSheetConfig(input: {
   sheetSourceUrl: string;
   config: SheetImportConfig;
 }) {
-  const sheetSourceUrl = input.sheetSourceUrl.trim() || null;
+  const trimmedUrl = input.sheetSourceUrl.trim();
+  const sheetSourceUrl = trimmedUrl ? toSheetExportUrl(trimmedUrl) : null;
 
   await prisma.tenant.update({
     where: { id: input.tenantId },

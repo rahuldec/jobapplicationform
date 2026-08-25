@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
 import { updateTenantSheetConfig } from "@/lib/actions/tenants";
-import type { SheetImportConfig, FieldSpec, SectionSpec, DocSpec } from "../../../prisma/sheet-import/types";
+import { toSheetExportUrl, type SheetImportConfig, type FieldSpec, type SectionSpec, type DocSpec } from "../../../prisma/sheet-import/types";
 
 const FIELD_TYPES: FieldSpec["fieldType"][] = ["text", "textarea", "number", "date", "email", "phone"];
 
@@ -104,14 +104,23 @@ export function SheetConfigBuilder({
           description="The published CSV/XLSX export URL for this client's Google Sheet."
         />
         <div className="space-y-4 px-5 py-5">
-          <Field label="Sheet export URL" htmlFor="sheetSourceUrl">
+          <Field
+            label="Sheet export URL"
+            htmlFor="sheetSourceUrl"
+            hint="Paste the normal Share link (…/edit?usp=sharing) — it's converted to the export link automatically."
+          >
             <input
               id="sheetSourceUrl"
               value={sheetSourceUrl}
               onChange={(e) => setSheetSourceUrl(e.target.value)}
               className={inputClass}
-              placeholder="https://docs.google.com/spreadsheets/d/.../export?format=xlsx"
+              placeholder="https://docs.google.com/spreadsheets/d/.../edit?usp=sharing"
             />
+            {sheetSourceUrl && toSheetExportUrl(sheetSourceUrl) !== sheetSourceUrl ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Will be saved as: <code className="text-slate-600">{toSheetExportUrl(sheetSourceUrl)}</code>
+              </p>
+            ) : null}
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Application form name" htmlFor="formName" required>

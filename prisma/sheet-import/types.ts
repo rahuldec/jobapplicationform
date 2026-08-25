@@ -60,6 +60,18 @@ export type SheetImportConfig = {
   documents: DocSpec[];
 };
 
+// Admins naturally paste the normal "Share" link (.../edit?usp=sharing),
+// which serves an HTML viewer page, not the spreadsheet's actual bytes.
+// Rewrite any Google Sheets URL to its XLSX export endpoint so the config
+// works regardless of which link form got saved — one less way to get
+// this wrong per client, and no export-URL construction knowledge needed
+// to fill in the Sheet sync form.
+export function toSheetExportUrl(url: string): string {
+  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match) return url;
+  return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=xlsx`;
+}
+
 export function parseSheetImportConfig(json: string): SheetImportConfig {
   const config = JSON.parse(json) as SheetImportConfig;
   if (!config.sections?.length) throw new Error("SheetImportConfig has no sections");
