@@ -19,7 +19,7 @@ export const maxDuration = 60;
 // extrapolate to ~48s, too close to Vercel's 60s hard limit to trust
 // across slower days or larger files. 100 leaves real margin.
 const MAX_DOCUMENTS = 400;
-const CONCURRENCY = 24;
+const CONCURRENCY = 12;
 
 function startOfToday() {
   const d = new Date();
