@@ -14,13 +14,6 @@ const SLATE_500 = "#64748b";
 const SLATE_200 = "#e2e8f0";
 const CARD_BG = "#f8fafc";
 
-// These dynamic form sections each start on a fresh page rather than
-// wherever they happen to fall — keeps the report's overall shape
-// (candidate summary, then qualifications, then experience, then
-// research) consistent across candidates regardless of how much content
-// precedes them.
-const FORCE_NEW_PAGE_SECTIONS = new Set(["Educational Qualifications", "Teaching Experience"]);
-
 export async function getSynopsisData(applicationId: string) {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -232,7 +225,11 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
           .filter((x): x is { label: string; value: string } => x !== null);
         if (rawValues.length === 0) continue;
 
-        if (FORCE_NEW_PAGE_SECTIONS.has(section.name) && doc.y > doc.page.margins.top) doc.addPage();
+        // Sections flow naturally one after another (sectionHeader/gridRows/
+        // compoundCard each break to a new page only when the content
+        // itself won't fit) — forcing specific sections to always start
+        // fresh reliably left blank gaps whenever the preceding section
+        // was short or only slightly overflowed onto a new page.
 
         // Split each section into short, simple fields (a compact grid)
         // and packed "Label:Value,..." fields (their own card, broken back
