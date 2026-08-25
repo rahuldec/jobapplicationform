@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { updateTenantBranding } from "@/lib/actions/tenants";
 import { getTenantBranding } from "@/lib/branding";
 import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
-import { SheetConfigBuilder } from "@/components/settings/sheet-config-builder";
-import { parseSheetImportConfig } from "../../../../../prisma/sheet-import/types";
+import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
+import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
-export default async function TenantSettingsPage({
+export default async function AdminTenantPage({
   params,
 }: {
   params: Promise<{ tenantId: string }>;
@@ -28,6 +29,9 @@ export default async function TenantSettingsPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      <Link href="/admin" className="text-xs font-medium text-slate-500 hover:text-slate-800">
+        ← All clients
+      </Link>
       <div>
         <h1 className="text-lg font-semibold text-slate-900">{tenant.name}</h1>
         <p className="text-sm text-slate-500">

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createTenant } from "@/lib/actions/tenants";
 import { Card, CardHeader, Field, inputClass, Button, EmptyState } from "@/components/ui/primitives";
 
-export default async function SettingsPage() {
+export default async function AdminPage() {
   const tenants = await prisma.tenant.findMany({ orderBy: { createdAt: "asc" } });
 
   return (
@@ -24,14 +24,14 @@ export default async function SettingsPage() {
             {tenants.map((t) => (
               <li key={t.id} className="flex items-center justify-between px-5 py-3">
                 <div>
-                  <Link href={`/settings/${t.id}`} className="font-medium text-orange-600 hover:underline">
+                  <Link href={`/admin/${t.id}`} className="font-medium text-orange-600 hover:underline">
                     {t.name}
                   </Link>
                   <p className="mt-0.5 text-xs text-slate-500">
                     Entry link: <code className="text-slate-600">/{t.slug}</code>
                   </p>
                 </div>
-                <Link href={`/settings/${t.id}`} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+                <Link href={`/admin/${t.id}`} className="text-xs font-medium text-slate-500 hover:text-slate-800">
                   Configure →
                 </Link>
               </li>

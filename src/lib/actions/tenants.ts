@@ -24,8 +24,8 @@ export async function createTenant(formData: FormData) {
 
   const tenant = await prisma.tenant.create({ data: { name, slug } });
 
-  revalidatePath("/settings");
-  redirect(`/settings/${tenant.id}`);
+  revalidatePath("/admin");
+  redirect(`/admin/${tenant.id}`);
 }
 
 export async function updateTenantBranding(formData: FormData) {
@@ -59,7 +59,7 @@ export async function updateTenantBranding(formData: FormData) {
 
   await prisma.tenant.update({ where: { id: tenantId }, data: { brandingJson: JSON.stringify(branding) } });
 
-  revalidatePath(`/settings/${tenantId}`);
+  revalidatePath(`/admin/${tenantId}`);
   revalidatePath("/", "layout");
 }
 
@@ -78,5 +78,5 @@ export async function updateTenantSheetConfig(input: {
     },
   });
 
-  revalidatePath(`/settings/${input.tenantId}`);
+  revalidatePath(`/admin/${input.tenantId}`);
 }
