@@ -228,13 +228,13 @@ export function SheetConfigBuilder({
                           value={field.fieldKey}
                           onChange={(e) => updateField(si, fi, { fieldKey: e.target.value })}
                           className={`${inputClass} col-span-3`}
-                          placeholder="field_key"
+                          placeholder="Google Sheet column name"
                         />
                         <input
                           value={field.label}
                           onChange={(e) => updateField(si, fi, { label: e.target.value })}
                           className={`${inputClass} col-span-4`}
-                          placeholder="Label shown to admin"
+                          placeholder="Display as"
                         />
                         <select
                           value={field.fieldType}
