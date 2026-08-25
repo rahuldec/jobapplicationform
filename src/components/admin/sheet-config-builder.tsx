@@ -220,7 +220,7 @@ export function SheetConfigBuilder({
                           type="number"
                           value={field.col}
                           onChange={(e) => updateField(si, fi, { col: Number(e.target.value) })}
-                          className={`${inputClass} col-span-1`}
+                          className={`${inputClass} col-span-1 col-index-input`}
                           placeholder="Col"
                           title="Spreadsheet column number (0-indexed)"
                         />
