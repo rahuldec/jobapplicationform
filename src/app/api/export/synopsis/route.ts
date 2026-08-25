@@ -15,7 +15,7 @@ export const maxDuration = 60;
 // can't scale to the full dataset. The Applications page enforces the
 // same limit on the checkboxes themselves; this is the server-side
 // backstop for any request that bypasses that UI.
-const MAX_EMBEDDED_IDS = 60;
+const MAX_EMBEDDED_IDS = 20;
 
 function startOfToday() {
   const d = new Date();
