@@ -11,16 +11,18 @@ const NAV = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex shrink-0 flex-col items-center gap-2 border-b border-slate-200/80 bg-white/80 px-5 py-3 backdrop-blur-md">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <Image src="/brand/nbgsm-logo.png" alt="" width={44} height={56} className="shrink-0" />
-          <span className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline">
-            Nirankari Baba Gurbachan Singh Memorial College
-          </span>
-          <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
-        </Link>
-        <div className="rounded-full bg-gradient-to-r from-blue-100 via-amber-100 to-rose-100 px-8 py-1.5">
-          <nav className="flex items-center gap-8">
+      <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+        <div className="flex items-center justify-center gap-3 px-5 py-3">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <Image src="/brand/nbgsm-logo.png" alt="" width={44} height={56} className="shrink-0" />
+            <span className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline">
+              Nirankari Baba Gurbachan Singh Memorial College
+            </span>
+            <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
+          </Link>
+        </div>
+        <div className="w-full bg-gradient-to-r from-blue-50 via-sky-100 to-blue-50 py-2">
+          <nav className="flex items-center justify-center gap-8">
             {NAV.map((item) => (
               <Link
                 key={item.href}
