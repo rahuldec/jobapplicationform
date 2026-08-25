@@ -73,6 +73,20 @@ export async function updateJobStatus(jobId: string, status: JobStatus) {
   revalidatePath("/jobs");
 }
 
+export async function updateJobDeadlineAction(formData: FormData) {
+  const jobId = String(formData.get("jobId"));
+  const raw = String(formData.get("applicationDeadline") ?? "").trim();
+  const applicationDeadline = raw ? new Date(raw) : null;
+
+  const job = await prisma.job.update({
+    where: { id: jobId },
+    data: { applicationDeadline },
+  });
+
+  revalidatePath(`/jobs/${job.id}`);
+  revalidatePath("/jobs");
+}
+
 export async function publishJobAction(formData: FormData) {
   const jobId = String(formData.get("jobId"));
   await updateJobStatus(jobId, "published");

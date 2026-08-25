@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { publishJobAction } from "@/lib/actions/jobs";
-import { updateApplicationDueDateAction } from "@/lib/actions/applications";
+import { publishJobAction, updateJobDeadlineAction } from "@/lib/actions/jobs";
 import { Card, CardHeader, StatusBadge, Button, EmptyState, inputClass } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 
@@ -55,7 +54,7 @@ export default async function JobDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Application form</p>
           <p className="mt-1 text-sm text-slate-800">{job.form?.name ?? "Not configured"}</p>
@@ -83,6 +82,21 @@ export default async function JobDetailPage({
             <p className="mt-1 text-sm text-slate-400">Publish the job with a form attached to activate</p>
           )}
         </Card>
+        <Card className="p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Deadline</p>
+          <form action={updateJobDeadlineAction} className="mt-1 flex items-center gap-1.5">
+            <input type="hidden" name="jobId" value={job.id} />
+            <input
+              type="date"
+              name="applicationDeadline"
+              defaultValue={job.applicationDeadline ? job.applicationDeadline.toISOString().slice(0, 10) : ""}
+              className={`${inputClass} py-1 text-sm`}
+            />
+            <button type="submit" className="text-xs font-medium text-orange-600 hover:underline">
+              Save
+            </button>
+          </form>
+        </Card>
       </div>
 
       {job.description ? (
@@ -106,7 +120,6 @@ export default async function JobDetailPage({
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5">Score</th>
                 <th className="px-4 py-2.5">Applied</th>
-                <th className="px-4 py-2.5">Due Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -131,20 +144,6 @@ export default async function JobDetailPage({
                       {app.submittedAt
                         ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
                         : "Draft"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <form action={updateApplicationDueDateAction} className="flex items-center gap-1.5">
-                        <input type="hidden" name="applicationId" value={app.id} />
-                        <input
-                          type="date"
-                          name="dueDate"
-                          defaultValue={app.dueDate ? app.dueDate.toISOString().slice(0, 10) : ""}
-                          className={`${inputClass} py-1 text-xs`}
-                        />
-                        <button type="submit" className="text-xs font-medium text-orange-600 hover:underline">
-                          Save
-                        </button>
-                      </form>
                     </td>
                   </tr>
                 );

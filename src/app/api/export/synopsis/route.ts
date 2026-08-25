@@ -8,18 +8,27 @@ import { APPLICATION_STATUSES } from "@/lib/enums";
 
 export const maxDuration = 60;
 
+// A specific `ids` selection (the Applications page's multi-select
+// checkboxes) embeds real document images/PDFs into each report, same as
+// the single-application download — each one now fetches every document
+// from Google Drive, so unlike the plain filtered export below, this
+// can't scale to the full dataset. Measured well within budget up to
+// this count; beyond it, ask the user to narrow their selection instead
+// of risking a timeout partway through the ZIP.
+const MAX_EMBEDDED_IDS = 30;
+
 function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-// Bulk-generates one synopsis PDF per application matching the current
-// Applications page filters (same logic as the Excel export) and streams
-// them back as a single ZIP. PDF rendering is CPU-only (all data is
-// already in Postgres, no external fetches), so this comfortably handles
-// the full dataset within the function time limit — unlike a bulk
-// document download, which has to fetch each file from Google Drive.
+// Bulk-generates one synopsis PDF per application — either a specific
+// `ids` selection (embeds real documents, capped — see above) or
+// everything matching the current Applications page filters (same logic
+// as the Excel export; link-only, no document fetches, so it comfortably
+// handles the full dataset within the function time limit) — and streams
+// them back as a single ZIP.
 export async function GET(request: NextRequest) {
   const tenant = await getCurrentTenant();
   const params = request.nextUrl.searchParams;
@@ -31,6 +40,15 @@ export async function GET(request: NextRequest) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  if (ids.length > MAX_EMBEDDED_IDS) {
+    return NextResponse.json(
+      {
+        error: `${ids.length} applications selected, which is too many for one download (limit ${MAX_EMBEDDED_IDS}) — each one's documents are fetched individually. Select fewer and try again.`,
+      },
+      { status: 400 },
+    );
+  }
 
   const q = params.get("q") ?? "";
   const jobId = params.get("jobId") ?? "";
@@ -89,10 +107,12 @@ export async function GET(request: NextRequest) {
   archive.on("error", (err) => passthrough.destroy(err));
   archive.pipe(passthrough);
 
+  const embedImages = ids.length > 0;
+
   (async () => {
     const usedNames = new Set<string>();
     for (const app of applications) {
-      const pdf = await renderSynopsisPdf(app);
+      const pdf = await renderSynopsisPdf(app, { embedImages });
       let name = `${app.applicationNumber} - ${app.candidate.fullName}.pdf`.replace(/[/\\?%*:|"<>]/g, "-");
       while (usedNames.has(name)) name = `${name.replace(/\.pdf$/, "")}-dup.pdf`;
       usedNames.add(name);

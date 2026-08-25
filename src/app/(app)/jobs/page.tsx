@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, StatusBadge, Button } from "@/components/ui/primitives";
+import { Card, EmptyState, StatusBadge } from "@/components/ui/primitives";
 import { JOB_STATUSES } from "@/lib/enums";
 
 export default async function JobsPage({
@@ -42,9 +42,6 @@ export default async function JobsPage({
           <h1 className="text-lg font-semibold text-slate-900">Jobs</h1>
           <p className="text-sm text-slate-500">{tenant.name}</p>
         </div>
-        <Link href="/jobs/new">
-          <Button>+ New Job</Button>
-        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -69,15 +66,7 @@ export default async function JobsPage({
 
       <Card className="overflow-hidden">
         {jobs.length === 0 ? (
-          <EmptyState
-            title="No jobs found"
-            description="Create a job posting to start receiving applications."
-            action={
-              <Link href="/jobs/new">
-                <Button variant="secondary">+ New Job</Button>
-              </Link>
-            }
-          />
+          <EmptyState title="No jobs found" description="Create a job posting to start receiving applications." />
         ) : (
           <table className="w-full text-sm">
             <thead>

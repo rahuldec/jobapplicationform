@@ -74,20 +74,6 @@ export async function overrideScoreAction(formData: FormData) {
   revalidatePath("/applications");
 }
 
-export async function updateApplicationDueDateAction(formData: FormData) {
-  const applicationId = String(formData.get("applicationId"));
-  const raw = String(formData.get("dueDate") ?? "").trim();
-  const dueDate = raw ? new Date(raw) : null;
-
-  const application = await prisma.application.update({
-    where: { id: applicationId },
-    data: { dueDate },
-  });
-
-  revalidatePath(`/jobs/${application.jobId}`);
-  revalidatePath(`/applications/${applicationId}`);
-}
-
 export async function verifyDocumentAction(formData: FormData) {
   const documentId = String(formData.get("documentId"));
   const doc = await prisma.document.update({
