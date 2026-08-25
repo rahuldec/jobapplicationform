@@ -17,17 +17,14 @@ export default async function JobDetailPage({
     include: {
       department: true,
       form: true,
-      scoringPattern: { include: { versions: { where: { status: "published" } } } },
       applications: {
-        include: { candidate: true, scores: true },
+        include: { candidate: true },
         orderBy: { createdAt: "desc" },
       },
     },
   });
 
   if (!job) notFound();
-
-  const publishedVersion = job.scoringPattern?.versions[0];
 
   return (
     <div className="space-y-6">
@@ -42,25 +39,10 @@ export default async function JobDetailPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Application form</p>
           <p className="mt-1 text-sm text-slate-800">{job.form?.name ?? "Not configured"}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Scoring pattern</p>
-          <p className="mt-1 text-sm text-slate-800">
-            {job.scoringPattern ? (
-              <Link href={`/scoring/${job.scoringPattern.id}`} className="text-orange-600 hover:underline">
-                {job.scoringPattern.name}
-              </Link>
-            ) : (
-              "Not configured"
-            )}
-          </p>
-          {job.scoringPattern && !publishedVersion ? (
-            <p className="mt-1 text-xs text-amber-600">No published version yet — scores can&apos;t be calculated.</p>
-          ) : null}
         </Card>
         <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Candidate application link</p>
@@ -106,36 +88,28 @@ export default async function JobDetailPage({
                 <th className="px-4 py-2.5">Application #</th>
                 <th className="px-4 py-2.5">Candidate</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Score</th>
                 <th className="px-4 py-2.5">Applied</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {job.applications.map((app) => {
-                const score = app.scores[0];
-                const finalScore = score?.overrideScore ?? score?.calculatedScore;
-                return (
-                  <tr key={app.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/applications/${app.id}`} className="font-medium text-orange-600 hover:underline">
-                        {app.applicationNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{app.candidate.fullName}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
-                      {finalScore !== undefined ? `${finalScore} / ${score?.calculatedMaxScore ?? "?"}` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {app.submittedAt
-                        ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
-                        : "Draft"}
-                    </td>
-                  </tr>
-                );
-              })}
+              {job.applications.map((app) => (
+                <tr key={app.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <Link href={`/applications/${app.id}`} className="font-medium text-orange-600 hover:underline">
+                      {app.applicationNumber}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{app.candidate.fullName}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {app.submittedAt
+                      ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
+                      : "Draft"}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

@@ -3,17 +3,15 @@
 // Design principles (do not violate these when extending the schema):
 // 1. Every tenant-scoped row carries `tenantId` and every query must filter by it.
 //    There is no cross-tenant relation anywhere in this file.
-// 2. Nothing that represents an admin *decision* (scoring rules, form fields,
-//    export columns, workflow stages) is a hard-coded enum tied to a domain
-//    concept like "qualification" or "experience". Those are rows the admin
-//    creates, not columns the schema defines.
-// 3. Status/type/role/method "enums" are plain strings validated in the
+// 2. Nothing that represents an admin *decision* (form fields, export
+//    columns, workflow stages) is a hard-coded enum tied to a domain concept
+//    like "qualification" or "experience". Those are rows the admin creates,
+//    not columns the schema defines.
+// 3. Status/type/role "enums" are plain strings validated in the
 //    application layer (see src/lib/enums.ts), not Prisma enums — this keeps
 //    the schema portable between SQLite (dev) and PostgreSQL (prod) without
 //    behavioral differences, and keeps new admin-defined values from
 //    requiring a migration.
-// 4. Historical calculations must remain reproducible: scoring is versioned
-//    and a calculated score always points at the exact version used.
 
 generator client {
   provider = "prisma-client"
@@ -52,7 +50,6 @@ model Tenant {
   applications     Application[]
   documents        Document[]
   applicationForms ApplicationForm[]
-  scoringPatterns  ScoringPattern[]
   auditLogs        AuditLog[]
 
   @@map("tenants")
@@ -91,7 +88,6 @@ model User {
 
   assignedApplications Application[]  @relation("AssignedRecruiter")
   auditLogs            AuditLog[]
-  scoreOverrides        ApplicationScore[] @relation("OverriddenBy")
 
   @@index([tenantId])
   @@map("users")
@@ -134,10 +130,9 @@ model FormSection {
 }
 
 // A single field the admin has added to the form builder.
-// `fieldKey` is the stable machine name referenced by scoring formulas,
-// conditional rules, export mappings and synopsis templates — it must be
-// unique within a form and must never be silently reused for a different
-// meaning once criteria/exports reference it.
+// `fieldKey` is the stable machine name referenced by export mappings and
+// synopsis templates — it must be unique within a form and must never be
+// silently reused for a different meaning once exports reference it.
 model FormField {
   id        String @id @default(cuid())
   sectionId String
@@ -154,7 +149,6 @@ model FormField {
   order        Int
 
   values ApplicationFieldValue[]
-  criteria ScoringCriterion[]
 
   @@unique([sectionId, fieldKey])
   @@index([sectionId])
@@ -183,9 +177,6 @@ model Job {
 
   formId String?
   form   ApplicationForm? @relation(fields: [formId], references: [id])
-
-  scoringPatternId String?
-  scoringPattern   ScoringPattern? @relation(fields: [scoringPatternId], references: [id])
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -246,7 +237,6 @@ model Application {
 
   fieldValues ApplicationFieldValue[]
   documents   Document[]
-  scores      ApplicationScore[]
 
   @@unique([tenantId, applicationNumber])
   @@index([tenantId, jobId])
@@ -257,7 +247,7 @@ model Application {
 
 // EAV-style storage for dynamic form answers. `valueJson` carries structured
 // values (multiselect arrays, repeated entries); `valueText`/`valueNumber`
-// are populated alongside for fast filtering/sorting/scoring lookups.
+// are populated alongside for fast filtering/sorting lookups.
 model ApplicationFieldValue {
   id            String @id @default(cuid())
   applicationId String
@@ -306,112 +296,6 @@ model Document {
 }
 
 // ---------------------------------------------------------------------------
-// Admin-defined dynamic scoring engine
-// ---------------------------------------------------------------------------
-
-// A named scoring pattern (e.g. "Assistant Professor — UGC Pattern 2026").
-// The pattern itself holds no rules — rules live on versions, so a pattern
-// can evolve without invalidating historical scores.
-model ScoringPattern {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  name        String
-  description String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  versions ScoringPatternVersion[]
-  jobs     Job[]
-
-  @@index([tenantId])
-  @@map("scoring_patterns")
-}
-
-// A specific, immutable-once-published set of criteria for a pattern.
-// Editing a published pattern creates a new version rather than mutating
-// this row — see src/lib/scoring/versioning.ts.
-model ScoringPatternVersion {
-  id        String @id @default(cuid())
-  patternId String
-  pattern   ScoringPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
-
-  versionNumber Int
-  maxScore      Float? // admin-defined; never assumed to be 100
-  status        String @default("draft") // draft | published | archived
-  publishedAt   DateTime?
-
-  createdAt DateTime @default(now())
-
-  criteria ScoringCriterion[]
-  scores   ApplicationScore[]
-
-  @@unique([patternId, versionNumber])
-  @@index([patternId])
-  @@map("scoring_pattern_versions")
-}
-
-// A single admin-authored scoring criterion. `method` selects which
-// generic scoring building block is used; `configJson` holds the
-// method-specific configuration the admin filled in via the builder UI.
-// See src/lib/scoring/engine.ts for how each method is evaluated.
-model ScoringCriterion {
-  id        String @id @default(cuid())
-  versionId String
-  version   ScoringPatternVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-
-  name        String
-  description String?
-  maxPoints   Float
-  order       Int
-
-  method String // fixed | numeric_range | percentage | yes_no | dropdown | multiselect | count | formula | conditional | weightage
-
-  // The application field this criterion reads, when the method reads a
-  // single field directly (fixed/range/percentage/yes_no/dropdown/multiselect/count).
-  // Null for formula/conditional/weightage, which reference fields inside configJson instead.
-  sourceFieldId String?
-  sourceField   FormField? @relation(fields: [sourceFieldId], references: [id])
-
-  configJson String // method-specific rules, entirely admin-authored
-
-  createdAt DateTime @default(now())
-
-  @@index([versionId])
-  @@map("scoring_criteria")
-}
-
-// A calculated score for one application against one specific pattern
-// version. `calculatedScore`/`calculatedBreakdownJson` are the engine's
-// original output and are never overwritten. A manual override adds
-// `overrideScore`/`overrideReason` alongside it — see Rule 6 (section 36).
-model ApplicationScore {
-  id            String @id @default(cuid())
-  applicationId String
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  versionId String
-  version   ScoringPatternVersion @relation(fields: [versionId], references: [id])
-
-  calculatedScore         Float
-  calculatedMaxScore      Float?
-  calculatedBreakdownJson String // [{ criterionId, name, method, points, maxPoints, detail }]
-  calculatedAt            DateTime @default(now())
-
-  overrideScore  Float?
-  overrideReason String?
-  overriddenById String?
-  overriddenBy   User?    @relation("OverriddenBy", fields: [overriddenById], references: [id])
-  overriddenAt   DateTime?
-
-  @@unique([applicationId, versionId])
-  @@index([applicationId])
-  @@map("application_scores")
-}
-
-// ---------------------------------------------------------------------------
 // Audit trail (also serves as the per-application activity timeline)
 // ---------------------------------------------------------------------------
 
@@ -424,8 +308,8 @@ model AuditLog {
   actor     User?   @relation(fields: [actorId], references: [id])
   actorName String // denormalized so logs remain readable if the user is later removed
 
-  action       String // e.g. application.submitted, document.uploaded, score.calculated, score.overridden, status.changed
-  entityType   String // e.g. Application, Job, ScoringPattern, Document
+  action       String // e.g. application.submitted, document.uploaded, status.changed
+  entityType   String // e.g. Application, Job, Document
   entityId     String
   metadataJson String?
 

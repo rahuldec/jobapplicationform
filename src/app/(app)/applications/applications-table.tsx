@@ -15,7 +15,6 @@ export type ApplicationRow = {
   candidateEmail: string;
   jobTitle: string;
   status: string;
-  scoreLabel: string;
   appliedLabel: string;
 };
 
@@ -69,7 +68,6 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
             <th className="px-4 py-2.5">Candidate</th>
             <th className="px-4 py-2.5">Job</th>
             <th className="px-4 py-2.5">Status</th>
-            <th className="px-4 py-2.5">Score</th>
             <th className="px-4 py-2.5">Applied</th>
             <th className="px-4 py-2.5"></th>
           </tr>
@@ -103,7 +101,6 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                 <td className="px-4 py-3">
                   <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
                 </td>
-                <td className="px-4 py-3 tabular-nums text-slate-700">{app.scoreLabel}</td>
                 <td className="px-4 py-3 text-slate-500">{app.appliedLabel}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   <a href={`/api/applications/${app.id}/synopsis`} className="text-xs font-medium text-orange-600 hover:underline">

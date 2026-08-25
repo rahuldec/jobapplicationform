@@ -1,7 +1,6 @@
 import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
-import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
 
 // Fallback when a logo's format can't be read (getImageDimensions
@@ -26,12 +25,10 @@ export async function getSynopsisData(applicationId: string) {
         include: {
           department: true,
           form: { include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } } },
-          scoringPattern: { include: { versions: { where: { status: "published" } } } },
         },
       },
       fieldValues: { include: { field: true } },
       documents: { orderBy: { uploadedAt: "asc" } },
-      scores: { orderBy: { calculatedAt: "desc" }, take: 1 },
     },
   });
   return application;
@@ -189,8 +186,6 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     doc.moveDown(1);
 
     const status = APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] ?? application.status;
-    const score = application.scores[0];
-    const finalScore = score?.overrideScore ?? score?.calculatedScore;
 
     sectionHeader(doc, "Candidate Details");
     gridRows(doc, pageWidth, [
@@ -207,18 +202,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       ["Job", application.job.title],
       ["Department", application.job.department?.name ?? "—"],
       ["Applied On", fmtDate(application.submittedAt)],
-      ["Score", finalScore !== undefined ? `${finalScore} / ${score?.calculatedMaxScore ?? "?"}` : "Not calculated"],
     ]);
-
-    if (score) {
-      const breakdown: ScoreBreakdownEntry[] = JSON.parse(score.calculatedBreakdownJson);
-      if (breakdown.length) {
-        sectionHeader(doc, "Score Breakdown");
-        for (const b of breakdown) {
-          rowLine(doc, pageWidth, `${b.name}${b.detail ? ` — ${b.detail}` : ""}`, `${b.points} / ${b.maxPoints}`);
-        }
-      }
-    }
 
     if (application.job.form) {
       for (const section of application.job.form.sections) {
@@ -369,17 +353,3 @@ function writeField(doc: PDFKit.PDFDocument, label: string, value: string, x: nu
   doc.fillColor(SLATE_900).fontSize(9.5).font("Helvetica").text(value, x, y + labelHeight + 2, { width });
 }
 
-function rowLine(doc: PDFKit.PDFDocument, pageWidth: number, left: string, right: string, verified?: boolean) {
-  if (doc.y > doc.page.height - doc.page.margins.bottom - 24) doc.addPage();
-  const leftX = doc.page.margins.left;
-  const y = doc.y;
-  doc.fillColor(SLATE_900).fontSize(9).font("Helvetica").text(left, leftX, y, { width: pageWidth * 0.55 });
-  doc
-    .fillColor(verified ? "#059669" : SLATE_500)
-    .fontSize(8)
-    .text(right, leftX + pageWidth * 0.55, y, { width: pageWidth * 0.45, align: "right" });
-  doc.x = leftX;
-  doc.moveDown(0.5);
-  doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
-  doc.moveDown(0.4);
-}

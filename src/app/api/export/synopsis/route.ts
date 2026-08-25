@@ -95,12 +95,10 @@ export async function GET(request: NextRequest) {
         include: {
           department: true,
           form: { include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } } },
-          scoringPattern: { include: { versions: { where: { status: "published" } } } },
         },
       },
       fieldValues: { include: { field: true } },
       documents: { orderBy: { uploadedAt: "asc" } },
-      scores: { orderBy: { calculatedAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "desc" },
   });

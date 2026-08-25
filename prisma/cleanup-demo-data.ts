@@ -20,7 +20,6 @@ const DEMO_APPLICATION_NUMBERS = [
 ];
 const DEMO_JOB_TITLES = ["Assistant Professor — Commerce", "Assistant Professor — Hindi", "Assistant Professor — English"];
 const DEMO_FORM_NAME = "Assistant Professor Application — Standard";
-const DEMO_PATTERN_NAME_CONTAINS = "UGC-style Academic Performance Indicator";
 
 async function main() {
   // 1. Greenview demo tenant — cascades everything under it.
@@ -30,7 +29,7 @@ async function main() {
     console.log(`Deleted tenant "${greenview.name}" and everything under it.`);
   }
 
-  // 2. Demo applications under NBGSM (cascades field values, documents, scores).
+  // 2. Demo applications under NBGSM (cascades field values, documents).
   const demoApps = await prisma.application.findMany({
     where: { applicationNumber: { in: DEMO_APPLICATION_NUMBERS } },
     select: { id: true, candidateId: true, applicationNumber: true },
@@ -61,30 +60,15 @@ async function main() {
     console.log(`Deleted ${demoJobs.length} demo jobs: ${demoJobs.map((j) => j.title).join(", ")}`);
   }
 
-  // 5. Demo scoring pattern (cascades versions + criteria). Must come after
-  // the demo jobs (which referenced it) are gone. Audit logs reference
-  // entities by a bare id string (no FK), so they don't cascade — clean
-  // those up explicitly first.
-  const demoPattern = await prisma.scoringPattern.findFirst({
-    where: { name: { contains: DEMO_PATTERN_NAME_CONTAINS } },
-    include: { versions: true },
-  });
-  if (demoPattern) {
-    const entityIds = [demoPattern.id, ...demoPattern.versions.map((v) => v.id)];
-    const { count } = await prisma.auditLog.deleteMany({ where: { entityId: { in: entityIds } } });
-    await prisma.scoringPattern.delete({ where: { id: demoPattern.id } });
-    console.log(`Deleted demo scoring pattern "${demoPattern.name}" and ${count} related audit log entr${count === 1 ? "y" : "ies"}.`);
-  }
-
-  // 6. Demo application form (cascades sections + fields). Must come after
-  // the demo jobs (formId) and pattern criteria (sourceFieldId) are gone.
+  // 5. Demo application form (cascades sections + fields). Must come after
+  // the demo jobs (formId) are gone.
   const demoForm = await prisma.applicationForm.findFirst({ where: { name: DEMO_FORM_NAME } });
   if (demoForm) {
     await prisma.applicationForm.delete({ where: { id: demoForm.id } });
     console.log(`Deleted demo application form "${demoForm.name}".`);
   }
 
-  // 7. Demo staff users seeded alongside the demo tenant data. Audit logs
+  // 6. Demo staff users seeded alongside the demo tenant data. Audit logs
   // set actorId as a real FK here, so those rows must go first.
   const demoUsers = await prisma.user.findMany({
     where: { email: { in: ["admin@nbgsm.ac.in", "recruiter@nbgsm.ac.in"] } },
@@ -96,7 +80,7 @@ async function main() {
     console.log(`Deleted ${demoUsers.length} demo user(s): ${demoUsers.map((u) => u.name).join(", ")}.`);
   }
 
-  // 8. Reset every remaining (genuine) application to "submitted".
+  // 7. Reset every remaining (genuine) application to "submitted".
   const result = await prisma.application.updateMany({
     where: { status: { not: "submitted" } },
     data: { status: "submitted" },

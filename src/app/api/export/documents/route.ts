@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
   }
 
   // A second, fuller-shaped query only when bundling synopses in — the
-  // plain document ZIP doesn't need job/form/score data, so it's not
-  // worth joining for every request.
+  // plain document ZIP doesn't need job/form data, so it's not worth
+  // joining for every request.
   const synopsisApplications = includeSynopsis
     ? await prisma.application.findMany({
         where,
@@ -113,12 +113,10 @@ export async function GET(request: NextRequest) {
             include: {
               department: true,
               form: { include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } } },
-              scoringPattern: { include: { versions: { where: { status: "published" } } } },
             },
           },
           fieldValues: { include: { field: true } },
           documents: { orderBy: { uploadedAt: "asc" } },
-          scores: { orderBy: { calculatedAt: "desc" }, take: 1 },
         },
       })
     : [];

@@ -6,10 +6,9 @@ import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/pri
 export default async function NewJobPage() {
   const tenant = await getCurrentTenant();
 
-  const [departments, forms, patterns] = await Promise.all([
+  const [departments, forms] = await Promise.all([
     prisma.department.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
     prisma.applicationForm.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
-    prisma.scoringPattern.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -72,25 +71,6 @@ export default async function NewJobPage() {
               {forms.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field
-            label="Scoring pattern"
-            htmlFor="scoringPatternId"
-            hint={
-              patterns.length === 0
-                ? "No scoring patterns configured yet — you can attach one later."
-                : "The scoring engine will use whichever version of this pattern is published."
-            }
-          >
-            <select id="scoringPatternId" name="scoringPatternId" className={inputClass}>
-              <option value="">— None —</option>
-              {patterns.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
                 </option>
               ))}
             </select>

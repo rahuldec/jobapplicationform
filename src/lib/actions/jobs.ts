@@ -14,7 +14,6 @@ export async function createJob(formData: FormData) {
 
   const departmentId = String(formData.get("departmentId") ?? "") || null;
   const formId = String(formData.get("formId") ?? "") || null;
-  const scoringPatternId = String(formData.get("scoringPatternId") ?? "") || null;
   const employmentType = String(formData.get("employmentType") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
   const numberOfPositions = Number(formData.get("numberOfPositions") ?? 1) || 1;
@@ -30,7 +29,6 @@ export async function createJob(formData: FormData) {
       numberOfPositions,
       departmentId,
       formId,
-      scoringPatternId,
       status: "draft",
     },
   });

@@ -3,16 +3,13 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
   changeApplicationStatus,
-  calculateScoreAction,
-  overrideScoreAction,
   verifyDocumentAction,
   unverifyDocumentAction,
 } from "@/lib/actions/applications";
 import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
-import { IconCalendar, IconStar, IconCheckCircle } from "@/components/ui/icons";
+import { IconCalendar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
-import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 
 const ACTION_LABELS: Record<string, string> = {
   "application.submitted": "submitted the application",
@@ -21,15 +18,12 @@ const ACTION_LABELS: Record<string, string> = {
   "document.uploaded": "uploaded a document",
   "document.verified": "verified a document",
   "document.unverified": "un-verified a document",
-  "score.calculated": "calculated a score",
-  "score.overridden": "overrode a score",
 };
 
 const TABS = [
   { key: "profile", label: "Profile" },
   { key: "application", label: "Application" },
   { key: "documents", label: "Documents" },
-  { key: "scoring", label: "Scoring" },
   { key: "activity", label: "Activity" },
 ] as const;
 
@@ -52,19 +46,14 @@ export default async function ApplicationDetailPage({
         include: {
           department: true,
           form: { include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } } },
-          scoringPattern: { include: { versions: { where: { status: "published" } } } },
         },
       },
       fieldValues: { include: { field: true } },
       documents: { orderBy: { uploadedAt: "desc" } },
-      scores: { include: { version: true }, orderBy: { calculatedAt: "desc" } },
     },
   });
 
   if (!application) notFound();
-
-  const publishedVersion = application.job.scoringPattern?.versions[0];
-  const currentScore = application.scores.find((s) => s.versionId === publishedVersion?.id) ?? application.scores[0];
 
   const activity = await prisma.auditLog.findMany({
     where: { entityType: "Application", entityId: application.id },
@@ -82,7 +71,6 @@ export default async function ApplicationDetailPage({
     .map((w) => w[0]?.toUpperCase())
     .join("");
 
-  const finalScore = currentScore?.overrideScore ?? currentScore?.calculatedScore;
   const verifiedDocs = application.documents.filter((d) => d.verified).length;
 
   return (
@@ -142,12 +130,6 @@ export default async function ApplicationDetailPage({
               ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(application.submittedAt)
               : "Draft"
           }
-        />
-        <StatTile
-          label="Score"
-          icon={IconStar}
-          tone={finalScore !== undefined ? "brand" : "default"}
-          value={finalScore !== undefined ? `${finalScore} / ${currentScore?.calculatedMaxScore ?? "?"}` : "Not calculated"}
         />
         <StatTile
           label="Documents"
@@ -288,14 +270,6 @@ export default async function ApplicationDetailPage({
         </Card>
       )}
 
-      {tab === "scoring" && (
-        <ScoringTab
-          application={application}
-          publishedVersion={publishedVersion}
-          currentScore={currentScore}
-        />
-      )}
-
       {tab === "activity" && (
         <Card>
           <CardHeader title="Activity timeline" />
@@ -370,123 +344,6 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
       <dd className={`mt-0.5 text-sm ${isEmpty ? "italic text-slate-400" : "text-slate-800"}`}>
         {isEmpty ? "Not provided" : value}
       </dd>
-    </div>
-  );
-}
-
-function ScoringTab({
-  application,
-  publishedVersion,
-  currentScore,
-}: {
-  application: { id: string };
-  publishedVersion?: { id: string; versionNumber: number; maxScore: number | null };
-  currentScore?: {
-    id: string;
-    calculatedScore: number;
-    calculatedMaxScore: number | null;
-    calculatedBreakdownJson: string;
-    overrideScore: number | null;
-    overrideReason: string | null;
-  };
-}) {
-  if (!publishedVersion) {
-    return (
-      <Card>
-        <div className="p-5">
-          <EmptyState
-            title="No published scoring pattern for this job"
-            description="Attach and publish a scoring pattern on the job to enable scoring."
-          />
-        </div>
-      </Card>
-    );
-  }
-
-  const breakdown: ScoreBreakdownEntry[] = currentScore ? JSON.parse(currentScore.calculatedBreakdownJson) : [];
-  const finalScore = currentScore?.overrideScore ?? currentScore?.calculatedScore;
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader
-          title="Score"
-          description={`Pattern version ${publishedVersion.versionNumber}`}
-          action={
-            <form action={calculateScoreAction} className="flex items-center gap-2">
-              <input type="hidden" name="applicationId" value={application.id} />
-              <input type="hidden" name="versionId" value={publishedVersion.id} />
-              <Button type="submit" size="sm">
-                {currentScore ? "Recalculate" : "Calculate Score"}
-              </Button>
-            </form>
-          }
-        />
-        <div className="px-5 py-5">
-          {currentScore ? (
-            <>
-              <p className="text-3xl font-semibold tabular-nums text-slate-900">
-                {finalScore} <span className="text-base font-normal text-slate-400">/ {currentScore.calculatedMaxScore ?? "?"}</span>
-              </p>
-              {currentScore.overrideScore !== null && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Manually overridden from {currentScore.calculatedScore} — reason: {currentScore.overrideReason}
-                </p>
-              )}
-              <table className="mt-5 w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="py-2">Criterion</th>
-                    <th className="py-2">Detail</th>
-                    <th className="py-2 text-right">Points</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {breakdown.map((b) => (
-                    <tr key={b.criterionId}>
-                      <td className="py-2.5 font-medium text-slate-800">{b.name}</td>
-                      <td className="py-2.5 text-slate-500">{b.detail}</td>
-                      <td className="py-2.5 text-right tabular-nums text-slate-800">
-                        {b.points} / {b.maxPoints}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          ) : (
-            <EmptyState title="Not calculated yet" description="Click Calculate Score to run the scoring engine." />
-          )}
-        </div>
-      </Card>
-
-      {currentScore && (
-        <Card>
-          <CardHeader title="Manual override" description="The original calculated score is always preserved." />
-          <form action={overrideScoreAction} className="grid grid-cols-1 gap-3 px-5 py-5 sm:grid-cols-[160px_1fr_auto]">
-            <input type="hidden" name="scoreId" value={currentScore.id} />
-            <input
-              name="overrideScore"
-              type="number"
-              step="0.01"
-              placeholder="New score"
-              defaultValue={currentScore.overrideScore ?? undefined}
-              className={inputClass}
-              required
-            />
-            <input
-              name="overrideReason"
-              placeholder="Reason for override"
-              defaultValue={currentScore.overrideReason ?? undefined}
-              className={inputClass}
-              required
-            />
-            <Button type="submit" variant="secondary">
-              Save Override
-            </Button>
-          </form>
-        </Card>
-      )}
     </div>
   );
 }

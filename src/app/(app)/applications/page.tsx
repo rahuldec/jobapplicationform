@@ -58,7 +58,7 @@ export default async function ApplicationsPage({
   const [applications, total, jobs, documentTypeRows] = await Promise.all([
     prisma.application.findMany({
       where,
-      include: { candidate: true, job: true, scores: true },
+      include: { candidate: true, job: true },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -87,21 +87,16 @@ export default async function ApplicationsPage({
   };
   const exportHref = buildHref({ page: undefined, documentType: undefined }, "/api/export/applications");
 
-  const rows: ApplicationRow[] = applications.map((app, i) => {
-    const score = app.scores[0];
-    const finalScore = score?.overrideScore ?? score?.calculatedScore;
-    return {
-      id: app.id,
-      serial: (page - 1) * pageSize + i + 1,
-      applicationNumber: app.applicationNumber,
-      candidateName: app.candidate.fullName,
-      candidateEmail: app.candidate.email,
-      jobTitle: app.job.title,
-      status: app.status,
-      scoreLabel: finalScore !== undefined ? `${finalScore} / ${score?.calculatedMaxScore ?? "?"}` : "—",
-      appliedLabel: app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "Draft",
-    };
-  });
+  const rows: ApplicationRow[] = applications.map((app, i) => ({
+    id: app.id,
+    serial: (page - 1) * pageSize + i + 1,
+    applicationNumber: app.applicationNumber,
+    candidateName: app.candidate.fullName,
+    candidateEmail: app.candidate.email,
+    jobTitle: app.job.title,
+    status: app.status,
+    appliedLabel: app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "Draft",
+  }));
 
   return (
     <div className="space-y-5">

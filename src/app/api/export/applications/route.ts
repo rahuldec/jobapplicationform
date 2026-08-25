@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
     include: {
       candidate: true,
       job: { include: { department: true } },
-      scores: { orderBy: { calculatedAt: "desc" }, take: 1 },
       fieldValues: { include: { field: true } },
       documents: true,
     },
@@ -80,8 +79,6 @@ export async function GET(request: NextRequest) {
   }
 
   const rows = applications.map((app) => {
-    const score = app.scores[0];
-    const finalScore = score?.overrideScore ?? score?.calculatedScore;
     const fieldByFieldId = new Map(app.fieldValues.map((fv) => [fv.fieldId, fv]));
     const docByType = new Map(app.documents.map((d) => [d.documentType, d.externalUrl ?? d.storageUrl ?? ""]));
 
@@ -97,8 +94,6 @@ export async function GET(request: NextRequest) {
       Job: app.job.title,
       Department: app.job.department?.name ?? "",
       Status: APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status,
-      Score: finalScore ?? "",
-      "Max Score": score?.calculatedMaxScore ?? "",
       "Applied Date": app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "",
     };
     for (const col of fieldColumns) {
