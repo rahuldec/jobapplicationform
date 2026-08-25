@@ -4,6 +4,7 @@ import { PassThrough, Readable } from "node:stream";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { APPLICATION_STATUSES } from "@/lib/enums";
+import { runWithConcurrency } from "@/lib/concurrency";
 
 export const maxDuration = 60;
 
@@ -37,17 +38,6 @@ function extractDriveFileId(url: string): string | null {
 
 function safeName(s: string) {
   return s.replace(/[/\\?%*:|"<>]/g, "-").trim();
-}
-
-async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>) {
-  let next = 0;
-  async function runner() {
-    while (next < items.length) {
-      const i = next++;
-      await worker(items[i], i);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
 }
 
 export async function GET(request: NextRequest) {

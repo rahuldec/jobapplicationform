@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { renderSynopsisPdf } from "@/lib/synopsis";
 import { APPLICATION_STATUSES } from "@/lib/enums";
+import { runWithConcurrency } from "@/lib/concurrency";
 
 export const maxDuration = 60;
 
@@ -15,7 +16,13 @@ export const maxDuration = 60;
 // can't scale to the full dataset. The Applications page enforces the
 // same limit on the checkboxes themselves; this is the server-side
 // backstop for any request that bypasses that UI.
-const MAX_EMBEDDED_IDS = 20;
+// Measured against production with the 20 real candidates carrying the
+// most documents each (15-16 docs, the true worst case): processed one
+// at a time, that took 61.4s — already over Vercel's 60s limit. Once
+// candidates are processed CANDIDATE_CONCURRENCY-at-a-time instead of
+// strictly sequentially, re-measure before raising MAX_EMBEDDED_IDS.
+const MAX_EMBEDDED_IDS = 60;
+const CANDIDATE_CONCURRENCY = 4;
 
 function startOfToday() {
   const d = new Date();
@@ -111,13 +118,30 @@ export async function GET(request: NextRequest) {
 
   (async () => {
     const usedNames = new Set<string>();
-    for (const app of applications) {
-      const pdf = await renderSynopsisPdf(app, { embedImages });
+    const addToArchive = (app: (typeof applications)[number], pdf: Buffer) => {
       let name = `${app.applicationNumber} - ${app.candidate.fullName}.pdf`.replace(/[/\\?%*:|"<>]/g, "-");
       while (usedNames.has(name)) name = `${name.replace(/\.pdf$/, "")}-dup.pdf`;
       usedNames.add(name);
       archive.append(pdf, { name });
+    };
+
+    if (embedImages) {
+      // Each candidate's own documents already fetch in parallel inside
+      // renderSynopsisPdf — this adds a second layer of concurrency
+      // across candidates, so several PDFs are being built (and their
+      // documents fetched from Drive) at the same time instead of one
+      // candidate finishing before the next starts.
+      await runWithConcurrency(applications, CANDIDATE_CONCURRENCY, async (app) => {
+        const pdf = await renderSynopsisPdf(app, { embedImages });
+        addToArchive(app, pdf);
+      });
+    } else {
+      for (const app of applications) {
+        const pdf = await renderSynopsisPdf(app, { embedImages });
+        addToArchive(app, pdf);
+      }
     }
+
     await archive.finalize();
   })().catch((err) => {
     console.error("Bulk synopsis generation failed:", err);
