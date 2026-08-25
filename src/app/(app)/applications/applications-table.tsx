@@ -110,7 +110,10 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                     Synopsis
                   </a>
                   <span className="mx-1.5 text-slate-300">·</span>
-                  <a href={`/api/export/documents?groupBy=candidate&ids=${app.id}`} className="text-xs font-medium text-orange-600 hover:underline">
+                  <a
+                    href={`/api/export/documents?groupBy=candidate&includeSynopsis=true&ids=${app.id}`}
+                    className="text-xs font-medium text-orange-600 hover:underline"
+                  >
                     Docs
                   </a>
                 </td>

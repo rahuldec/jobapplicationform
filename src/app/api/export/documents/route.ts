@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { runWithConcurrency } from "@/lib/concurrency";
+import { renderSynopsisPdf } from "@/lib/synopsis";
 
 export const maxDuration = 60;
+
+const SYNOPSIS_CONCURRENCY = 4;
 
 // Fetching real file bytes from Google Drive for every matching document
 // is nothing like the synopsis ZIP (which only reads already-loaded
@@ -57,6 +60,10 @@ export async function GET(request: NextRequest) {
   const documentType = params.get("documentType") ?? "";
   const isToday = params.get("since") === "today";
   const groupBy = params.get("groupBy") === "type" ? "type" : "candidate";
+  // Bundles each candidate's synopsis report alongside their raw
+  // documents — only meaningful when grouped by candidate (one folder
+  // per person), which is the per-row "Docs" download's default.
+  const includeSynopsis = params.get("includeSynopsis") === "true" && groupBy === "candidate";
   const statusList = (params.get("status") ?? "")
     .split(",")
     .filter((s): s is (typeof APPLICATION_STATUSES)[number] => APPLICATION_STATUSES.includes(s as never));
@@ -93,6 +100,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: ids.length > 0 ? "No matching applications found." : "No applications match the current filters." }, { status: 404 });
   }
 
+  // A second, fuller-shaped query only when bundling synopses in — the
+  // plain document ZIP doesn't need job/form/score data, so it's not
+  // worth joining for every request.
+  const synopsisApplications = includeSynopsis
+    ? await prisma.application.findMany({
+        where,
+        include: {
+          tenant: true,
+          candidate: true,
+          job: {
+            include: {
+              department: true,
+              form: { include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } } },
+              scoringPattern: { include: { versions: { where: { status: "published" } } } },
+            },
+          },
+          fieldValues: { include: { field: true } },
+          documents: { orderBy: { uploadedAt: "asc" } },
+          scores: { orderBy: { calculatedAt: "desc" }, take: 1 },
+        },
+      })
+    : [];
+
   const entries = applications.flatMap((app) =>
     app.documents
       .filter((d) => d.externalUrl && (!documentType || d.documentType === documentType))
@@ -104,7 +134,7 @@ export async function GET(request: NextRequest) {
       })),
   );
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && synopsisApplications.length === 0) {
     return NextResponse.json({ error: "No documents on any matching application." }, { status: 404 });
   }
   if (entries.length > MAX_DOCUMENTS) {
@@ -147,6 +177,19 @@ export async function GET(request: NextRequest) {
         // Skip files that fail to fetch rather than failing the whole ZIP.
       }
     });
+
+    if (includeSynopsis) {
+      await runWithConcurrency(synopsisApplications, SYNOPSIS_CONCURRENCY, async (app) => {
+        try {
+          const pdf = await renderSynopsisPdf(app, { embedImages: true });
+          const folder = `${safeName(app.candidate.fullName)} - ${app.applicationNumber}`;
+          archive.append(pdf, { name: `${folder}/Synopsis.pdf` });
+        } catch {
+          // Skip this candidate's synopsis rather than failing the whole ZIP.
+        }
+      });
+    }
+
     await archive.finalize();
   })().catch((err) => {
     console.error("Bulk document export failed:", err);

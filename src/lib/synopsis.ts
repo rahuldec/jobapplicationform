@@ -1,5 +1,4 @@
 import PDFDocument from "pdfkit";
-import { PDFDocument as PDFLibDocument } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
@@ -91,43 +90,55 @@ function stripAnswerPrefix(raw: string): string {
 }
 
 // Builds one candidate's synopsis PDF and resolves with the full buffer.
-// `embedImages` fetches each document from Google Drive: image documents
-// (photo, signature, scanned certificates) render inline; genuine PDF
-// documents (score sheets, publication PDFs) get their real pages merged
-// onto the end of the report via pdf-lib, since pdfkit itself can only
-// draw fresh content, not import pages from an existing PDF. Only safe to
-// enable for a single-application download — the bulk ZIP leaves it off,
-// since fetching every document for hundreds of applications would turn a
-// pure-database ~10s job into thousands of external requests.
+// This is the clean report — candidate details, education, employment,
+// etc. — with just the candidate's photo in the page-1 header and their
+// signature in a closing declaration block. It does NOT list or embed
+// the candidate's other uploaded documents; that's what the "Docs"
+// download (bulk document ZIP) is for. `embedImages` fetches only the
+// Photograph/Signature documents from Google Drive — two small images,
+// not the full document set — so it's cheap enough to leave on for both
+// the single-application download and a multi-select ZIP.
 export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
   const embedImages = options?.embedImages ?? false;
 
-  const documentImages = new Map<string, Buffer>();
-  const documentPdfs = new Map<string, Buffer>();
+  let photoImage: Buffer | null = null;
+  let signatureImage: Buffer | null = null;
   if (embedImages) {
-    await Promise.all(
-      application.documents.map(async (d) => {
-        if (!d.externalUrl) return;
-        const fileId = extractDriveFileId(d.externalUrl);
+    const photoDoc = application.documents.find((d) => /photo/i.test(d.documentType));
+    const signatureDoc = application.documents.find((d) => /signature/i.test(d.documentType));
+    await Promise.all([
+      (async () => {
+        if (!photoDoc?.externalUrl) return;
+        const fileId = extractDriveFileId(photoDoc.externalUrl);
         if (!fileId) return;
         try {
           const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
           if (!res.ok) return;
           const contentType = res.headers.get("content-type") ?? "";
           const buf = Buffer.from(await res.arrayBuffer());
-          if (contentType.startsWith("image/")) documentImages.set(d.id, buf);
-          // Google's direct-download endpoint serves PDFs as generic
-          // application/octet-stream, not application/pdf — the header is
-          // unreliable here, so check the file's actual magic bytes.
-          else if (buf.subarray(0, 5).toString("latin1") === "%PDF-") documentPdfs.set(d.id, buf);
+          if (contentType.startsWith("image/")) photoImage = buf;
         } catch {
-          // Falls back to a plain link for this one document.
+          // Falls back to no photo in the header.
         }
-      }),
-    );
+      })(),
+      (async () => {
+        if (!signatureDoc?.externalUrl) return;
+        const fileId = extractDriveFileId(signatureDoc.externalUrl);
+        if (!fileId) return;
+        try {
+          const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+          if (!res.ok) return;
+          const contentType = res.headers.get("content-type") ?? "";
+          const buf = Buffer.from(await res.arrayBuffer());
+          if (contentType.startsWith("image/")) signatureImage = buf;
+        } catch {
+          // Falls back to no signature block.
+        }
+      })(),
+    ]);
   }
 
-  const mainBuffer = await new Promise<Buffer>((resolve, reject) => {
+  return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 44 });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk) => chunks.push(chunk));
@@ -143,8 +154,23 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     const logoWidth = logoHeight * LOGO_ASPECT;
     doc.image(NBGSM_LOGO, leftX, headerTop, { height: logoHeight });
 
+    // A framed photo in the top-right corner of page 1 — the same "photo
+    // ID card" placement as the paper application form this replaces.
+    const photoBoxWidth = 58;
+    const photoBoxHeight = 72;
+    const photoBoxX = leftX + pageWidth - photoBoxWidth;
+    if (photoImage) {
+      doc.roundedRect(photoBoxX, headerTop, photoBoxWidth, photoBoxHeight, 4).lineWidth(1).stroke(SLATE_200);
+      doc.image(photoImage, photoBoxX + 3, headerTop + 3, {
+        fit: [photoBoxWidth - 6, photoBoxHeight - 6],
+        align: "center",
+        valign: "center",
+      });
+      doc.strokeColor(BRAND_ORANGE).lineWidth(2).moveTo(photoBoxX, headerTop + photoBoxHeight + 4).lineTo(photoBoxX + photoBoxWidth, headerTop + photoBoxHeight + 4).stroke();
+    }
+
     const textX = leftX + logoWidth + 12;
-    const textWidth = pageWidth - logoWidth - 12;
+    const textWidth = pageWidth - logoWidth - 12 - (photoImage ? photoBoxWidth + 12 : 0);
     doc
       .fillColor(SLATE_900)
       .fontSize(14)
@@ -153,7 +179,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     doc.fillColor(SLATE_500).fontSize(9).font("Helvetica").text("Application Synopsis", textX, doc.y + 3, { width: textWidth });
 
     doc.x = leftX;
-    doc.y = Math.max(headerTop + logoHeight, doc.y) + 10;
+    doc.y = Math.max(headerTop + logoHeight, headerTop + (photoImage ? photoBoxHeight + 6 : 0), doc.y) + 10;
     doc
       .fillColor(SLATE_500)
       .fontSize(9)
@@ -227,63 +253,28 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       }
     }
 
-    sectionHeader(doc, `Documents (${application.documents.length})`);
-    if (application.documents.length === 0) {
-      doc.fillColor(SLATE_500).fontSize(9).font("Helvetica-Oblique").text("No documents uploaded.");
-      doc.moveDown(0.5);
-    } else {
-      // Signature and Photograph are small identity images that each left
-      // half the row empty when stacked full-width one after another —
-      // pair them into a single row when both are present as images.
-      const signatureDoc = application.documents.find((d) => documentImages.has(d.id) && /signature/i.test(d.documentType));
-      const photoDoc = application.documents.find((d) => documentImages.has(d.id) && /photo/i.test(d.documentType));
-      if (signatureDoc && photoDoc) {
-        embedImagePair(
-          doc,
-          pageWidth,
-          { label: signatureDoc.documentType, image: documentImages.get(signatureDoc.id)!, verified: signatureDoc.verified },
-          { label: photoDoc.documentType, image: documentImages.get(photoDoc.id)!, verified: photoDoc.verified },
-        );
-      }
-      for (const d of application.documents) {
-        if (d.id === signatureDoc?.id || d.id === photoDoc?.id) continue;
-        const image = documentImages.get(d.id);
-        if (image) {
-          embedDocumentImage(doc, pageWidth, d.documentType, image, d.verified);
-        } else if (documentPdfs.has(d.id)) {
-          rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, "Attached as pages below", d.verified);
-        } else {
-          rowLine(doc, pageWidth, `${d.documentType}${d.verified ? "  (Verified)" : ""}`, d.externalUrl ?? "—", d.verified);
-        }
-      }
+    if (signatureImage) {
+      sectionHeader(doc, "Declaration");
+      doc
+        .fillColor(SLATE_500)
+        .fontSize(8)
+        .font("Helvetica")
+        .text("I hereby declare that the information given above is true to the best of my knowledge.", leftX, doc.y, { width: pageWidth });
+      doc.moveDown(1);
+
+      const sigWidth = 170;
+      const sigHeight = 56;
+      if (doc.y + sigHeight + 28 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+      const sigY = doc.y;
+      doc.roundedRect(leftX, sigY, sigWidth, sigHeight, 4).lineWidth(1).stroke(SLATE_200);
+      doc.image(signatureImage, leftX + 4, sigY + 4, { fit: [sigWidth - 8, sigHeight - 8], align: "center", valign: "center" });
+      doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, sigY + sigHeight + 4).lineTo(leftX + sigWidth, sigY + sigHeight + 4).stroke();
+      doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(application.candidate.fullName, leftX, sigY + sigHeight + 8, { width: sigWidth });
+      doc.fillColor(SLATE_500).fontSize(7.5).font("Helvetica").text("Candidate Signature", leftX, doc.y, { width: sigWidth, characterSpacing: 0.2 });
     }
 
     doc.end();
   });
-
-  if (documentPdfs.size === 0) return mainBuffer;
-
-  // Merge each real PDF document's actual pages onto the end of the
-  // report — pdfkit can't import pages from an existing PDF, so this
-  // second pass uses pdf-lib, which can. No divider/title page in
-  // between: the Documents section already lists each one, in the same
-  // order they're appended here, as "Attached as pages below".
-  const merged = await PDFLibDocument.load(mainBuffer);
-
-  for (const d of application.documents) {
-    const pdfBytes = documentPdfs.get(d.id);
-    if (!pdfBytes) continue;
-    try {
-      const src = await PDFLibDocument.load(pdfBytes, { ignoreEncryption: true });
-      const copiedPages = await merged.copyPages(src, src.getPageIndices());
-      copiedPages.forEach((p) => merged.addPage(p));
-    } catch {
-      // A malformed/unreadable source PDF shouldn't take down the whole
-      // report — just skip it silently.
-    }
-  }
-
-  return Buffer.from(await merged.save());
 }
 
 function sectionHeader(doc: PDFKit.PDFDocument, title: string) {
@@ -386,61 +377,6 @@ function rowLine(doc: PDFKit.PDFDocument, pageWidth: number, left: string, right
     .text(right, leftX + pageWidth * 0.55, y, { width: pageWidth * 0.45, align: "right" });
   doc.x = leftX;
   doc.moveDown(0.5);
-  doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
-  doc.moveDown(0.4);
-}
-
-function embedImagePair(
-  doc: PDFKit.PDFDocument,
-  pageWidth: number,
-  left: { label: string; image: Buffer; verified?: boolean },
-  right: { label: string; image: Buffer; verified?: boolean },
-) {
-  const maxHeight = 160;
-  const leftX = doc.page.margins.left;
-  const gap = 16;
-  const colWidth = (pageWidth - gap) / 2;
-  if (doc.y + 20 + maxHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
-
-  const labelY = doc.y;
-  [left, right].forEach((item, idx) => {
-    const x = leftX + idx * (colWidth + gap);
-    doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(item.label, x, labelY, { width: colWidth * 0.6, continued: false });
-    if (item.verified) {
-      doc.fillColor("#059669").fontSize(8).font("Helvetica").text("Verified", x, labelY, { width: colWidth, align: "right" });
-    }
-  });
-  doc.x = leftX;
-  doc.y = labelY + 14;
-
-  const imageY = doc.y;
-  doc.image(left.image, leftX, imageY, { fit: [colWidth, maxHeight] });
-  doc.image(right.image, leftX + colWidth + gap, imageY, { fit: [colWidth, maxHeight] });
-  doc.x = leftX;
-  doc.y = imageY + maxHeight + 10;
-  doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
-  doc.moveDown(0.4);
-}
-
-function embedDocumentImage(doc: PDFKit.PDFDocument, pageWidth: number, label: string, image: Buffer, verified?: boolean) {
-  const maxHeight = 220;
-  const leftX = doc.page.margins.left;
-  // Reserve the label row plus the image's max possible height; pdfkit's
-  // `fit` option scales down to whichever bound (width or height) is
-  // tighter, so this is a safe upper bound for the page-break check.
-  if (doc.y + 20 + maxHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
-
-  doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(label, leftX, doc.y, { width: pageWidth * 0.7, continued: false });
-  if (verified) {
-    doc.fillColor("#059669").fontSize(8).font("Helvetica").text("Verified", leftX + pageWidth * 0.7, doc.y - 11, { width: pageWidth * 0.3, align: "right" });
-  }
-  doc.x = leftX;
-  doc.moveDown(0.3);
-
-  const imageY = doc.y;
-  doc.image(image, leftX, imageY, { fit: [pageWidth * 0.5, maxHeight] });
-  doc.x = leftX;
-  doc.y = imageY + maxHeight + 10;
   doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
   doc.moveDown(0.4);
 }

@@ -10,20 +10,15 @@ import { runWithConcurrency } from "@/lib/concurrency";
 export const maxDuration = 60;
 
 // A specific `ids` selection (the Applications page's multi-select
-// checkboxes) embeds real document images/PDFs into each report, same as
-// the single-application download — each one now fetches every document
-// from Google Drive, so unlike the plain filtered export below, this
-// can't scale to the full dataset. The Applications page enforces the
-// same limit on the checkboxes themselves; this is the server-side
-// backstop for any request that bypasses that UI.
-// Measured against production with the 20 real candidates carrying the
-// most documents each (15-16 docs, the true worst case): processed one
-// at a time, 61.4s. Processed CANDIDATE_CONCURRENCY-at-a-time, only
-// 59.3s — barely faster, because PDF rendering/merging (pdfkit +
-// pdf-lib) is CPU work on Node's single thread, not I/O wait;
-// concurrency only overlaps the Drive-fetch portion, not the dominant
-// CPU cost. So the cap stays at 20 despite the concurrency change —
-// there's no real margin to spend on raising it further.
+// checkboxes) embeds each candidate's Photograph/Signature into their
+// report, same as the single-application download. This cap predates
+// that: it was set (and re-measured at 20 with CANDIDATE_CONCURRENCY
+// added) back when this route also merged every document's real PDF
+// pages into the report via pdf-lib — the dominant, CPU-bound cost that
+// made 20 the safe ceiling even with concurrency. Now that
+// renderSynopsisPdf only fetches two small images per candidate instead
+// of merging full document sets, this is almost certainly far cheaper —
+// but that hasn't been re-measured, so the cap stays at 20 until it is.
 const MAX_EMBEDDED_IDS = 20;
 const CANDIDATE_CONCURRENCY = 4;
 
