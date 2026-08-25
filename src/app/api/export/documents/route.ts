@@ -14,7 +14,11 @@ export const maxDuration = 60;
 // of documents) cannot reliably finish inside Vercel's function time
 // limit. Cap it and tell the caller to narrow their filters instead of
 // silently timing out partway through a huge ZIP.
-const MAX_DOCUMENTS = 150;
+// Measured against the real production deployment: 91 documents took 29s
+// (Google Drive fetch + zip, at CONCURRENCY-way parallelism). 150 would
+// extrapolate to ~48s, too close to Vercel's 60s hard limit to trust
+// across slower days or larger files. 100 leaves real margin.
+const MAX_DOCUMENTS = 100;
 const CONCURRENCY = 8;
 
 function startOfToday() {

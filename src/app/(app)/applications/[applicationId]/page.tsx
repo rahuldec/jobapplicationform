@@ -14,6 +14,17 @@ import { IconCalendar, IconStar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 import type { ScoreBreakdownEntry } from "@/lib/scoring/types";
 
+const ACTION_LABELS: Record<string, string> = {
+  "application.submitted": "submitted the application",
+  "application.reviewed": "reviewed the application",
+  "application.status_changed": "changed the application status",
+  "document.uploaded": "uploaded a document",
+  "document.verified": "verified a document",
+  "document.unverified": "un-verified a document",
+  "score.calculated": "calculated a score",
+  "score.overridden": "overrode a score",
+};
+
 const TABS = [
   { key: "profile", label: "Profile" },
   { key: "application", label: "Application" },
@@ -297,7 +308,8 @@ export default async function ApplicationDetailPage({
               {activity.map((entry) => (
                 <li key={entry.id} className="flex items-center justify-between px-5 py-3 text-sm">
                   <span className="text-slate-700">
-                    <span className="font-medium text-slate-900">{entry.actorName}</span> — {entry.action}
+                    <span className="font-medium text-slate-900">{entry.actorName}</span>{" "}
+                    {ACTION_LABELS[entry.action] ?? entry.action}
                   </span>
                   <span className="text-xs text-slate-400">
                     {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
