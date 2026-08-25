@@ -19,7 +19,7 @@ const CARD_BG = "#f8fafc";
 // (candidate summary, then qualifications, then experience, then
 // research) consistent across candidates regardless of how much content
 // precedes them.
-const FORCE_NEW_PAGE_SECTIONS = new Set(["Educational Qualifications", "Teaching Experience", "Research & Co-Curricular"]);
+const FORCE_NEW_PAGE_SECTIONS = new Set(["Educational Qualifications", "Teaching Experience"]);
 
 export async function getSynopsisData(applicationId: string) {
   const application = await prisma.application.findUnique({
