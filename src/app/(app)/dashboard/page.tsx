@@ -81,13 +81,13 @@ function GlassTile({
   return (
     <Link
       href={href}
-      className={`flex flex-col gap-2 rounded-2xl border border-white/70 bg-white/55 p-3 shadow-md shadow-slate-900/5 backdrop-blur-lg transition-colors hover:bg-white/75 ${hero ? "sm:col-span-2" : ""}`}
+      className="flex flex-col gap-2 rounded-2xl border border-white/70 bg-white/55 p-3 shadow-lg shadow-slate-900/10 backdrop-blur-lg transition-colors hover:bg-white/75"
     >
       <div className="flex items-start justify-between">
-        <span className="text-[11px] text-slate-500">{label}</span>
+        <span className="text-[11px] font-bold text-slate-500">{label}</span>
         <Icon className="h-4 w-4 text-slate-400" />
       </div>
-      <p className={`font-medium tabular-nums leading-none ${hero ? "text-3xl" : "text-xl"} ${valueClassName}`}>{value}</p>
+      <p className={`font-bold tabular-nums leading-none ${hero ? "text-3xl" : "text-xl"} ${valueClassName}`}>{value}</p>
     </Link>
   );
 }
@@ -121,7 +121,7 @@ export default async function DashboardPage() {
           <p className="mb-3 text-xs text-slate-400">
             Same stages as the Applications page&apos;s status filter — click any tile to see that list.
           </p>
-          <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <GlassTile href="/applications" label="Total" value={data.stats.totalApplications} icon={IconLayers} hero />
             {VISIBLE_APPLICATION_STATUSES.map((status) => (
               <GlassTile
@@ -162,7 +162,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <div className="rounded-2xl border border-white/70 bg-white/55 shadow-md shadow-slate-900/5 backdrop-blur-lg">
+        <div className="rounded-2xl border border-white/70 bg-white/55 shadow-lg shadow-slate-900/10 backdrop-blur-lg">
           <div className="border-b border-slate-900/5 px-5 py-4">
             <h2 className="text-sm font-medium text-slate-900">Attention required</h2>
             <p className="mt-0.5 text-sm text-slate-500">Items that need action, most recent first</p>

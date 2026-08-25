@@ -37,10 +37,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-        <span>Powered by</span>
-        <Image src="/brand/okie-dokie-logo.png" alt="Okie Dokie" width={18} height={18} className="opacity-90" />
-        <span className="font-semibold text-orange-700">Okie Dokie</span>
+      <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-6 text-center">
+        <a
+          href="https://okiedokiepay.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-slate-500 transition-colors hover:text-slate-900"
+        >
+          <Image src="/brand/okie-dokie-logo.png" alt="Okie Dokie" width={16} height={16} className="opacity-80" />
+          <span className="text-xs font-medium">Okie Dokie</span>
+        </a>
+        <p className="mt-2 text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Okie Dokie. All rights reserved.</p>
       </footer>
     </div>
   );
