@@ -49,16 +49,6 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                 Download Synopsis ({selected.size})
               </Button>
             </a>
-            <a href={`/api/export/documents?groupBy=candidate&ids=${Array.from(selected).join(",")}`}>
-              <Button variant="secondary" size="sm">
-                Docs by Candidate ({selected.size})
-              </Button>
-            </a>
-            <a href={`/api/export/documents?groupBy=type&ids=${Array.from(selected).join(",")}`}>
-              <Button variant="secondary" size="sm">
-                Docs by Type ({selected.size})
-              </Button>
-            </a>
           </div>
         </div>
       )}
