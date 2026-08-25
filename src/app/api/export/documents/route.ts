@@ -51,6 +51,14 @@ export async function GET(request: NextRequest) {
   const tenant = await getCurrentTenant();
   const params = request.nextUrl.searchParams;
 
+  // A specific selection from the Applications page's multi-select
+  // checkboxes takes priority over the filter fields below, same as the
+  // synopsis export.
+  const ids = (params.get("ids") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const q = params.get("q") ?? "";
   const jobId = params.get("jobId") ?? "";
   const isToday = params.get("since") === "today";
@@ -62,19 +70,23 @@ export async function GET(request: NextRequest) {
 
   const where = {
     tenantId: tenant.id,
-    status: hasStatus ? { in: statusList } : undefined,
-    jobId: jobId || undefined,
-    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
-    ...(q
-      ? {
-          OR: [
-            { applicationNumber: { contains: q } },
-            { candidate: { fullName: { contains: q } } },
-            { candidate: { email: { contains: q } } },
-            { candidate: { mobile: { contains: q } } },
-          ],
-        }
-      : {}),
+    ...(ids.length > 0
+      ? { id: { in: ids } }
+      : {
+          status: hasStatus ? { in: statusList } : undefined,
+          jobId: jobId || undefined,
+          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+          ...(q
+            ? {
+                OR: [
+                  { applicationNumber: { contains: q } },
+                  { candidate: { fullName: { contains: q } } },
+                  { candidate: { email: { contains: q } } },
+                  { candidate: { mobile: { contains: q } } },
+                ],
+              }
+            : {}),
+        }),
   };
 
   const applications = await prisma.application.findMany({
@@ -84,7 +96,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (applications.length === 0) {
-    return NextResponse.json({ error: "No applications match the current filters." }, { status: 404 });
+    return NextResponse.json({ error: ids.length > 0 ? "No matching applications found." : "No applications match the current filters." }, { status: 404 });
   }
 
   const entries = applications.flatMap((app) =>
@@ -102,9 +114,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No documents on any matching application." }, { status: 404 });
   }
   if (entries.length > MAX_DOCUMENTS) {
+    const narrow = ids.length > 0 ? "Select fewer applications" : "Narrow the filters (by job, status, or search)";
     return NextResponse.json(
       {
-        error: `${entries.length} documents match the current filters, which is too many for one download (limit ${MAX_DOCUMENTS}) — each file has to be fetched individually from Google Drive. Narrow the filters (by job, status, or search) and try again with a smaller set.`,
+        error: `${entries.length} documents match this request, which is too many for one download (limit ${MAX_DOCUMENTS}) — each file has to be fetched individually from Google Drive. ${narrow} and try again with a smaller set.`,
       },
       { status: 400 },
     );

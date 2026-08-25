@@ -21,6 +21,7 @@ export type ApplicationRow = {
 
 export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [docGroupBy, setDocGroupBy] = useState<"candidate" | "type">("candidate");
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -38,16 +39,31 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
   return (
     <>
       {selected.size > 0 && (
-        <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50 px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-orange-100 bg-orange-50 px-4 py-2.5">
           <span className="text-sm font-medium text-orange-800">
             {selected.size} selected
             {atLimit && <span className="ml-1.5 font-normal text-orange-600">(max {MAX_SYNOPSIS_SELECTION} per download)</span>}
           </span>
-          <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`}>
-            <Button variant="secondary" size="sm">
-              Download Synopsis ({selected.size})
-            </Button>
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`}>
+              <Button variant="secondary" size="sm">
+                Download Synopsis ({selected.size})
+              </Button>
+            </a>
+            <select
+              value={docGroupBy}
+              onChange={(e) => setDocGroupBy(e.target.value as "candidate" | "type")}
+              className="rounded-md border-0 py-1.5 text-xs text-slate-700 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="candidate">Group by candidate</option>
+              <option value="type">Group by document type</option>
+            </select>
+            <a href={`/api/export/documents?groupBy=${docGroupBy}&ids=${Array.from(selected).join(",")}`}>
+              <Button variant="secondary" size="sm">
+                Download Documents ({selected.size})
+              </Button>
+            </a>
+          </div>
         </div>
       )}
       <table className="w-full text-sm">
@@ -103,9 +119,13 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                 </td>
                 <td className="px-4 py-3 tabular-nums text-slate-700">{app.scoreLabel}</td>
                 <td className="px-4 py-3 text-slate-500">{app.appliedLabel}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   <a href={`/api/applications/${app.id}/synopsis`} className="text-xs font-medium text-orange-600 hover:underline">
                     Synopsis
+                  </a>
+                  <span className="mx-1.5 text-slate-300">·</span>
+                  <a href={`/api/export/documents?groupBy=candidate&ids=${app.id}`} className="text-xs font-medium text-orange-600 hover:underline">
+                    Docs
                   </a>
                 </td>
               </tr>
