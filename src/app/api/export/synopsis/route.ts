@@ -18,10 +18,13 @@ export const maxDuration = 60;
 // backstop for any request that bypasses that UI.
 // Measured against production with the 20 real candidates carrying the
 // most documents each (15-16 docs, the true worst case): processed one
-// at a time, that took 61.4s — already over Vercel's 60s limit. Once
-// candidates are processed CANDIDATE_CONCURRENCY-at-a-time instead of
-// strictly sequentially, re-measure before raising MAX_EMBEDDED_IDS.
-const MAX_EMBEDDED_IDS = 60;
+// at a time, 61.4s. Processed CANDIDATE_CONCURRENCY-at-a-time, only
+// 59.3s — barely faster, because PDF rendering/merging (pdfkit +
+// pdf-lib) is CPU work on Node's single thread, not I/O wait;
+// concurrency only overlaps the Drive-fetch portion, not the dominant
+// CPU cost. So the cap stays at 20 despite the concurrency change —
+// there's no real margin to spend on raising it further.
+const MAX_EMBEDDED_IDS = 20;
 const CANDIDATE_CONCURRENCY = 4;
 
 function startOfToday() {
