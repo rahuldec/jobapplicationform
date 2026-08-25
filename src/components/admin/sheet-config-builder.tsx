@@ -242,6 +242,7 @@ export function SheetConfigBuilder({
                           value={field.fieldType}
                           onChange={(e) => updateField(si, fi, { fieldType: e.target.value as FieldSpec["fieldType"] })}
                           className={`${inputClass} col-span-2`}
+                          title="text = short answer, one line (e.g. a name). textarea = long answer, multiple lines (e.g. an address)."
                         >
                           {FIELD_TYPES.map((t) => (
                             <option key={t} value={t}>
