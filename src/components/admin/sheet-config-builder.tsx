@@ -76,10 +76,13 @@ export function SheetConfigBuilder({
   const updateDocument = (i: number, patch: Partial<DocSpec>) =>
     update({ documents: config.documents.map((d, idx) => (idx === i ? { ...d, ...patch } : d)) });
 
+  const hasIdColumn = config.coreFields.applicationNumberCol !== null;
+
   const handleSave = async () => {
     setError(null);
     if (!config.formName.trim()) return setError("Application form name is required.");
-    if (!config.applicationNumberPrefix.trim()) return setError("Application number prefix is required.");
+    if (!hasIdColumn && !config.applicationNumberPrefix.trim())
+      return setError("Application number prefix is required when you don't map a unique-ID column below.");
     if (config.sections.length === 0) return setError("Add at least one section.");
 
     setSaving(true);
@@ -123,8 +126,12 @@ export function SheetConfigBuilder({
             <Field
               label="Application number prefix"
               htmlFor="prefix"
-              required
-              hint="e.g. DN-2026-IMP- — prepended to the ID from the sheet below, or auto-numbered if you don't set one."
+              required={!hasIdColumn}
+              hint={
+                hasIdColumn
+                  ? "Optional — prepended to the ID column mapped below. Leave blank to use that column's value as-is."
+                  : "Required since no unique-ID column is mapped below — applications get auto-numbered DN-2026-IMP-0001, -0002, ..."
+              }
             >
               <input
                 id="prefix"
