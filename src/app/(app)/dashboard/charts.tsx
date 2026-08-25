@@ -1,6 +1,6 @@
 "use client";
 
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { APPLICATION_STATUS_LABELS, type ApplicationStatus } from "@/lib/enums";
 
 const STATUS_COLORS: Record<ApplicationStatus, string> = {
@@ -29,28 +29,6 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
       <p className="mb-3 text-sm font-bold text-slate-900">{title}</p>
       {children}
     </div>
-  );
-}
-
-export function ApplicationsTrendChart({ data }: { data: { date: string; count: number }[] }) {
-  return (
-    <ChartCard title="Applications over time">
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-          <defs>
-            <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3465c9" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#3465c9" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={{ stroke: "#e2e8f0" }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} width={28} />
-          <Tooltip contentStyle={tooltipStyle} />
-          <Area type="monotone" dataKey="count" name="Applications" stroke="#1b449c" strokeWidth={2} fill="url(#trendFill)" />
-        </AreaChart>
-      </ResponsiveContainer>
-    </ChartCard>
   );
 }
 
