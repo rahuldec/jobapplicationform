@@ -11,20 +11,20 @@ const NAV = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-5 backdrop-blur-md sm:px-8">
+      <header className="sticky top-0 z-10 flex shrink-0 flex-col items-center gap-3 border-b border-slate-200/80 bg-white/80 px-5 py-4 backdrop-blur-md">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <Image src="/brand/nbgsm-logo.png" alt="" width={30} height={38} className="shrink-0" />
-          <span className="hidden text-[15px] font-medium tracking-tight text-slate-900 sm:inline">
+          <Image src="/brand/nbgsm-logo.png" alt="" width={44} height={56} className="shrink-0" />
+          <span className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline">
             Nirankari Baba Gurbachan Singh Memorial College
           </span>
-          <span className="text-[15px] font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
+          <span className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
         </Link>
-        <nav className="flex items-center gap-7">
+        <nav className="flex items-center gap-8">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-900"
+              className="text-base font-bold text-slate-600 transition-colors hover:text-slate-900"
             >
               {item.label}
             </Link>
