@@ -186,7 +186,21 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       doc.fillColor(SLATE_500).fontSize(9).font("Helvetica-Oblique").text("No documents uploaded.");
       doc.moveDown(0.5);
     } else {
+      // Signature and Photograph are small identity images that each left
+      // half the row empty when stacked full-width one after another —
+      // pair them into a single row when both are present as images.
+      const signatureDoc = application.documents.find((d) => documentImages.has(d.id) && /signature/i.test(d.documentType));
+      const photoDoc = application.documents.find((d) => documentImages.has(d.id) && /photo/i.test(d.documentType));
+      if (signatureDoc && photoDoc) {
+        embedImagePair(
+          doc,
+          pageWidth,
+          { label: signatureDoc.documentType, image: documentImages.get(signatureDoc.id)!, verified: signatureDoc.verified },
+          { label: photoDoc.documentType, image: documentImages.get(photoDoc.id)!, verified: photoDoc.verified },
+        );
+      }
       for (const d of application.documents) {
+        if (d.id === signatureDoc?.id || d.id === photoDoc?.id) continue;
         const image = documentImages.get(d.id);
         if (image) {
           embedDocumentImage(doc, pageWidth, d.documentType, image, d.verified);
@@ -233,6 +247,18 @@ function sectionHeader(doc: PDFKit.PDFDocument, title: string) {
   doc.moveDown(0.3);
 }
 
+// A label can wrap to two lines (e.g. "Permanent Address Same As
+// Present?"), so the space reserved for a field must depend on the
+// label's own height, not just the value's — otherwise the value gets
+// drawn at a fixed offset and collides with the label's second line.
+function measureField(doc: PDFKit.PDFDocument, label: string, value: string, width: number, labelSize: number, valueSize: number) {
+  doc.fontSize(labelSize).font("Helvetica");
+  const labelHeight = doc.heightOfString(label.toUpperCase(), { width, characterSpacing: 0.2 });
+  doc.fontSize(valueSize).font("Helvetica");
+  const valueHeight = doc.heightOfString(value || "—", { width });
+  return { labelHeight, total: labelHeight + 2 + valueHeight };
+}
+
 // pdfkit's `doc.x`/`doc.y` cursor can drift after an explicit-coordinate
 // `.text()` call, so every helper below anchors to the page's left margin
 // directly rather than re-reading `doc.x` — otherwise a later column
@@ -244,7 +270,7 @@ function gridRows(doc: PDFKit.PDFDocument, pageWidth: number, pairs: [string, st
   const colWidth = (pageWidth - gap * (cols - 1)) / cols;
   for (let i = 0; i < pairs.length; i += cols) {
     const rowItems = pairs.slice(i, i + cols);
-    const rowH = Math.max(...rowItems.map(([, v]) => doc.heightOfString(v, { width: colWidth })), 12) + 14;
+    const rowH = Math.max(...rowItems.map(([label, v]) => measureField(doc, label, v, colWidth, 7.5, 9.5).total), 12) + 8;
     if (doc.y + rowH > doc.page.height - doc.page.margins.bottom) doc.addPage();
     const y = doc.y;
     rowItems.forEach(([label, value], idx) => {
@@ -270,7 +296,9 @@ function compoundCard(doc: PDFKit.PDFDocument, pageWidth: number, title: string,
 
   const rows: { label: string; value: string }[][] = [];
   for (let i = 0; i < pairs.length; i += cols) rows.push(pairs.slice(i, i + cols));
-  const rowHeights = rows.map((row) => Math.max(...row.map((p) => doc.heightOfString(p.value, { width: colWidth })), 10) + 13);
+  const rowHeights = rows.map(
+    (row) => Math.max(...row.map((p) => measureField(doc, p.label, p.value, colWidth, 6.5, 8.5).total), 10) + 6,
+  );
   const headerHeight = 18;
   const totalHeight = padding * 2 + headerHeight + rowHeights.reduce((a, b) => a + b, 0);
 
@@ -284,8 +312,9 @@ function compoundCard(doc: PDFKit.PDFDocument, pageWidth: number, title: string,
   for (let r = 0; r < rows.length; r++) {
     rows[r].forEach((p, idx) => {
       const x = leftX + padding + idx * (colWidth + gap);
+      const labelHeight = measureField(doc, p.label, p.value, colWidth, 6.5, 8.5).labelHeight;
       doc.fillColor(SLATE_500).fontSize(6.5).font("Helvetica").text(p.label.toUpperCase(), x, rowY, { width: colWidth, characterSpacing: 0.2 });
-      doc.fillColor(SLATE_900).fontSize(8.5).font("Helvetica").text(p.value || "—", x, rowY + 9, { width: colWidth });
+      doc.fillColor(SLATE_900).fontSize(8.5).font("Helvetica").text(p.value || "—", x, rowY + labelHeight + 2, { width: colWidth });
     });
     rowY += rowHeights[r];
   }
@@ -295,8 +324,9 @@ function compoundCard(doc: PDFKit.PDFDocument, pageWidth: number, title: string,
 }
 
 function writeField(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number) {
+  const labelHeight = measureField(doc, label, value, width, 7.5, 9.5).labelHeight;
   doc.fillColor(SLATE_500).fontSize(7.5).font("Helvetica").text(label.toUpperCase(), x, y, { width, characterSpacing: 0.2 });
-  doc.fillColor(SLATE_900).fontSize(9.5).font("Helvetica").text(value, x, y + 11, { width });
+  doc.fillColor(SLATE_900).fontSize(9.5).font("Helvetica").text(value, x, y + labelHeight + 2, { width });
 }
 
 function rowLine(doc: PDFKit.PDFDocument, pageWidth: number, left: string, right: string, verified?: boolean) {
@@ -310,6 +340,38 @@ function rowLine(doc: PDFKit.PDFDocument, pageWidth: number, left: string, right
     .text(right, leftX + pageWidth * 0.55, y, { width: pageWidth * 0.45, align: "right" });
   doc.x = leftX;
   doc.moveDown(0.5);
+  doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
+  doc.moveDown(0.4);
+}
+
+function embedImagePair(
+  doc: PDFKit.PDFDocument,
+  pageWidth: number,
+  left: { label: string; image: Buffer; verified?: boolean },
+  right: { label: string; image: Buffer; verified?: boolean },
+) {
+  const maxHeight = 160;
+  const leftX = doc.page.margins.left;
+  const gap = 16;
+  const colWidth = (pageWidth - gap) / 2;
+  if (doc.y + 20 + maxHeight > doc.page.height - doc.page.margins.bottom) doc.addPage();
+
+  const labelY = doc.y;
+  [left, right].forEach((item, idx) => {
+    const x = leftX + idx * (colWidth + gap);
+    doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(item.label, x, labelY, { width: colWidth * 0.6, continued: false });
+    if (item.verified) {
+      doc.fillColor("#059669").fontSize(8).font("Helvetica").text("Verified", x, labelY, { width: colWidth, align: "right" });
+    }
+  });
+  doc.x = leftX;
+  doc.y = labelY + 14;
+
+  const imageY = doc.y;
+  doc.image(left.image, leftX, imageY, { fit: [colWidth, maxHeight] });
+  doc.image(right.image, leftX + colWidth + gap, imageY, { fit: [colWidth, maxHeight] });
+  doc.x = leftX;
+  doc.y = imageY + maxHeight + 10;
   doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, doc.y).lineTo(leftX + pageWidth, doc.y).stroke();
   doc.moveDown(0.4);
 }
