@@ -21,7 +21,6 @@ export type ApplicationRow = {
 
 export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [docGroupBy, setDocGroupBy] = useState<"candidate" | "type">("candidate");
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -50,17 +49,14 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                 Download Synopsis ({selected.size})
               </Button>
             </a>
-            <select
-              value={docGroupBy}
-              onChange={(e) => setDocGroupBy(e.target.value as "candidate" | "type")}
-              className="rounded-md border-0 py-1.5 text-xs text-slate-700 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="candidate">Group by candidate</option>
-              <option value="type">Group by document type</option>
-            </select>
-            <a href={`/api/export/documents?groupBy=${docGroupBy}&ids=${Array.from(selected).join(",")}`}>
+            <a href={`/api/export/documents?groupBy=candidate&ids=${Array.from(selected).join(",")}`}>
               <Button variant="secondary" size="sm">
-                Download Documents ({selected.size})
+                Docs by Candidate ({selected.size})
+              </Button>
+            </a>
+            <a href={`/api/export/documents?groupBy=type&ids=${Array.from(selected).join(",")}`}>
+              <Button variant="secondary" size="sm">
+                Docs by Type ({selected.size})
               </Button>
             </a>
           </div>
