@@ -55,7 +55,7 @@ export default async function ApplicationsPage({
       : {}),
   };
 
-  const [applications, total, jobs] = await Promise.all([
+  const [applications, total, jobs, documentTypeRows] = await Promise.all([
     prisma.application.findMany({
       where,
       include: { candidate: true, job: true, scores: true },
@@ -65,7 +65,14 @@ export default async function ApplicationsPage({
     }),
     prisma.application.count({ where }),
     prisma.job.findMany({ where: { tenantId: tenant.id }, orderBy: { title: "asc" } }),
+    prisma.document.findMany({
+      where: { tenantId: tenant.id },
+      select: { documentType: true },
+      distinct: ["documentType"],
+      orderBy: { documentType: "asc" },
+    }),
   ]);
+  const documentTypes = documentTypeRows.map((d) => d.documentType);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -78,7 +85,7 @@ export default async function ApplicationsPage({
     const qs = next.toString();
     return qs ? `${base}?${qs}` : base;
   };
-  const exportHref = buildHref({ page: undefined }, "/api/export/applications");
+  const exportHref = buildHref({ page: undefined, documentType: undefined }, "/api/export/applications");
 
   const rows: ApplicationRow[] = applications.map((app, i) => {
     const score = app.scores[0];
@@ -126,7 +133,7 @@ export default async function ApplicationsPage({
 
       <Card className="p-4">
         <Suspense fallback={null}>
-          <ApplicationsFilters jobs={jobs} />
+          <ApplicationsFilters jobs={jobs} documentTypes={documentTypes} />
         </Suspense>
       </Card>
 
