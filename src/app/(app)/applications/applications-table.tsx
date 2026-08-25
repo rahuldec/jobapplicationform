@@ -5,7 +5,7 @@ import Link from "next/link";
 import { StatusBadge, Button } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 
-const MAX_SYNOPSIS_SELECTION = 20;
+const MAX_SYNOPSIS_SELECTION = 100;
 
 export type ApplicationRow = {
   id: string;

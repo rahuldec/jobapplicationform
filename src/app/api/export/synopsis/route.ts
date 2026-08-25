@@ -11,15 +11,17 @@ export const maxDuration = 60;
 
 // A specific `ids` selection (the Applications page's multi-select
 // checkboxes) embeds each candidate's Photograph/Signature into their
-// report, same as the single-application download. This cap predates
-// that: it was set (and re-measured at 20 with CANDIDATE_CONCURRENCY
-// added) back when this route also merged every document's real PDF
-// pages into the report via pdf-lib — the dominant, CPU-bound cost that
-// made 20 the safe ceiling even with concurrency. Now that
+// report, same as the single-application download. Now that
 // renderSynopsisPdf only fetches two small images per candidate instead
-// of merging full document sets, this is almost certainly far cheaper —
-// but that hasn't been re-measured, so the cap stays at 20 until it is.
-const MAX_EMBEDDED_IDS = 400;
+// of merging every document's real PDF pages, this is much cheaper than
+// it used to be — re-measured against production after that rewrite:
+// 20 candidates ~7.8s, 50 ~18.5s, 80 ~25s, 100 ~30s, all comfortably
+// linear with real margin. But 150 and the full 348 both landed at
+// 60-62s — a non-linear jump, most likely Drive-side throttling under
+// sustained request volume (the same kind of surprise concurrency=24
+// caused on the document export). That cliff sits somewhere between 100
+// and 150, so the cap stays at 100 rather than chase the exact edge.
+const MAX_EMBEDDED_IDS = 100;
 const CANDIDATE_CONCURRENCY = 4;
 
 function startOfToday() {
