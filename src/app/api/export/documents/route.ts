@@ -18,8 +18,8 @@ export const maxDuration = 60;
 // (Google Drive fetch + zip, at CONCURRENCY-way parallelism). 150 would
 // extrapolate to ~48s, too close to Vercel's 60s hard limit to trust
 // across slower days or larger files. 100 leaves real margin.
-const MAX_DOCUMENTS = 100;
-const CONCURRENCY = 8;
+const MAX_DOCUMENTS = 400;
+const CONCURRENCY = 16;
 
 function startOfToday() {
   const d = new Date();
@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
 
   const q = params.get("q") ?? "";
   const jobId = params.get("jobId") ?? "";
+  const documentType = params.get("documentType") ?? "";
   const isToday = params.get("since") === "today";
   const groupBy = params.get("groupBy") === "type" ? "type" : "candidate";
   const statusList = (params.get("status") ?? "")
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
 
   const entries = applications.flatMap((app) =>
     app.documents
-      .filter((d) => d.externalUrl)
+      .filter((d) => d.externalUrl && (!documentType || d.documentType === documentType))
       .map((d) => ({
         url: d.externalUrl!,
         candidateName: app.candidate.fullName,
