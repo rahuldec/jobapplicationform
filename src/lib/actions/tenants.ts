@@ -30,13 +30,19 @@ export async function createTenant(formData: FormData) {
   redirect(`/admin/${tenant.id}`);
 }
 
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+function sanitizeHex(raw: string): string | null {
+  const v = raw.trim();
+  return HEX_COLOR.test(v) ? v : null;
+}
+
 export async function updateTenantBranding(formData: FormData) {
   const tenantId = String(formData.get("tenantId"));
   const name = String(formData.get("name") ?? "").trim();
   const shortName = String(formData.get("shortName") ?? "").trim();
-  const from = String(formData.get("gradientFrom") ?? "").trim();
-  const via = String(formData.get("gradientVia") ?? "").trim();
-  const to = String(formData.get("gradientTo") ?? "").trim();
+  const from = sanitizeHex(String(formData.get("gradientFrom") ?? ""));
+  const via = sanitizeHex(String(formData.get("gradientVia") ?? ""));
+  const to = sanitizeHex(String(formData.get("gradientTo") ?? ""));
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const existing: Partial<TenantBranding> = tenant.brandingJson ? JSON.parse(tenant.brandingJson) : {};

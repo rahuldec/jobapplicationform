@@ -295,14 +295,14 @@ export function SheetConfigBuilder({
                         <input
                           value={field.label}
                           onChange={(e) => updateField(si, fi, { label: e.target.value })}
-                          className={`${inputClass} col-span-4`}
+                          className={`${inputClass} col-span-3`}
                           placeholder="Display as"
                           title="What this field is called on the application — shown to HR"
                         />
                         <select
                           value={field.fieldType}
                           onChange={(e) => updateField(si, fi, { fieldType: e.target.value as FieldSpec["fieldType"] })}
-                          className={`${inputClass} col-span-2`}
+                          className={`${inputClass} col-span-3`}
                           title="Single Text = short answer, one line (e.g. a name). Multiple Text = long answer, multiple lines (e.g. an address)."
                         >
                           {FIELD_TYPES.map((t) => (

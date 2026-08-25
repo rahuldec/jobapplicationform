@@ -5,6 +5,7 @@ import { updateTenantBranding } from "@/lib/actions/tenants";
 import { getTenantBranding } from "@/lib/branding";
 import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
+import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -55,15 +56,9 @@ export default async function AdminTenantPage({
             <input id="logo" name="logo" type="file" accept="image/png,image/jpeg" className={inputClass} />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Gradient — from" htmlFor="gradientFrom">
-              <input id="gradientFrom" name="gradientFrom" type="color" defaultValue={branding.gradient.from} className={`${inputClass} h-10`} />
-            </Field>
-            <Field label="Gradient — via" htmlFor="gradientVia">
-              <input id="gradientVia" name="gradientVia" type="color" defaultValue={branding.gradient.via} className={`${inputClass} h-10`} />
-            </Field>
-            <Field label="Gradient — to" htmlFor="gradientTo">
-              <input id="gradientTo" name="gradientTo" type="color" defaultValue={branding.gradient.to} className={`${inputClass} h-10`} />
-            </Field>
+            <ColorPickerField name="gradientFrom" label="Gradient — from" defaultValue={branding.gradient.from} />
+            <ColorPickerField name="gradientVia" label="Gradient — via" defaultValue={branding.gradient.via} />
+            <ColorPickerField name="gradientTo" label="Gradient — to" defaultValue={branding.gradient.to} />
           </div>
           <div className="flex justify-end border-t border-slate-100 pt-4">
             <Button type="submit">Save branding</Button>
