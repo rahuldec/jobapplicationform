@@ -5,6 +5,9 @@
 export type TenantBranding = {
   name: string;
   shortName: string;
+  // One line shown under the name in the nav header, e.g. "Excellence in
+  // Education Since 1956" — purely decorative, optional, admin-set.
+  tagline: string | null;
   // A `data:image/...;base64,...` URI — logos are stored inline rather
   // than in separate file storage, since a client's logo is a few tens
   // of KB and Postgres already holds every other piece of tenant config
@@ -28,6 +31,7 @@ export function getTenantBranding(tenant: { name: string; brandingJson: string |
   return {
     name: parsed.name || tenant.name,
     shortName: parsed.shortName || tenant.name,
+    tagline: parsed.tagline || null,
     logoDataUrl: parsed.logoDataUrl ?? null,
     gradient: parsed.gradient ?? DEFAULT_GRADIENT,
   };

@@ -20,6 +20,7 @@ async function main() {
   const branding: TenantBranding = {
     name: "Nirankari Baba Gurbachan Singh Memorial College",
     shortName: "NBGSM",
+    tagline: null,
     logoDataUrl,
     gradient: { from: "#0f2359", via: "#1b449c", to: "#3465c9" },
   };

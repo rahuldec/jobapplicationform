@@ -52,6 +52,15 @@ export default async function AdminTenantPage({
               <input id="shortName" name="shortName" defaultValue={branding.shortName} className={inputClass} />
             </Field>
           </div>
+          <Field label="Tagline" htmlFor="tagline" hint="Shown as one line under the name in the nav header. Leave blank for none.">
+            <input
+              id="tagline"
+              name="tagline"
+              defaultValue={branding.tagline ?? ""}
+              className={inputClass}
+              placeholder="e.g. Excellence in Education Since 1956"
+            />
+          </Field>
           <Field label="Logo" htmlFor="logo" hint="PNG or JPEG. Leave blank to keep the current logo.">
             <input id="logo" name="logo" type="file" accept="image/png,image/jpeg" className={inputClass} />
           </Field>

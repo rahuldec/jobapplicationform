@@ -40,6 +40,7 @@ export async function updateTenantBranding(formData: FormData) {
   const tenantId = String(formData.get("tenantId"));
   const name = String(formData.get("name") ?? "").trim();
   const shortName = String(formData.get("shortName") ?? "").trim();
+  const taglineRaw = formData.get("tagline");
   const from = sanitizeHex(String(formData.get("gradientFrom") ?? ""));
   const via = sanitizeHex(String(formData.get("gradientVia") ?? ""));
   const to = sanitizeHex(String(formData.get("gradientTo") ?? ""));
@@ -57,6 +58,7 @@ export async function updateTenantBranding(formData: FormData) {
   const branding: TenantBranding = {
     name: name || tenant.name,
     shortName: shortName || tenant.name,
+    tagline: String(taglineRaw ?? "").trim() || null,
     logoDataUrl,
     gradient: {
       from: from || existing.gradient?.from || "#0f2359",

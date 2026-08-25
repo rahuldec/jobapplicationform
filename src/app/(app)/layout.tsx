@@ -14,27 +14,37 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const tenant = await getCurrentTenant();
   const branding = getTenantBranding(tenant);
 
+  const gradientCss = `linear-gradient(90deg, ${branding.gradient.from} 0%, ${branding.gradient.via} 50%, ${branding.gradient.to} 100%)`;
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
-        <div className="flex items-center justify-center gap-3 px-5 py-3">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            {branding.logoDataUrl && <img src={branding.logoDataUrl} alt="" width={44} height={56} className="h-14 w-11 shrink-0 object-contain" />}
-            <span
-              style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
-              className="hidden text-2xl font-medium tracking-tight text-slate-900 sm:inline"
-            >
-              {branding.name}
-            </span>
-            <span style={{ fontFamily: "Helvetica, Arial, sans-serif" }} className="text-2xl font-medium tracking-tight text-slate-900 sm:hidden">
-              {branding.shortName}
-            </span>
+        <div className="h-1.5 w-full shrink-0" style={{ background: gradientCss }} />
+        <div className="flex items-center px-5 py-4">
+          <Link href="/dashboard" className="flex items-center gap-4">
+            {branding.logoDataUrl && (
+              <img src={branding.logoDataUrl} alt="" width={64} height={80} className="h-16 w-14 shrink-0 object-contain" />
+            )}
+            <div>
+              <span
+                style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
+                className="hidden text-3xl font-bold tracking-tight text-slate-900 sm:block"
+              >
+                {branding.name}
+              </span>
+              <span style={{ fontFamily: "Helvetica, Arial, sans-serif" }} className="block text-2xl font-bold tracking-tight text-slate-900 sm:hidden">
+                {branding.shortName}
+              </span>
+              {branding.tagline && (
+                <p style={{ fontFamily: "Helvetica, Arial, sans-serif" }} className="mt-0.5 text-sm text-slate-500">
+                  {branding.tagline}
+                </p>
+              )}
+              <div className="mt-2 h-0.5 w-10 rounded-full" style={{ background: branding.gradient.from }} />
+            </div>
           </Link>
         </div>
-        <div
-          className="w-full py-2"
-          style={{ background: `linear-gradient(90deg, ${branding.gradient.from} 0%, ${branding.gradient.via} 50%, ${branding.gradient.to} 100%)` }}
-        >
+        <div className="w-full py-2" style={{ background: branding.gradient.via }}>
           <nav className="flex items-center justify-center gap-8">
             {NAV.map((item) => (
               <Link
