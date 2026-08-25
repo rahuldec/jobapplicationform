@@ -11,23 +11,25 @@ const NAV = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex h-14 shrink-0 items-center border-b border-slate-800 bg-slate-900 px-4">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="text-sm font-semibold tracking-tight text-white">
-            Recruitment Ops
-          </Link>
-          <nav className="flex items-center gap-1">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+      <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-5 backdrop-blur-md sm:px-8">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <Image src="/brand/nbgsm-logo.png" alt="" width={30} height={38} className="shrink-0" />
+          <span className="hidden text-[15px] font-medium tracking-tight text-slate-900 sm:inline">
+            Nirankari Baba Gurbachan Singh Memorial College
+          </span>
+          <span className="text-[15px] font-medium tracking-tight text-slate-900 sm:hidden">NBGSM</span>
+        </Link>
+        <nav className="flex items-center gap-7">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-900"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
