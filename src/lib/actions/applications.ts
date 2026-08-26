@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate } from "@/lib/email";
+import { formatDateTimeFull } from "@/lib/date";
 
 function invalidateApplicationsViews() {
   revalidatePath("/applications");
@@ -140,7 +141,7 @@ function buildEmailPlaceholders(application: ApplicationEmailContext) {
     jobTitle: application.job.title,
     collegeName: application.tenant.name,
     scheduledAt: interview
-      ? new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(interview.scheduledAt)
+      ? formatDateTimeFull(interview.scheduledAt)
       : "",
     mode: interview ? (INTERVIEW_MODE_LABELS[interview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? interview.mode) : "",
     location: interview?.location ?? "",

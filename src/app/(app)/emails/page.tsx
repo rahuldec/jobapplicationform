@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { Card, EmptyState, Badge, StatTile } from "@/components/ui/primitives";
-import { IconCheckCircle, IconXCircle } from "@/components/ui/icons";
+import { IconCheckCircle } from "@/components/ui/icons";
+import { formatDateTime } from "@/lib/date";
 import { EmailsFilters } from "./emails-filters";
 
 const PAGE_SIZE = 30;
@@ -80,7 +81,6 @@ export default async function EmailsPage({
   });
 
   const sentCount = allRows.filter((r) => r.sent).length;
-  const failedCount = allRows.length - sentCount;
 
   let rows = allRows;
   if (params.status === "sent") rows = rows.filter((r) => r.sent);
@@ -119,9 +119,8 @@ export default async function EmailsPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="max-w-xs">
         <StatTile label="Sent" value={sentCount} tone="success" icon={IconCheckCircle} />
-        <StatTile label="Failed" value={failedCount} tone="danger" icon={IconXCircle} />
       </div>
 
       <Card className="p-4">
@@ -153,7 +152,7 @@ export default async function EmailsPage({
                 {pageRows.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 whitespace-nowrap text-slate-500">
-                      {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(row.createdAt)}
+                      {formatDateTime(row.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {row.candidateName}

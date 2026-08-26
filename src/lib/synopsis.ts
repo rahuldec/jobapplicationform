@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
+import { formatDate } from "@/lib/date";
 
 // Fallback when a logo's format can't be read (getImageDimensions
 // returned null) — matches the previous fixed NBGSM logo's proportions
@@ -37,7 +38,7 @@ export async function getSynopsisData(applicationId: string) {
 type SynopsisApplication = NonNullable<Awaited<ReturnType<typeof getSynopsisData>>>;
 
 function fmtDate(d: Date | null | undefined) {
-  return d ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(d) : "—";
+  return d ? formatDate(d) : "—";
 }
 
 function extractDriveFileId(url: string): string | null {

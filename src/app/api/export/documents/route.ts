@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { renderSynopsisPdf } from "@/lib/synopsis";
+import { startOfTodayIST } from "@/lib/date";
 
 export const maxDuration = 60;
 
@@ -27,12 +28,6 @@ const SYNOPSIS_CONCURRENCY = 4;
 // full dataset with headroom for growth.
 const MAX_DOCUMENTS = 400;
 const CONCURRENCY = 12;
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 function extractDriveFileId(url: string): string | null {
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -76,7 +71,7 @@ export async function GET(request: NextRequest) {
       : {
           status: hasStatus ? { in: statusList } : undefined,
           jobId: jobId || undefined,
-          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
           ...(q
             ? {
                 OR: [

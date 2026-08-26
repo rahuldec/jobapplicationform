@@ -3,14 +3,9 @@ import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/enums";
+import { formatDate, startOfTodayIST } from "@/lib/date";
 
 export const maxDuration = 60;
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 // Mirrors the Applications page's own filter logic exactly, so the export
 // always reflects exactly what's currently on screen — the "dynamic" part.
@@ -30,7 +25,7 @@ export async function GET(request: NextRequest) {
     tenantId: tenant.id,
     status: hasStatus ? { in: statusList } : undefined,
     jobId: jobId || undefined,
-    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
     ...(q
       ? {
           OR: [
@@ -87,14 +82,12 @@ export async function GET(request: NextRequest) {
       "Candidate Name": app.candidate.fullName,
       Email: app.candidate.email,
       Mobile: app.candidate.mobile ?? "",
-      "Date of Birth": app.candidate.dateOfBirth
-        ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.candidate.dateOfBirth)
-        : "",
+      "Date of Birth": app.candidate.dateOfBirth ? formatDate(app.candidate.dateOfBirth) : "",
       Gender: app.candidate.gender ?? "",
       Job: app.job.title,
       Department: app.job.department?.name ?? "",
       Status: APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status,
-      "Applied Date": app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "",
+      "Applied Date": app.submittedAt ? formatDate(app.submittedAt) : "",
     };
     for (const col of fieldColumns) {
       const fv = fieldByFieldId.get(col.key);

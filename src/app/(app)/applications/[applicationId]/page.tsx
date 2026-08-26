@@ -13,6 +13,7 @@ import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES, INTERVIEW_MOD
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
 import { IconCalendar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
+import { formatDate, formatDateTime } from "@/lib/date";
 
 const ACTION_LABELS: Record<string, string> = {
   "application.submitted": "submitted the application",
@@ -149,9 +150,7 @@ export default async function ApplicationDetailPage({
           label="Applied"
           icon={IconCalendar}
           value={
-            application.submittedAt
-              ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(application.submittedAt)
-              : "Draft"
+            application.submittedAt ? formatDate(application.submittedAt) : "Draft"
           }
         />
         <StatTile
@@ -188,9 +187,7 @@ export default async function ApplicationDetailPage({
             <Detail
               label="Date of birth"
               value={
-                application.candidate.dateOfBirth
-                  ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(application.candidate.dateOfBirth)
-                  : null
+                application.candidate.dateOfBirth ? formatDate(application.candidate.dateOfBirth) : null
               }
             />
             <Detail label="Gender" value={application.candidate.gender} />
@@ -360,7 +357,7 @@ export default async function ApplicationDetailPage({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-slate-900">
-                    {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(currentInterview.scheduledAt)}
+                    {formatDateTime(currentInterview.scheduledAt)}
                     <span className="ml-2 text-slate-400">·</span>
                     <span className="ml-2 text-slate-500">{INTERVIEW_MODE_LABELS[currentInterview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? currentInterview.mode}</span>
                   </p>
@@ -391,7 +388,7 @@ export default async function ApplicationDetailPage({
                 {pastInterviews.map((iv) => (
                   <li key={iv.id} className="flex items-center justify-between px-5 py-3 text-sm">
                     <span className="text-slate-700">
-                      {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(iv.scheduledAt)}
+                      {formatDateTime(iv.scheduledAt)}
                       <span className="ml-2 text-slate-400">·</span>
                       <span className="ml-2 text-slate-500">{INTERVIEW_MODE_LABELS[iv.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? iv.mode}</span>
                     </span>
@@ -468,7 +465,7 @@ export default async function ApplicationDetailPage({
                           {!sent && <Badge tone="red">Failed</Badge>}
                         </div>
                         <span className="text-xs text-slate-400">
-                          {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
+                          {formatDateTime(entry.createdAt)}
                         </span>
                       </li>
                     );
@@ -496,7 +493,7 @@ export default async function ApplicationDetailPage({
                     {ACTION_LABELS[entry.action] ?? entry.action}
                   </span>
                   <span className="text-xs text-slate-400">
-                    {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
+                    {formatDateTime(entry.createdAt)}
                   </span>
                 </li>
               ))}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { Card, EmptyState, StatusBadge } from "@/components/ui/primitives";
 import { JOB_STATUSES } from "@/lib/enums";
+import { formatDate } from "@/lib/date";
 
 export default async function JobsPage({
   searchParams,
@@ -93,9 +94,7 @@ export default async function JobsPage({
                   </td>
                   <td className="px-4 py-3 text-slate-600">{job._count.applications}</td>
                   <td className="px-4 py-3 text-slate-600">
-                    {job.applicationDeadline
-                      ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(job.applicationDeadline)
-                      : "—"}
+                    {job.applicationDeadline ? formatDate(job.applicationDeadline) : "—"}
                   </td>
                 </tr>
               ))}

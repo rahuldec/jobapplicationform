@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { renderSynopsisPdf } from "@/lib/synopsis";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { runWithConcurrency } from "@/lib/concurrency";
+import { startOfTodayIST } from "@/lib/date";
 
 export const maxDuration = 60;
 
@@ -23,12 +24,6 @@ export const maxDuration = 60;
 // and 150, so the cap stays at 100 rather than chase the exact edge.
 const MAX_EMBEDDED_IDS = 100;
 const CANDIDATE_CONCURRENCY = 4;
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 // Bulk-generates one synopsis PDF per application — either a specific
 // `ids` selection (embeds real documents, capped — see above) or
@@ -72,7 +67,7 @@ export async function GET(request: NextRequest) {
       : {
           status: hasStatus ? { in: statusList } : undefined,
           jobId: jobId || undefined,
-          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+          ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
           ...(q
             ? {
                 OR: [

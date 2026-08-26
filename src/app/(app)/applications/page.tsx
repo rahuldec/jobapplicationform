@@ -5,17 +5,12 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { Card, EmptyState, Button } from "@/components/ui/primitives";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
+import { formatDate, startOfTodayIST } from "@/lib/date";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 import { ApplicationsFilters } from "./applications-filters";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 export default async function ApplicationsPage({
   searchParams,
@@ -43,7 +38,7 @@ export default async function ApplicationsPage({
     // Dashboard "today" tiles link here: with a status filter, "today" means
     // that status was last set today; without one, it means the application
     // itself was created today (matches how the dashboard counts each stat).
-    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfToday() } } : { createdAt: { gte: startOfToday() } }) : {}),
+    ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
     ...(params.q
       ? {
           OR: [
@@ -99,7 +94,7 @@ export default async function ApplicationsPage({
     status: app.status,
     assignedRecruiterId: app.assignedRecruiterId,
     assignedRecruiterName: app.assignedRecruiter?.name ?? null,
-    appliedLabel: app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "Draft",
+    appliedLabel: app.submittedAt ? formatDate(app.submittedAt) : "Draft",
   }));
 
   return (

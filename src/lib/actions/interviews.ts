@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { INTERVIEW_MODES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate, DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
+import { formatDateTimeFull } from "@/lib/date";
 
 function invalidateApplicationViews(applicationId: string) {
   revalidatePath(`/applications/${applicationId}`);
@@ -65,7 +66,7 @@ export async function scheduleInterview(formData: FormData) {
       candidateName: application.candidate.fullName,
       jobTitle: application.job.title,
       collegeName: application.tenant.name,
-      scheduledAt: new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(scheduledAt),
+      scheduledAt: formatDateTimeFull(scheduledAt),
       mode: INTERVIEW_MODE_LABELS[mode as keyof typeof INTERVIEW_MODE_LABELS] ?? mode,
       location: location ?? "To be shared",
     };

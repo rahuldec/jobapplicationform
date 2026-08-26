@@ -1,14 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+import { startOfTodayIST } from "@/lib/date";
 
 export async function getDashboardData(tenantId: string) {
-  const todayStart = startOfToday();
+  const todayStart = startOfTodayIST();
 
   const [totalApplications, statusGroups, todaysApplications, todaysShortlisted, todaysRejected, missingDocumentsApps] =
     await Promise.all([

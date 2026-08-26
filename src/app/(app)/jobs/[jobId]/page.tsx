@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { updateJobDeadlineAction } from "@/lib/actions/jobs";
 import { Card, CardHeader, StatusBadge, EmptyState, inputClass } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
+import { formatDate } from "@/lib/date";
 
 export default async function JobDetailPage({
   params,
@@ -104,9 +105,7 @@ export default async function JobDetailPage({
                     <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {app.submittedAt
-                      ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt)
-                      : "Draft"}
+                    {app.submittedAt ? formatDate(app.submittedAt) : "Draft"}
                   </td>
                 </tr>
               ))}
