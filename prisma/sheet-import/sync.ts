@@ -70,33 +70,40 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
         tenantId: tenant.id,
         name: config.formName,
         description: "Synced as-is from the original Google Sheet of received applications.",
-        sections: {
-          create: config.sections.map((s, i) => ({
-            name: s.name,
-            order: i + 1,
-            fields: {
-              create: s.fields.map((f, j) => ({
-                fieldKey: f.fieldKey,
-                label: f.label,
-                fieldType: f.fieldType,
-                order: j + 1,
-              })),
-            },
-          })),
-        },
       },
       include: { sections: { include: { fields: true } } },
     });
   }
 
+  // Matched by name/fieldKey, not array position: an admin can edit the
+  // Sheet mapping (add a section, rename a field's key) any time after
+  // the first sync already created this form, so the saved form's
+  // sections/fields must be reconciled against the *current* config on
+  // every run rather than assumed frozen at creation — missing pieces
+  // get added, nothing already there is ever renamed or removed (field
+  // values already recorded against it must keep resolving).
   const fieldByCol = new Map<number, { id: string; fieldKey: string }>();
-  config.sections.forEach((s, i) => {
-    const section = form!.sections[i];
-    s.fields.forEach((f) => {
-      const field = section.fields.find((sf) => sf.fieldKey === f.fieldKey)!;
+  for (let i = 0; i < config.sections.length; i++) {
+    const s = config.sections[i];
+    let section = form.sections.find((fs) => fs.name === s.name);
+    if (!section) {
+      section = await prisma.formSection.create({
+        data: { formId: form.id, name: s.name, order: form.sections.length + 1 },
+        include: { fields: true },
+      });
+      form.sections.push(section);
+    }
+    for (const f of s.fields) {
+      let field = section.fields.find((sf) => sf.fieldKey === f.fieldKey);
+      if (!field) {
+        field = await prisma.formField.create({
+          data: { sectionId: section.id, fieldKey: f.fieldKey, label: f.label, fieldType: f.fieldType, order: section.fields.length + 1 },
+        });
+        section.fields.push(field);
+      }
       fieldByCol.set(f.col, field);
-    });
-  });
+    }
+  }
 
   const { jobSelectorCol, emailCol, fullNameCol, mobileCol, dobCol, genderCol, addedTimeCol, applicationNumberCol } =
     config.coreFields;

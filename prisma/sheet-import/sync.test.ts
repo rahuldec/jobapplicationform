@@ -45,17 +45,19 @@ function createFakePrisma(tenant: FakeRow) {
       findFirst: async ({ where }: { where: { tenantId: string; name: string } }) =>
         db.applicationForms.find((f) => f.tenantId === where.tenantId && f.name === where.name) ?? null,
       create: async ({ data }: { data: FakeRow }) => {
-        const sectionsInput = (data.sections as { create: FakeRow[] }).create;
-        const sections = sectionsInput.map((s) => ({
-          id: nextId("section"),
-          name: s.name,
-          order: s.order,
-          fields: (s.fields as { create: FakeRow[] }).create.map((f) => ({ id: nextId("field"), ...f })),
-        }));
-        const form = { id: nextId("form"), tenantId: data.tenantId, name: data.name, sections };
+        const form = { id: nextId("form"), tenantId: data.tenantId, name: data.name, sections: [] as FakeRow[] };
         db.applicationForms.push(form);
         return form;
       },
+    },
+    formSection: {
+      create: async ({ data }: { data: FakeRow }) => {
+        const section = { id: nextId("section"), formId: data.formId, name: data.name, order: data.order, fields: [] as FakeRow[] };
+        return section;
+      },
+    },
+    formField: {
+      create: async ({ data }: { data: FakeRow }) => ({ id: nextId("field"), ...data }),
     },
     department: {
       findFirst: async ({ where }: { where: { tenantId: string; name: string } }) =>
@@ -296,6 +298,36 @@ describe("syncTenantSheet — row-position numbering (no unique-ID column)", () 
     const result = await syncTenantSheet(prisma, "acme");
 
     expect(result).toEqual({ created: 0, skipped: 0, alreadyImported: 2 });
+  });
+
+  it("reconciles the existing form when the config changes after the form already exists, instead of crashing (regression: real production bug)", async () => {
+    // An admin editing the Sheet mapping in the builder after the first
+    // sync already created the ApplicationForm used to crash every
+    // subsequent sync: the old code assumed form.sections[i] still lined
+    // up by array position with the (now different) config.sections[i].
+    const tenantObj = makeTenant();
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo"], rows);
+    const { prisma, db } = createFakePrisma(tenantObj);
+    await syncTenantSheet(prisma, "acme");
+    expect(db.applicationForms[0].sections).toHaveLength(1);
+
+    const changedConfig: SheetImportConfig = {
+      ...BASE_CONFIG,
+      sections: [
+        ...BASE_CONFIG.sections,
+        { name: "Contact Info", fields: [{ col: 6, fieldKey: "altPhone", label: "Alternate Phone", fieldType: "text" }] },
+      ],
+    };
+    tenantObj.sheetMappingJson = JSON.stringify(changedConfig);
+
+    const newRow = [new Date(2026, 0, 4), "carol@x.com", "Carol C", "Commerce", "note4", null, "9999999999"];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "Alt Phone"], [...rows, newRow]);
+
+    await expect(syncTenantSheet(prisma, "acme")).resolves.not.toThrow();
+
+    expect(db.applicationForms).toHaveLength(1);
+    expect((db.applicationForms[0].sections as { name: string }[]).map((s) => s.name)).toEqual(["Personal Details", "Contact Info"]);
+    expect(db.fieldValues.some((f) => f.valueText === "9999999999")).toBe(true);
   });
 });
 
