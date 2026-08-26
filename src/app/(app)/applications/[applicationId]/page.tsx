@@ -6,8 +6,9 @@ import {
   verifyDocumentAction,
   unverifyDocumentAction,
 } from "@/lib/actions/applications";
-import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, StatTile } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
+import { scheduleInterview, markInterviewCompleted, cancelInterview } from "@/lib/actions/interviews";
+import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, Field, StatTile } from "@/components/ui/primitives";
+import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES, INTERVIEW_MODES, INTERVIEW_MODE_LABELS, INTERVIEW_STATUS_LABELS } from "@/lib/enums";
 import { IconCalendar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 
@@ -18,14 +19,27 @@ const ACTION_LABELS: Record<string, string> = {
   "document.uploaded": "uploaded a document",
   "document.verified": "verified a document",
   "document.unverified": "un-verified a document",
+  "interview.scheduled": "scheduled an interview",
+  "interview.rescheduled": "rescheduled the interview",
+  "interview.completed": "marked the interview completed",
+  "interview.cancelled": "cancelled the interview",
 };
 
 const TABS = [
   { key: "profile", label: "Profile" },
   { key: "application", label: "Application" },
   { key: "documents", label: "Documents" },
+  { key: "interview", label: "Interview" },
   { key: "activity", label: "Activity" },
 ] as const;
+
+// <input type="datetime-local"> needs "YYYY-MM-DDTHH:mm" in local time,
+// not an ISO string (which is UTC) — building it from the Date's own
+// local getters avoids the timezone shift toISOString() would introduce.
+function toDatetimeLocalValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default async function ApplicationDetailPage({
   params,
@@ -50,10 +64,14 @@ export default async function ApplicationDetailPage({
       },
       fieldValues: { include: { field: true } },
       documents: { orderBy: { uploadedAt: "desc" } },
+      interviews: { orderBy: { scheduledAt: "desc" } },
     },
   });
 
   if (!application) notFound();
+
+  const currentInterview = application.interviews.find((i) => i.status === "scheduled") ?? null;
+  const pastInterviews = application.interviews.filter((i) => i.id !== currentInterview?.id);
 
   const activity = await prisma.auditLog.findMany({
     where: { entityType: "Application", entityId: application.id },
@@ -268,6 +286,119 @@ export default async function ApplicationDetailPage({
             </table>
           )}
         </Card>
+      )}
+
+      {tab === "interview" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader
+              title={currentInterview ? "Reschedule interview" : "Schedule interview"}
+              description={
+                currentInterview
+                  ? "Saving changes updates this same interview and re-notifies whoever's tracking it."
+                  : "Sets the application status to “Interview Scheduled”."
+              }
+            />
+            <form action={scheduleInterview} className="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-2">
+              <input type="hidden" name="applicationId" value={application.id} />
+              <Field label="Date & time" htmlFor="scheduledAt" required>
+                <input
+                  id="scheduledAt"
+                  name="scheduledAt"
+                  type="datetime-local"
+                  required
+                  defaultValue={currentInterview ? toDatetimeLocalValue(currentInterview.scheduledAt) : undefined}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Duration (minutes)" htmlFor="durationMinutes">
+                <input
+                  id="durationMinutes"
+                  name="durationMinutes"
+                  type="number"
+                  min={5}
+                  step={5}
+                  defaultValue={currentInterview?.durationMinutes ?? 30}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Mode" htmlFor="mode">
+                <select id="mode" name="mode" defaultValue={currentInterview?.mode ?? "in_person"} className={inputClass}>
+                  {INTERVIEW_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {INTERVIEW_MODE_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Location / link" htmlFor="location" hint="Room number, address, or a video call link — whatever fits the mode.">
+                <input id="location" name="location" defaultValue={currentInterview?.location ?? ""} className={inputClass} />
+              </Field>
+              <Field
+                label="Panel members"
+                htmlFor="panelistNames"
+                hint="Free text — e.g. “Dr. A Sharma, Prof. B Singh”."
+              >
+                <input id="panelistNames" name="panelistNames" defaultValue={currentInterview?.panelistNames ?? ""} className={inputClass} />
+              </Field>
+              <Field label="Notes" htmlFor="notes">
+                <input id="notes" name="notes" defaultValue={currentInterview?.notes ?? ""} className={inputClass} />
+              </Field>
+              <div className="sm:col-span-2 flex justify-end border-t border-slate-100 pt-4">
+                <Button type="submit">{currentInterview ? "Save Changes" : "Schedule Interview"}</Button>
+              </div>
+            </form>
+          </Card>
+
+          {currentInterview && (
+            <Card className="p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(currentInterview.scheduledAt)}
+                    <span className="ml-2 text-slate-400">·</span>
+                    <span className="ml-2 text-slate-500">{INTERVIEW_MODE_LABELS[currentInterview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? currentInterview.mode}</span>
+                  </p>
+                  {currentInterview.panelistNames && <p className="mt-0.5 text-xs text-slate-500">Panel: {currentInterview.panelistNames}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <form action={markInterviewCompleted}>
+                    <input type="hidden" name="interviewId" value={currentInterview.id} />
+                    <Button type="submit" size="sm" variant="secondary">
+                      Mark Completed
+                    </Button>
+                  </form>
+                  <form action={cancelInterview}>
+                    <input type="hidden" name="interviewId" value={currentInterview.id} />
+                    <Button type="submit" size="sm" variant="danger">
+                      Cancel
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {pastInterviews.length > 0 && (
+            <Card>
+              <CardHeader title="Interview history" />
+              <ul className="divide-y divide-slate-100">
+                {pastInterviews.map((iv) => (
+                  <li key={iv.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                    <span className="text-slate-700">
+                      {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(iv.scheduledAt)}
+                      <span className="ml-2 text-slate-400">·</span>
+                      <span className="ml-2 text-slate-500">{INTERVIEW_MODE_LABELS[iv.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? iv.mode}</span>
+                    </span>
+                    <Badge tone={iv.status === "completed" ? "green" : iv.status === "cancelled" ? "red" : "slate"}>
+                      {INTERVIEW_STATUS_LABELS[iv.status as keyof typeof INTERVIEW_STATUS_LABELS] ?? iv.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
       )}
 
       {tab === "activity" && (

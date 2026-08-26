@@ -52,6 +52,23 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   withdrawn: "Withdrawn",
 };
 
+export const INTERVIEW_MODES = ["in_person", "video", "phone"] as const;
+export type InterviewMode = (typeof INTERVIEW_MODES)[number];
+export const INTERVIEW_MODE_LABELS: Record<InterviewMode, string> = {
+  in_person: "In Person",
+  video: "Video Call",
+  phone: "Phone Call",
+};
+
+export const INTERVIEW_STATUSES = ["scheduled", "completed", "cancelled", "no_show"] as const;
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
+  scheduled: "Scheduled",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No-show",
+};
+
 export const FIELD_TYPES = [
   "text",
   "textarea",
@@ -90,6 +107,10 @@ export const AUDIT_ACTIONS = [
   "application.assigned",
   "document.uploaded",
   "document.verified",
+  "interview.scheduled",
+  "interview.rescheduled",
+  "interview.completed",
+  "interview.cancelled",
   "job.created",
   "job.published",
   "job.closed",

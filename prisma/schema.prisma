@@ -50,6 +50,7 @@ model Tenant {
   applications     Application[]
   documents        Document[]
   applicationForms ApplicationForm[]
+  interviews       Interview[]
   auditLogs        AuditLog[]
 
   @@map("tenants")
@@ -237,6 +238,7 @@ model Application {
 
   fieldValues ApplicationFieldValue[]
   documents   Document[]
+  interviews  Interview[]
 
   @@unique([tenantId, applicationNumber])
   @@index([tenantId, jobId])
@@ -293,6 +295,42 @@ model Document {
 
   @@index([tenantId, applicationId])
   @@map("documents")
+}
+
+// ---------------------------------------------------------------------------
+// Interviews
+// ---------------------------------------------------------------------------
+
+// An application can have more than one of these over time (rescheduled,
+// or a second round) — the UI only ever surfaces the latest non-cancelled
+// one as "the" interview, but history is kept rather than overwritten.
+// Panelists are free text, not linked User records: no login/user-
+// management flow exists yet to pick real panel_member accounts from, so
+// forcing a User link here would just block scheduling on a feature that
+// doesn't exist. Revisit once that's built.
+model Interview {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  scheduledAt     DateTime
+  durationMinutes Int     @default(30)
+  mode            String  @default("in_person") // in_person | video | phone — see src/lib/enums.ts
+  location        String? // room/address for in_person, a join link for video, a number for phone
+  panelistNames   String? // free-text, e.g. "Dr. A Sharma, Prof. B Singh"
+  notes           String?
+
+  status String @default("scheduled") // scheduled | completed | cancelled | no_show — see src/lib/enums.ts
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([applicationId])
+  @@map("interviews")
 }
 
 // ---------------------------------------------------------------------------
