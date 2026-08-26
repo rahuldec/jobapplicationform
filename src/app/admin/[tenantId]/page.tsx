@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { updateTenantBranding } from "@/lib/actions/tenants";
+import { updateTenantBranding, updateInterviewEmailTemplate } from "@/lib/actions/tenants";
+import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
-import { Card, CardHeader, Field, inputClass, Button } from "@/components/ui/primitives";
+import { Card, CardHeader, Field, inputClass, Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
+import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
+import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -18,6 +21,7 @@ export default async function AdminTenantPage({
   if (!tenant) notFound();
 
   const branding = getTenantBranding(tenant);
+  const staff = await prisma.user.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } });
 
   let initialConfig = null;
   if (tenant.sheetMappingJson) {
@@ -71,6 +75,96 @@ export default async function AdminTenantPage({
           </div>
           <div className="flex justify-end border-t border-slate-100 pt-4">
             <Button type="submit">Save branding</Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Staff"
+          description="Recruiters and panel members — shown in the bulk-assign dropdown on Applications. Creating one here doesn't grant them any login access, since none exists yet."
+        />
+        {staff.length === 0 ? (
+          <div className="p-5">
+            <EmptyState title="No staff added yet" />
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {staff.map((u) => (
+              <li key={u.id} className="flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-sm font-medium text-slate-800">{u.name}</span>
+                  <span className="text-xs text-slate-400">{u.email}</span>
+                  <Badge tone={u.role === "recruiter" ? "blue" : u.role === "panel_member" ? "purple" : "slate"}>
+                    {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role}
+                  </Badge>
+                </div>
+                <form action={deleteStaffUser}>
+                  <input type="hidden" name="userId" value={u.id} />
+                  <input type="hidden" name="tenantId" value={tenant.id} />
+                  <Button type="submit" size="sm" variant="ghost">
+                    Remove
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={createStaffUser} className="grid grid-cols-1 gap-3 border-t border-slate-100 px-5 py-5 sm:grid-cols-[1fr_1fr_auto_auto]">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <Field label="Name" htmlFor="staffName">
+            <input id="staffName" name="name" required className={inputClass} placeholder="Dr. A Sharma" />
+          </Field>
+          <Field label="Email" htmlFor="staffEmail">
+            <input id="staffEmail" name="email" type="email" required className={inputClass} placeholder="a.sharma@example.com" />
+          </Field>
+          <Field label="Role" htmlFor="staffRole">
+            <select id="staffRole" name="role" defaultValue="recruiter" className={inputClass}>
+              {STAFF_CREATABLE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="flex items-end">
+            <Button type="submit">Add</Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Interview email"
+          description="Sent to the candidate automatically when an interview is scheduled or rescheduled. Leave blank to use the default wording below."
+        />
+        <form action={updateInterviewEmailTemplate} className="space-y-4 px-5 py-5">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <Field
+            label="Subject"
+            htmlFor="interviewEmailSubject"
+            hint="Placeholders: {candidateName} {jobTitle} {collegeName} {scheduledAt} {mode} {location}"
+          >
+            <input
+              id="interviewEmailSubject"
+              name="interviewEmailSubject"
+              defaultValue={tenant.interviewEmailSubject ?? ""}
+              placeholder={DEFAULT_INTERVIEW_EMAIL_SUBJECT}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Body (HTML)" htmlFor="interviewEmailBody">
+            <textarea
+              id="interviewEmailBody"
+              name="interviewEmailBody"
+              rows={8}
+              defaultValue={tenant.interviewEmailBody ?? ""}
+              placeholder={DEFAULT_INTERVIEW_EMAIL_BODY}
+              className={`${inputClass} font-mono text-xs`}
+            />
+          </Field>
+          <div className="flex justify-end border-t border-slate-100 pt-4">
+            <Button type="submit">Save Template</Button>
           </div>
         </form>
       </Card>

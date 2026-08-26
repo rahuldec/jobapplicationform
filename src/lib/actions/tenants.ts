@@ -116,6 +116,21 @@ export async function autoMapTenantSheet(sheetSourceUrl: string): Promise<AutoMa
   return autoMapSheetColumns(headerRow, dataRows.slice(0, 15));
 }
 
+// Blank subject/body clears the override and falls back to the built-in
+// default wording (see src/lib/email.ts) rather than sending an empty email.
+export async function updateInterviewEmailTemplate(formData: FormData) {
+  const tenantId = String(formData.get("tenantId"));
+  const subject = String(formData.get("interviewEmailSubject") ?? "").trim() || null;
+  const body = String(formData.get("interviewEmailBody") ?? "").trim() || null;
+
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { interviewEmailSubject: subject, interviewEmailBody: body },
+  });
+
+  revalidatePath(`/admin/${tenantId}`);
+}
+
 export async function updateTenantSheetConfig(input: {
   tenantId: string;
   sheetSourceUrl: string;

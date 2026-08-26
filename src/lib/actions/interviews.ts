@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { INTERVIEW_MODES } from "@/lib/enums";
+import { INTERVIEW_MODES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
+import { sendEmail, renderTemplate, DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 
 function invalidateApplicationViews(applicationId: string) {
   revalidatePath(`/applications/${applicationId}`);
@@ -29,7 +30,10 @@ export async function scheduleInterview(formData: FormData) {
   if (Number.isNaN(scheduledAt.getTime())) throw new Error("Invalid interview date/time");
   if (!INTERVIEW_MODES.includes(mode as never)) throw new Error("Invalid interview mode");
 
-  const application = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+  const application = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    include: { candidate: true, job: true, tenant: true },
+  });
   const existing = await prisma.interview.findFirst({
     where: { applicationId, status: "scheduled" },
     orderBy: { scheduledAt: "desc" },
@@ -52,6 +56,25 @@ export async function scheduleInterview(formData: FormData) {
       metadataJson: JSON.stringify({ interviewId: interview.id, scheduledAt }),
     },
   });
+
+  // Best-effort: a failed/unconfigured email should never undo an
+  // interview that was successfully scheduled — it's already committed
+  // above by this point.
+  try {
+    const placeholders = {
+      candidateName: application.candidate.fullName,
+      jobTitle: application.job.title,
+      collegeName: application.tenant.name,
+      scheduledAt: new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(scheduledAt),
+      mode: INTERVIEW_MODE_LABELS[mode as keyof typeof INTERVIEW_MODE_LABELS] ?? mode,
+      location: location ?? "To be shared",
+    };
+    const subject = renderTemplate(application.tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT, placeholders);
+    const html = renderTemplate(application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY, placeholders);
+    await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html });
+  } catch (err) {
+    console.error(`[interview email] Failed to send for application ${applicationId}:`, err);
+  }
 
   invalidateApplicationViews(applicationId);
 }

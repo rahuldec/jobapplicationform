@@ -10,6 +10,16 @@ export const ROLES = [
   "panel_member",
 ] as const;
 export type Role = (typeof ROLES)[number];
+export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: "Super Admin",
+  college_admin: "College Admin",
+  recruiter: "Recruiter",
+  panel_member: "Panel Member",
+};
+// The two roles the admin-side "Add staff" form actually offers — the
+// other two describe platform-level access this app has no login system
+// to grant yet, so surfacing them here would be a control with no effect.
+export const STAFF_CREATABLE_ROLES: readonly Role[] = ["recruiter", "panel_member"];
 
 export const JOB_STATUSES = ["draft", "published", "closed"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];

@@ -40,6 +40,13 @@ model Tenant {
   sheetSourceUrl   String?
   sheetMappingJson String?
 
+  // Per-tenant email sent to the candidate when their interview is
+  // scheduled/rescheduled — {placeholder} templated, see
+  // src/lib/email.ts. Both null means the built-in default wording is
+  // used, so a tenant works with zero setup until they want to customize it.
+  interviewEmailSubject String?
+  interviewEmailBody    String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
