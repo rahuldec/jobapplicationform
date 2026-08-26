@@ -1,6 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { ComponentType, SVGProps } from "react";
+import { useFormStatus } from "react-dom";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -126,12 +129,22 @@ export function StatusBadge({ status, label }: { status: string; label: string }
   return <Badge tone={statusTone[status] ?? "slate"}>{label}</Badge>;
 }
 
+function ButtonSpinner() {
+  return (
+    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
+  );
+}
+
 export function Button({
   children,
   variant = "primary",
   size = "md",
   type = "button",
   className = "",
+  disabled,
   ...rest
 }: {
   children: ReactNode;
@@ -140,6 +153,13 @@ export function Button({
   type?: "button" | "submit";
   className?: string;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  // useFormStatus reports pending only for the nearest ancestor <form> while
+  // it's submitting — so a submit button reflects its own form's in-flight
+  // state instantly, without every caller needing its own pending state.
+  // Returns pending:false when there's no ancestor form, so this is safe on
+  // every Button regardless of whether it's ever inside one.
+  const { pending } = useFormStatus();
+  const isPending = type === "submit" && pending;
   const base =
     "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-orange-500 disabled:opacity-50 disabled:pointer-events-none";
   const sizes = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
@@ -150,7 +170,13 @@ export function Button({
     danger: "bg-red-600 text-white hover:bg-red-700",
   };
   return (
-    <button type={type} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...rest}>
+    <button
+      type={type}
+      disabled={disabled || isPending}
+      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
+      {...rest}
+    >
+      {isPending && <ButtonSpinner />}
       {children}
     </button>
   );
@@ -184,7 +210,7 @@ export function Field({
   label: string;
   htmlFor?: string;
   required?: boolean;
-  hint?: string;
+  hint?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -194,7 +220,7 @@ export function Field({
         {required ? <span className="ml-0.5 text-red-500">*</span> : null}
       </label>
       <div className="mt-1.5">{children}</div>
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
+      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
     </div>
   );
 }

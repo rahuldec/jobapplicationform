@@ -9,6 +9,24 @@ import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
+
+const INTERVIEW_EMAIL_PLACEHOLDERS = ["candidateName", "jobTitle", "collegeName", "scheduledAt", "mode", "location"];
+
+function PlaceholderHint() {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span>Placeholders:</span>
+      {INTERVIEW_EMAIL_PLACEHOLDERS.map((p) => (
+        <code
+          key={p}
+          className="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
+        >
+          {`{${p}}`}
+        </code>
+      ))}
+    </span>
+  );
+}
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -140,11 +158,7 @@ export default async function AdminTenantPage({
         />
         <form action={updateInterviewEmailTemplate} className="space-y-4 px-5 py-5">
           <input type="hidden" name="tenantId" value={tenant.id} />
-          <Field
-            label="Subject"
-            htmlFor="interviewEmailSubject"
-            hint="Placeholders: {candidateName} {jobTitle} {collegeName} {scheduledAt} {mode} {location}"
-          >
+          <Field label="Subject" htmlFor="interviewEmailSubject" hint={<PlaceholderHint />}>
             <input
               id="interviewEmailSubject"
               name="interviewEmailSubject"
