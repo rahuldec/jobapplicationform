@@ -33,17 +33,20 @@ describe("sendEmail", () => {
   it("posts to the ZeptoMail API with the configured credentials when set", async () => {
     vi.stubEnv("ZEPTOMAIL_TOKEN", "test-token");
     vi.stubEnv("ZEPTOMAIL_FROM_EMAIL", "noreply@example.com");
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, text: async () => "" }));
+    const fetchMock = vi.fn(async (_url: string, _options: RequestInit) => ({ ok: true, status: 200, text: async () => "" }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await sendEmail({ to: "candidate@example.com", toName: "Candidate", subject: "Hi", html: "<p>Hi</p>" });
 
     expect(result).toEqual({ sent: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const [url, options] = call;
     expect(url).toContain("zeptomail");
-    expect(options.headers.Authorization).toBe("Zoho-enczapikey test-token");
-    const body = JSON.parse(options.body);
+    const headers = options.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Zoho-enczapikey test-token");
+    const body = JSON.parse(options.body as string);
     expect(body.from.address).toBe("noreply@example.com");
     expect(body.to[0].email_address.address).toBe("candidate@example.com");
     expect(body.subject).toBe("Hi");
