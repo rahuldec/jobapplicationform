@@ -107,7 +107,7 @@ export default async function DashboardPage() {
         <StatTile label="Emails sent" value={data.stats.emailsSent} sublabel="single + bulk" icon={IconPaperPlane} href="/emails" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
         <ApplicationsByJobChart data={data.analytics.byJob} />
         <PipelineByStatus byStatus={data.stats.byStatus} />
       </div>
