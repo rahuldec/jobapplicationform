@@ -200,6 +200,25 @@ export function EmptyState({
   );
 }
 
+// Shared by any email-template field (interview template, bulk compose)
+// that supports {placeholder} substitution — renders each name as a chip
+// so admins can see at a glance what's available without memorizing them.
+export function PlaceholderChips({ names }: { names: string[] }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span>Placeholders:</span>
+      {names.map((p) => (
+        <code
+          key={p}
+          className="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
+        >
+          {`{${p}}`}
+        </code>
+      ))}
+    </span>
+  );
+}
+
 export function Field({
   label,
   htmlFor,

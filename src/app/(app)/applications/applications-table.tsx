@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge, Button, inputClass } from "@/components/ui/primitives";
+import { StatusBadge, Button, inputClass, PlaceholderChips } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
 import { bulkChangeApplicationStatus, bulkAssignRecruiter, bulkSendCandidateEmail } from "@/lib/actions/applications";
+import { INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
 
 const MAX_SYNOPSIS_SELECTION = 100;
 
@@ -25,9 +26,13 @@ export type ApplicationRow = {
 export function ApplicationsTable({
   rows,
   recruiters,
+  defaultEmailSubject,
+  defaultEmailBody,
 }: {
   rows: ApplicationRow[];
   recruiters: { id: string; name: string }[];
+  defaultEmailSubject: string;
+  defaultEmailBody: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -142,6 +147,13 @@ export function ApplicationsTable({
             onClick={() => {
               setShowEmailComposer((v) => !v);
               setEmailResult(null);
+              // Prefill from the tenant's saved interview email template the
+              // first time the composer opens, so admins aren't retyping it
+              // every time — {placeholders} resolve per candidate on send.
+              if (!emailSubject && !emailBody) {
+                setEmailSubject(defaultEmailSubject);
+                setEmailBody(defaultEmailBody);
+              }
             }}
           >
             Email
@@ -167,9 +179,14 @@ export function ApplicationsTable({
             value={emailBody}
             onChange={(e) => setEmailBody(e.target.value)}
             placeholder={`Message — sent individually to all ${selected.size} selected candidates.`}
-            rows={4}
-            className={`${inputClass} bg-white`}
+            rows={7}
+            className={`${inputClass} bg-white font-mono text-xs`}
           />
+          <p className="text-xs text-slate-500">
+            Prefilled from the tenant&apos;s Interview email template — edit freely.{" "}
+            <PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} /> resolve per candidate; scheduling ones are blank if
+            that candidate has no interview on record.
+          </p>
           <div className="flex items-center gap-2">
             <Button
               size="sm"

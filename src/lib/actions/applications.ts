@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { APPLICATION_STATUSES } from "@/lib/enums";
-import { sendEmail } from "@/lib/email";
+import { APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
+import { sendEmail, renderTemplate } from "@/lib/email";
 
 function invalidateApplicationsViews() {
   revalidatePath("/applications");
@@ -161,35 +161,68 @@ export async function sendCandidateEmail(formData: FormData) {
   revalidatePath(`/applications/${applicationId}`);
 }
 
+const HTML_TAG = /<[a-z][\s\S]*>/i;
+
 // Bulk variant for the Applications list's multi-select toolbar — e.g. ten
 // candidates all had interviews scheduled separately and now need the same
-// follow-up note, without opening ten application pages one at a time.
+// follow-up note, without opening ten application pages one at a time. The
+// composer prefills from the tenant's saved interview email template, so
+// subject/body may still contain {placeholder} tokens — those are resolved
+// per recipient here the same way the automatic interview email resolves
+// them, falling back to blank for candidates with no interview on record.
 // Each candidate still gets their own individual email (never a shared
 // to:/cc: list); partial failures don't throw since the caller needs a
 // sent/failed count to show, not a single all-or-nothing error.
 export async function bulkSendCandidateEmail(input: { applicationIds: string[]; subject: string; body: string }) {
-  const subject = input.subject.trim();
-  const bodyText = input.body.trim();
-  if (!subject) throw new Error("Subject is required");
-  if (!bodyText) throw new Error("Message is required");
+  const subjectTemplate = input.subject.trim();
+  const bodyTemplate = input.body.trim();
+  if (!subjectTemplate) throw new Error("Subject is required");
+  if (!bodyTemplate) throw new Error("Message is required");
   if (input.applicationIds.length === 0) return { sent: 0, failed: 0 };
 
   const apps = await prisma.application.findMany({
     where: { id: { in: input.applicationIds } },
-    include: { candidate: true },
+    include: {
+      candidate: true,
+      job: true,
+      tenant: true,
+      interviews: { orderBy: { scheduledAt: "desc" }, take: 1 },
+    },
   });
   if (apps.length === 0) return { sent: 0, failed: 0 };
 
-  const html = textToHtml(bodyText);
+  // Whether the template already contains HTML markup (as saved from the
+  // Interview email admin field) decides how the body is finished after
+  // substitution — raw templates are sent as-is, plain text still gets the
+  // paragraph/line-break treatment so a simple typed note still reads well.
+  const isHtmlTemplate = HTML_TAG.test(bodyTemplate);
+
   const results = await Promise.all(
-    apps.map(async (application) => ({
-      application,
-      result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html }),
-    })),
+    apps.map(async (application) => {
+      const interview = application.interviews[0];
+      const placeholders = {
+        candidateName: application.candidate.fullName,
+        jobTitle: application.job.title,
+        collegeName: application.tenant.name,
+        scheduledAt: interview
+          ? new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(interview.scheduledAt)
+          : "",
+        mode: interview ? (INTERVIEW_MODE_LABELS[interview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? interview.mode) : "",
+        location: interview?.location ?? "",
+      };
+      const subject = renderTemplate(subjectTemplate, placeholders);
+      const renderedBody = renderTemplate(bodyTemplate, placeholders);
+      const html = isHtmlTemplate ? renderedBody : textToHtml(renderedBody);
+      return {
+        application,
+        result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html }),
+        subject,
+      };
+    }),
   );
 
   await prisma.auditLog.createMany({
-    data: results.map(({ application, result }) => ({
+    data: results.map(({ application, result, subject }) => ({
       tenantId: application.tenantId,
       actorName: "Admin",
       action: "email.sent",

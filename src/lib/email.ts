@@ -43,6 +43,8 @@ export function renderTemplate(template: string, values: Record<string, string>)
   return template.replace(/\{(\w+)\}/g, (_match, key: string) => values[key] ?? "");
 }
 
+export const INTERVIEW_EMAIL_PLACEHOLDERS = ["candidateName", "jobTitle", "collegeName", "scheduledAt", "mode", "location"];
+
 export const DEFAULT_INTERVIEW_EMAIL_SUBJECT = "Your interview for {jobTitle} has been scheduled";
 export const DEFAULT_INTERVIEW_EMAIL_BODY = `<p>Dear {candidateName},</p>
 <p>Your interview for <strong>{jobTitle}</strong> at {collegeName} has been scheduled.</p>

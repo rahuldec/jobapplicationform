@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
 import { Card, EmptyState, Button } from "@/components/ui/primitives";
 import { APPLICATION_STATUSES } from "@/lib/enums";
+import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 import { ApplicationsFilters } from "./applications-filters";
 
@@ -140,7 +141,12 @@ export default async function ApplicationsPage({
           <EmptyState title="No applications found" description="Try adjusting your filters." />
         ) : (
           <>
-            <ApplicationsTable rows={rows} recruiters={recruiters.map((r) => ({ id: r.id, name: r.name }))} />
+            <ApplicationsTable
+              rows={rows}
+              recruiters={recruiters.map((r) => ({ id: r.id, name: r.name }))}
+              defaultEmailSubject={tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT}
+              defaultEmailBody={tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY}
+            />
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
                 <span>
