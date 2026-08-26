@@ -55,10 +55,10 @@ export default async function ApplicationsPage({
       : {}),
   };
 
-  const [applications, total, jobs, documentTypeRows] = await Promise.all([
+  const [applications, total, jobs, documentTypeRows, recruiters] = await Promise.all([
     prisma.application.findMany({
       where,
-      include: { candidate: true, job: true },
+      include: { candidate: true, job: true, assignedRecruiter: true },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -71,6 +71,7 @@ export default async function ApplicationsPage({
       distinct: ["documentType"],
       orderBy: { documentType: "asc" },
     }),
+    prisma.user.findMany({ where: { tenantId: tenant.id, role: "recruiter" }, orderBy: { name: "asc" } }),
   ]);
   const documentTypes = documentTypeRows.map((d) => d.documentType);
 
@@ -95,6 +96,8 @@ export default async function ApplicationsPage({
     candidateEmail: app.candidate.email,
     jobTitle: app.job.title,
     status: app.status,
+    assignedRecruiterId: app.assignedRecruiterId,
+    assignedRecruiterName: app.assignedRecruiter?.name ?? null,
     appliedLabel: app.submittedAt ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(app.submittedAt) : "Draft",
   }));
 
@@ -137,7 +140,7 @@ export default async function ApplicationsPage({
           <EmptyState title="No applications found" description="Try adjusting your filters." />
         ) : (
           <>
-            <ApplicationsTable rows={rows} />
+            <ApplicationsTable rows={rows} recruiters={recruiters.map((r) => ({ id: r.id, name: r.name }))} />
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
                 <span>

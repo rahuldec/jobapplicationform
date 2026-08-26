@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge, Button } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
+import { StatusBadge, Button, inputClass } from "@/components/ui/primitives";
+import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
+import { bulkChangeApplicationStatus, bulkAssignRecruiter } from "@/lib/actions/applications";
 
 const MAX_SYNOPSIS_SELECTION = 100;
 
@@ -15,11 +17,24 @@ export type ApplicationRow = {
   candidateEmail: string;
   jobTitle: string;
   status: string;
+  assignedRecruiterId: string | null;
+  assignedRecruiterName: string | null;
   appliedLabel: string;
 };
 
-export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
+export function ApplicationsTable({
+  rows,
+  recruiters,
+}: {
+  rows: ApplicationRow[];
+  recruiters: { id: string; name: string }[];
+}) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<string>(SETTABLE_APPLICATION_STATUSES[0]);
+  const [bulkRecruiterId, setBulkRecruiterId] = useState<string>("");
+  const [applyingStatus, setApplyingStatus] = useState(false);
+  const [applyingAssign, setApplyingAssign] = useState(false);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -34,21 +49,69 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.slice(0, MAX_SYNOPSIS_SELECTION).map((r) => r.id)));
   const atLimit = selected.size >= MAX_SYNOPSIS_SELECTION;
 
+  const handleBulkStatus = async () => {
+    setApplyingStatus(true);
+    try {
+      await bulkChangeApplicationStatus({ applicationIds: Array.from(selected), status: bulkStatus });
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setApplyingStatus(false);
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    setApplyingAssign(true);
+    try {
+      await bulkAssignRecruiter({ applicationIds: Array.from(selected), recruiterId: bulkRecruiterId || null });
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setApplyingAssign(false);
+    }
+  };
+
   return (
     <>
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-orange-100 bg-orange-50 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-orange-100 bg-orange-50 px-4 py-3">
           <span className="text-sm font-medium text-orange-800">
             {selected.size} selected
-            {atLimit && <span className="ml-1.5 font-normal text-orange-600">(max {MAX_SYNOPSIS_SELECTION} per download)</span>}
+            {atLimit && <span className="ml-1.5 font-normal text-orange-600">(max {MAX_SYNOPSIS_SELECTION})</span>}
           </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`}>
-              <Button variant="secondary" size="sm">
-                Download Synopsis ({selected.size})
-              </Button>
-            </a>
+
+          <div className="flex items-center gap-1.5">
+            <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className={`${inputClass} w-44 py-1.5 text-sm`}>
+              {SETTABLE_APPLICATION_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {APPLICATION_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+            <Button variant="secondary" size="sm" onClick={handleBulkStatus} disabled={applyingStatus}>
+              {applyingStatus ? "Applying…" : "Set Status"}
+            </Button>
           </div>
+
+          <div className="flex items-center gap-1.5">
+            <select value={bulkRecruiterId} onChange={(e) => setBulkRecruiterId(e.target.value)} className={`${inputClass} w-44 py-1.5 text-sm`}>
+              <option value="">— Unassign —</option>
+              {recruiters.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            <Button variant="secondary" size="sm" onClick={handleBulkAssign} disabled={applyingAssign}>
+              {applyingAssign ? "Assigning…" : "Assign"}
+            </Button>
+          </div>
+
+          <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`} className="ml-auto">
+            <Button variant="secondary" size="sm">
+              Download Synopsis ({selected.size})
+            </Button>
+          </a>
         </div>
       )}
       <table className="w-full text-sm">
@@ -68,6 +131,7 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
             <th className="px-4 py-2.5">Candidate</th>
             <th className="px-4 py-2.5">Job</th>
             <th className="px-4 py-2.5">Status</th>
+            <th className="px-4 py-2.5">Recruiter</th>
             <th className="px-4 py-2.5">Applied</th>
             <th className="px-4 py-2.5"></th>
           </tr>
@@ -100,6 +164,9 @@ export function ApplicationsTable({ rows }: { rows: ApplicationRow[] }) {
                 <td className="px-4 py-3 text-slate-600">{app.jobTitle}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status} />
+                </td>
+                <td className="px-4 py-3 text-slate-600">
+                  {app.assignedRecruiterName ?? <span className="text-slate-400 italic">Unassigned</span>}
                 </td>
                 <td className="px-4 py-3 text-slate-500">{app.appliedLabel}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
