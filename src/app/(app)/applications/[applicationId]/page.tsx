@@ -431,7 +431,7 @@ export default async function ApplicationDetailPage({
                   rows={8}
                   required
                   defaultValue={application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY}
-                  className={`${inputClass} font-mono text-xs`}
+                  className={`${inputClass} resize-y font-mono text-xs`}
                 />
               </Field>
               <p className="text-xs text-slate-500">

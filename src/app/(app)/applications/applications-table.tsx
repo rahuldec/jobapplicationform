@@ -180,7 +180,7 @@ export function ApplicationsTable({
             onChange={(e) => setEmailBody(e.target.value)}
             placeholder={`Message — sent individually to all ${selected.size} selected candidates.`}
             rows={7}
-            className={`${inputClass} bg-white font-mono text-xs`}
+            className={`${inputClass} bg-white resize-y font-mono text-xs`}
           />
           <p className="text-xs text-slate-500">
             Prefilled from the tenant&apos;s Interview email template — edit freely.{" "}

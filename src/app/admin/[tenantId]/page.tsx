@@ -160,7 +160,7 @@ export default async function AdminTenantPage({
               rows={8}
               defaultValue={tenant.interviewEmailBody ?? ""}
               placeholder={DEFAULT_INTERVIEW_EMAIL_BODY}
-              className={`${inputClass} font-mono text-xs`}
+              className={`${inputClass} resize-y font-mono text-xs`}
             />
           </Field>
           <div className="flex justify-end border-t border-slate-100 pt-4">
