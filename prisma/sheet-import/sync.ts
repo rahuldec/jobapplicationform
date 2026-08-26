@@ -126,17 +126,33 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   if (applicationNumberCol !== null && applicationNumberCol !== undefined) {
     const existing = await prisma.application.findMany({
       where: { tenantId: tenant.id },
-      select: { applicationNumber: true },
+      select: { applicationNumber: true, candidate: { select: { email: true } } },
     });
-    const existingNumbers = new Set(existing.map((a) => a.applicationNumber));
-    alreadyImported = existingNumbers.size;
+    // Maps a number to the email it's already claimed by, so a genuine
+    // re-sync of the same row (same email) is still recognized as already
+    // imported, while a *different* candidate's row landing on the same
+    // Sheet-assigned ID — e.g. after a tenant's Sheet was swapped for a new
+    // one that happens to reuse the same numbering scheme — is caught as a
+    // real collision instead of silently vanishing (regression: real
+    // production bug where 15 genuine applications were dropped this way).
+    const claimedBy = new Map(existing.map((a) => [a.applicationNumber, a.candidate.email.toLowerCase()]));
+    const usedNumbers = new Set(existing.map((a) => a.applicationNumber));
+    alreadyImported = existing.length;
 
     newRows = [];
     for (const row of dataRows) {
       const rawId = cell(row, applicationNumberCol);
       if (!rawId) continue;
-      const applicationNumber = `${config.applicationNumberPrefix}${rawId}`;
-      if (existingNumbers.has(applicationNumber)) continue;
+      const email = cell(row, emailCol)?.toLowerCase();
+      let applicationNumber = `${config.applicationNumberPrefix}${rawId}`;
+      const claimant = claimedBy.get(applicationNumber);
+      if (claimant !== undefined) {
+        if (claimant === email) continue;
+        let suffix = 2;
+        while (usedNumbers.has(`${applicationNumber}-${suffix}`)) suffix++;
+        applicationNumber = `${applicationNumber}-${suffix}`;
+      }
+      usedNumbers.add(applicationNumber);
       newRows.push({ row, applicationNumber });
     }
   } else {

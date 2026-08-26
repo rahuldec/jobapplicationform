@@ -79,7 +79,12 @@ function createFakePrisma(tenant: FakeRow) {
     },
     application: {
       findMany: async ({ where }: { where: { tenantId: string } }) =>
-        db.applications.filter((a) => a.tenantId === where.tenantId).map((a) => ({ applicationNumber: a.applicationNumber })),
+        db.applications
+          .filter((a) => a.tenantId === where.tenantId)
+          .map((a) => ({
+            applicationNumber: a.applicationNumber,
+            candidate: { email: db.candidates.find((c) => c.id === a.candidateId)?.email ?? "" },
+          })),
       create: async ({ data }: { data: FakeRow }) => {
         const app = { id: nextId("app"), ...data };
         db.applications.push(app);
@@ -370,6 +375,29 @@ describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
 
     expect(result.created).toBe(1);
     expect(db.applications.map((a) => a.applicationNumber).sort()).toEqual(["AC-1", "AC-2"]);
+  });
+
+  it("disambiguates instead of dropping a row whose ID collides with a DIFFERENT candidate's existing application (regression: real production bug)", async () => {
+    // Real scenario: a tenant's Sheet was swapped for a new one that reuses
+    // the same ID numbering scheme as the old one. A new candidate's row
+    // landing on an ID already claimed by an unrelated, already-imported
+    // application must still come through — not vanish silently.
+    const firstRun = [[new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"]];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], firstRun);
+    const { prisma, db } = createFakePrisma(makeTenant({}, idConfig));
+    await syncTenantSheet(prisma, "acme");
+
+    const secondRun = [
+      [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"],
+      [new Date(), "dave@x.com", "Dave D", "Science", "note4", null, "AC-1"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], secondRun);
+    const result = await syncTenantSheet(prisma, "acme");
+
+    expect(result.created).toBe(1);
+    expect(db.applications).toHaveLength(2);
+    const dave = db.applications.find((a) => a.applicationNumber !== "AC-1");
+    expect(dave?.applicationNumber).toBe("AC-1-2");
   });
 
   it("skips a row with no value in the ID column", async () => {
