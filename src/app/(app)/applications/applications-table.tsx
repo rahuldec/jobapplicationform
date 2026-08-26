@@ -268,6 +268,10 @@ export function ApplicationsTable({
                   >
                     Docs
                   </a>
+                  <span className="mx-1.5 text-slate-300">·</span>
+                  <Link href={`/applications/${app.id}?tab=email`} className="text-xs font-medium text-orange-600 hover:underline">
+                    Email
+                  </Link>
                 </td>
               </tr>
             );

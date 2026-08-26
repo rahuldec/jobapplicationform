@@ -119,30 +119,71 @@ function textToHtml(bodyText: string) {
     .join("\n");
 }
 
+const HTML_TAG = /<[a-z][\s\S]*>/i;
+
+const emailContextInclude = {
+  candidate: true,
+  job: true,
+  tenant: true,
+  interviews: { orderBy: { scheduledAt: "desc" as const }, take: 1 },
+};
+type ApplicationEmailContext = Awaited<ReturnType<typeof prisma.application.findFirstOrThrow<{ include: typeof emailContextInclude }>>>;
+
+// Same placeholder set the automatic interview email resolves — reused here
+// so a template prefilled from the tenant's saved interview email config
+// (single-send or bulk) resolves identically. Scheduling ones fall back to
+// blank for a candidate with no interview on record.
+function buildEmailPlaceholders(application: ApplicationEmailContext) {
+  const interview = application.interviews[0];
+  return {
+    candidateName: application.candidate.fullName,
+    jobTitle: application.job.title,
+    collegeName: application.tenant.name,
+    scheduledAt: interview
+      ? new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(interview.scheduledAt)
+      : "",
+    mode: interview ? (INTERVIEW_MODE_LABELS[interview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? interview.mode) : "",
+    location: interview?.location ?? "",
+  };
+}
+
+// Whether the template already contains HTML markup (as saved from the
+// Interview email admin field) decides how the body is finished after
+// substitution — raw templates are sent as-is, plain text still gets the
+// paragraph/line-break treatment so a simple typed note still reads well.
+function renderEmailContent(subjectTemplate: string, bodyTemplate: string, placeholders: Record<string, string>) {
+  const subject = renderTemplate(subjectTemplate, placeholders);
+  const renderedBody = renderTemplate(bodyTemplate, placeholders);
+  const html = HTML_TAG.test(bodyTemplate) ? renderedBody : textToHtml(renderedBody);
+  return { subject, html };
+}
+
 // Ad-hoc email to the candidate — separate from the automatic interview
 // email, this is for anything else HR wants to tell a candidate (a status
 // update, a request for more documents, whatever doesn't fit a fixed
-// workflow trigger). Body is plain text from a textarea; converting
-// newlines to <br> is enough for a simple message without asking HR to
-// write HTML.
+// workflow trigger). The compose form prefills from the tenant's saved
+// interview email template, so subject/body may still contain
+// {placeholder} tokens — those resolve against this specific application.
 export async function sendCandidateEmail(formData: FormData) {
   const applicationId = String(formData.get("applicationId"));
-  const subject = String(formData.get("subject") ?? "").trim();
-  const bodyText = String(formData.get("body") ?? "").trim();
+  const subjectTemplate = String(formData.get("subject") ?? "").trim();
+  const bodyTemplate = String(formData.get("body") ?? "").trim();
 
-  if (!subject) throw new Error("Subject is required");
-  if (!bodyText) throw new Error("Message is required");
+  if (!subjectTemplate) throw new Error("Subject is required");
+  if (!bodyTemplate) throw new Error("Message is required");
 
-  const application = await prisma.application.findUniqueOrThrow({
+  const application = await prisma.application.findFirstOrThrow({
     where: { id: applicationId },
-    include: { candidate: true },
+    include: emailContextInclude,
   });
+
+  const { subject, html } = renderEmailContent(subjectTemplate, bodyTemplate, buildEmailPlaceholders(application));
 
   const result = await sendEmail({
     to: application.candidate.email,
     toName: application.candidate.fullName,
     subject,
-    html: textToHtml(bodyText),
+    html,
   });
 
   await prisma.auditLog.create({
@@ -161,15 +202,9 @@ export async function sendCandidateEmail(formData: FormData) {
   revalidatePath(`/applications/${applicationId}`);
 }
 
-const HTML_TAG = /<[a-z][\s\S]*>/i;
-
 // Bulk variant for the Applications list's multi-select toolbar — e.g. ten
 // candidates all had interviews scheduled separately and now need the same
-// follow-up note, without opening ten application pages one at a time. The
-// composer prefills from the tenant's saved interview email template, so
-// subject/body may still contain {placeholder} tokens — those are resolved
-// per recipient here the same way the automatic interview email resolves
-// them, falling back to blank for candidates with no interview on record.
+// follow-up note, without opening ten application pages one at a time.
 // Each candidate still gets their own individual email (never a shared
 // to:/cc: list); partial failures don't throw since the caller needs a
 // sent/failed count to show, not a single all-or-nothing error.
@@ -182,37 +217,13 @@ export async function bulkSendCandidateEmail(input: { applicationIds: string[]; 
 
   const apps = await prisma.application.findMany({
     where: { id: { in: input.applicationIds } },
-    include: {
-      candidate: true,
-      job: true,
-      tenant: true,
-      interviews: { orderBy: { scheduledAt: "desc" }, take: 1 },
-    },
+    include: emailContextInclude,
   });
   if (apps.length === 0) return { sent: 0, failed: 0 };
 
-  // Whether the template already contains HTML markup (as saved from the
-  // Interview email admin field) decides how the body is finished after
-  // substitution — raw templates are sent as-is, plain text still gets the
-  // paragraph/line-break treatment so a simple typed note still reads well.
-  const isHtmlTemplate = HTML_TAG.test(bodyTemplate);
-
   const results = await Promise.all(
     apps.map(async (application) => {
-      const interview = application.interviews[0];
-      const placeholders = {
-        candidateName: application.candidate.fullName,
-        jobTitle: application.job.title,
-        collegeName: application.tenant.name,
-        scheduledAt: interview
-          ? new Intl.DateTimeFormat("en-IN", { dateStyle: "full", timeStyle: "short" }).format(interview.scheduledAt)
-          : "",
-        mode: interview ? (INTERVIEW_MODE_LABELS[interview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? interview.mode) : "",
-        location: interview?.location ?? "",
-      };
-      const subject = renderTemplate(subjectTemplate, placeholders);
-      const renderedBody = renderTemplate(bodyTemplate, placeholders);
-      const html = isHtmlTemplate ? renderedBody : textToHtml(renderedBody);
+      const { subject, html } = renderEmailContent(subjectTemplate, bodyTemplate, buildEmailPlaceholders(application));
       return {
         application,
         result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html }),

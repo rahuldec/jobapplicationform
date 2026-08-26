@@ -8,8 +8,9 @@ import {
   unverifyDocumentAction,
 } from "@/lib/actions/applications";
 import { scheduleInterview, markInterviewCompleted, cancelInterview } from "@/lib/actions/interviews";
-import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, Field, StatTile } from "@/components/ui/primitives";
+import { Card, CardHeader, StatusBadge, Badge, Button, EmptyState, inputClass, Field, StatTile, PlaceholderChips } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES, INTERVIEW_MODES, INTERVIEW_MODE_LABELS, INTERVIEW_STATUS_LABELS } from "@/lib/enums";
+import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
 import { IconCalendar, IconCheckCircle } from "@/components/ui/icons";
 import { DocumentThumbnail } from "@/components/documents/document-thumbnail";
 
@@ -59,6 +60,7 @@ export default async function ApplicationDetailPage({
     where: { id: applicationId },
     include: {
       candidate: true,
+      tenant: true,
       job: {
         include: {
           department: true,
@@ -414,11 +416,28 @@ export default async function ApplicationDetailPage({
             <form action={sendCandidateEmail} className="space-y-4 px-5 py-5">
               <input type="hidden" name="applicationId" value={application.id} />
               <Field label="Subject" htmlFor="emailSubject" required>
-                <input id="emailSubject" name="subject" required className={inputClass} placeholder="Update on your application" />
+                <input
+                  id="emailSubject"
+                  name="subject"
+                  required
+                  defaultValue={application.tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT}
+                  className={inputClass}
+                />
               </Field>
-              <Field label="Message" htmlFor="emailBody" required hint="Plain text — blank lines start a new paragraph.">
-                <textarea id="emailBody" name="body" rows={8} required className={inputClass} placeholder={`Dear ${application.candidate.fullName},\n\n...`} />
+              <Field label="Message" htmlFor="emailBody" required hint={<PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} />}>
+                <textarea
+                  id="emailBody"
+                  name="body"
+                  rows={8}
+                  required
+                  defaultValue={application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY}
+                  className={`${inputClass} font-mono text-xs`}
+                />
               </Field>
+              <p className="text-xs text-slate-500">
+                Prefilled from the tenant&apos;s Interview email template — edit freely. Placeholders resolve using this
+                candidate&apos;s own data; scheduling ones are blank if there&apos;s no interview on record.
+              </p>
               <div className="flex justify-end border-t border-slate-100 pt-4">
                 <Button type="submit">Send Email</Button>
               </div>
