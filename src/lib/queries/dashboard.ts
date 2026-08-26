@@ -5,7 +5,7 @@ import { startOfTodayIST } from "@/lib/date";
 export async function getDashboardData(tenantId: string) {
   const todayStart = startOfTodayIST();
 
-  const [totalApplications, statusGroups, todaysApplications, todaysShortlisted, todaysRejected, missingDocumentsApps] =
+  const [totalApplications, statusGroups, todaysApplications, todaysShortlisted, todaysRejected, missingDocumentsApps, emailsSent] =
     await Promise.all([
       prisma.application.count({ where: { tenantId } }),
       prisma.application.groupBy({ by: ["status"], where: { tenantId }, _count: { _all: true } }),
@@ -22,6 +22,7 @@ export async function getDashboardData(tenantId: string) {
         take: 5,
         orderBy: { createdAt: "desc" },
       }),
+      prisma.auditLog.count({ where: { tenantId, action: "email.sent" } }),
     ]);
 
   const pendingReviewApps = await prisma.application.findMany({
@@ -52,6 +53,7 @@ export async function getDashboardData(tenantId: string) {
     stats: {
       totalApplications,
       byStatus,
+      emailsSent,
     },
     analytics: {
       byJob,
