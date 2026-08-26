@@ -110,6 +110,15 @@ export async function bulkAssignRecruiter(input: { applicationIds: string[]; rec
   return { count: apps.length };
 }
 
+// Plain text from a textarea -> simple paragraph HTML, shared by the
+// single and bulk send paths below.
+function textToHtml(bodyText: string) {
+  return bodyText
+    .split(/\n{2,}/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br/>")}</p>`)
+    .join("\n");
+}
+
 // Ad-hoc email to the candidate — separate from the automatic interview
 // email, this is for anything else HR wants to tell a candidate (a status
 // update, a request for more documents, whatever doesn't fit a fixed
@@ -129,16 +138,11 @@ export async function sendCandidateEmail(formData: FormData) {
     include: { candidate: true },
   });
 
-  const html = bodyText
-    .split(/\n{2,}/)
-    .map((para) => `<p>${para.replace(/\n/g, "<br/>")}</p>`)
-    .join("\n");
-
   const result = await sendEmail({
     to: application.candidate.email,
     toName: application.candidate.fullName,
     subject,
-    html,
+    html: textToHtml(bodyText),
   });
 
   await prisma.auditLog.create({
@@ -155,6 +159,51 @@ export async function sendCandidateEmail(formData: FormData) {
   if (!result.sent) throw new Error(result.error || "Failed to send email");
 
   revalidatePath(`/applications/${applicationId}`);
+}
+
+// Bulk variant for the Applications list's multi-select toolbar — e.g. ten
+// candidates all had interviews scheduled separately and now need the same
+// follow-up note, without opening ten application pages one at a time.
+// Each candidate still gets their own individual email (never a shared
+// to:/cc: list); partial failures don't throw since the caller needs a
+// sent/failed count to show, not a single all-or-nothing error.
+export async function bulkSendCandidateEmail(input: { applicationIds: string[]; subject: string; body: string }) {
+  const subject = input.subject.trim();
+  const bodyText = input.body.trim();
+  if (!subject) throw new Error("Subject is required");
+  if (!bodyText) throw new Error("Message is required");
+  if (input.applicationIds.length === 0) return { sent: 0, failed: 0 };
+
+  const apps = await prisma.application.findMany({
+    where: { id: { in: input.applicationIds } },
+    include: { candidate: true },
+  });
+  if (apps.length === 0) return { sent: 0, failed: 0 };
+
+  const html = textToHtml(bodyText);
+  const results = await Promise.all(
+    apps.map(async (application) => ({
+      application,
+      result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html }),
+    })),
+  );
+
+  await prisma.auditLog.createMany({
+    data: results.map(({ application, result }) => ({
+      tenantId: application.tenantId,
+      actorName: "Admin",
+      action: "email.sent",
+      entityType: "Application",
+      entityId: application.id,
+      metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, bulk: true }),
+    })),
+  });
+
+  for (const { application } of results) revalidatePath(`/applications/${application.id}`);
+  invalidateApplicationsViews();
+
+  const sent = results.filter((r) => r.result.sent).length;
+  return { sent, failed: results.length - sent };
 }
 
 export async function verifyDocumentAction(formData: FormData) {

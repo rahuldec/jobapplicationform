@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge, Button, inputClass } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
-import { bulkChangeApplicationStatus, bulkAssignRecruiter } from "@/lib/actions/applications";
+import { bulkChangeApplicationStatus, bulkAssignRecruiter, bulkSendCandidateEmail } from "@/lib/actions/applications";
 
 const MAX_SYNOPSIS_SELECTION = 100;
 
@@ -35,6 +35,11 @@ export function ApplicationsTable({
   const [bulkRecruiterId, setBulkRecruiterId] = useState<string>("");
   const [applyingStatus, setApplyingStatus] = useState(false);
   const [applyingAssign, setApplyingAssign] = useState(false);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailResult, setEmailResult] = useState<string | null>(null);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -68,6 +73,30 @@ export function ApplicationsTable({
       router.refresh();
     } finally {
       setApplyingAssign(false);
+    }
+  };
+
+  const handleBulkEmail = async () => {
+    setSendingEmail(true);
+    setEmailResult(null);
+    try {
+      const { sent, failed } = await bulkSendCandidateEmail({
+        applicationIds: Array.from(selected),
+        subject: emailSubject,
+        body: emailBody,
+      });
+      setEmailResult(failed > 0 ? `Sent ${sent}, failed ${failed}.` : `Sent to all ${sent} candidates.`);
+      if (failed === 0) {
+        setShowEmailComposer(false);
+        setEmailSubject("");
+        setEmailBody("");
+        setSelected(new Set());
+      }
+      router.refresh();
+    } catch (err) {
+      setEmailResult(err instanceof Error ? err.message : "Failed to send emails.");
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -107,11 +136,53 @@ export function ApplicationsTable({
             </Button>
           </div>
 
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setShowEmailComposer((v) => !v);
+              setEmailResult(null);
+            }}
+          >
+            Email
+          </Button>
+
           <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`} className="ml-auto">
             <Button variant="secondary" size="sm">
               Download Synopsis ({selected.size})
             </Button>
           </a>
+        </div>
+      )}
+
+      {selected.size > 0 && showEmailComposer && (
+        <div className="space-y-2.5 border-b border-orange-100 bg-orange-50/60 px-4 py-3">
+          <input
+            value={emailSubject}
+            onChange={(e) => setEmailSubject(e.target.value)}
+            placeholder="Subject"
+            className={`${inputClass} bg-white`}
+          />
+          <textarea
+            value={emailBody}
+            onChange={(e) => setEmailBody(e.target.value)}
+            placeholder={`Message — sent individually to all ${selected.size} selected candidates.`}
+            rows={4}
+            className={`${inputClass} bg-white`}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleBulkEmail}
+              disabled={sendingEmail || !emailSubject.trim() || !emailBody.trim()}
+            >
+              {sendingEmail ? "Sending…" : `Send to ${selected.size}`}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowEmailComposer(false)} disabled={sendingEmail}>
+              Cancel
+            </Button>
+            {emailResult && <span className="text-xs text-orange-700">{emailResult}</span>}
+          </div>
         </div>
       )}
       <table className="w-full text-sm">
