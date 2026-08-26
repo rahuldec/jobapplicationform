@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
   changeApplicationStatus,
+  sendCandidateEmail,
   verifyDocumentAction,
   unverifyDocumentAction,
 } from "@/lib/actions/applications";
@@ -23,6 +24,7 @@ const ACTION_LABELS: Record<string, string> = {
   "interview.rescheduled": "rescheduled the interview",
   "interview.completed": "marked the interview completed",
   "interview.cancelled": "cancelled the interview",
+  "email.sent": "sent an email to the candidate",
 };
 
 const TABS = [
@@ -30,6 +32,7 @@ const TABS = [
   { key: "application", label: "Application" },
   { key: "documents", label: "Documents" },
   { key: "interview", label: "Interview" },
+  { key: "email", label: "Email" },
   { key: "activity", label: "Activity" },
 ] as const;
 
@@ -398,6 +401,63 @@ export default async function ApplicationDetailPage({
               </ul>
             </Card>
           )}
+        </div>
+      )}
+
+      {tab === "email" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader
+              title="Email candidate"
+              description={`Sends directly to ${application.candidate.email}. Separate from the automatic interview-scheduling email.`}
+            />
+            <form action={sendCandidateEmail} className="space-y-4 px-5 py-5">
+              <input type="hidden" name="applicationId" value={application.id} />
+              <Field label="Subject" htmlFor="emailSubject" required>
+                <input id="emailSubject" name="subject" required className={inputClass} placeholder="Update on your application" />
+              </Field>
+              <Field label="Message" htmlFor="emailBody" required hint="Plain text — blank lines start a new paragraph.">
+                <textarea id="emailBody" name="body" rows={8} required className={inputClass} placeholder={`Dear ${application.candidate.fullName},\n\n...`} />
+              </Field>
+              <div className="flex justify-end border-t border-slate-100 pt-4">
+                <Button type="submit">Send Email</Button>
+              </div>
+            </form>
+          </Card>
+
+          {(() => {
+            const sentEmails = activity.filter((entry) => entry.action === "email.sent");
+            if (sentEmails.length === 0) return null;
+            return (
+              <Card>
+                <CardHeader title="Sent emails" />
+                <ul className="divide-y divide-slate-100">
+                  {sentEmails.map((entry) => {
+                    let subject = "";
+                    let sent = true;
+                    try {
+                      const meta = entry.metadataJson ? JSON.parse(entry.metadataJson) : {};
+                      subject = meta.subject ?? "";
+                      sent = meta.sent !== false;
+                    } catch {
+                      // Malformed metadata — still show the entry, just without a subject.
+                    }
+                    return (
+                      <li key={entry.id} className="flex items-center justify-between px-5 py-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-700">{subject || "(no subject)"}</span>
+                          {!sent && <Badge tone="red">Failed</Badge>}
+                        </div>
+                        <span className="text-xs text-slate-400">
+                          {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(entry.createdAt)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            );
+          })()}
         </div>
       )}
 

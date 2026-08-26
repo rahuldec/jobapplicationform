@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES } from "@/lib/enums";
+import { sendEmail } from "@/lib/email";
 
 function invalidateApplicationsViews() {
   revalidatePath("/applications");
@@ -107,6 +108,53 @@ export async function bulkAssignRecruiter(input: { applicationIds: string[]; rec
   for (const a of apps) revalidatePath(`/applications/${a.id}`);
   invalidateApplicationsViews();
   return { count: apps.length };
+}
+
+// Ad-hoc email to the candidate — separate from the automatic interview
+// email, this is for anything else HR wants to tell a candidate (a status
+// update, a request for more documents, whatever doesn't fit a fixed
+// workflow trigger). Body is plain text from a textarea; converting
+// newlines to <br> is enough for a simple message without asking HR to
+// write HTML.
+export async function sendCandidateEmail(formData: FormData) {
+  const applicationId = String(formData.get("applicationId"));
+  const subject = String(formData.get("subject") ?? "").trim();
+  const bodyText = String(formData.get("body") ?? "").trim();
+
+  if (!subject) throw new Error("Subject is required");
+  if (!bodyText) throw new Error("Message is required");
+
+  const application = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    include: { candidate: true },
+  });
+
+  const html = bodyText
+    .split(/\n{2,}/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br/>")}</p>`)
+    .join("\n");
+
+  const result = await sendEmail({
+    to: application.candidate.email,
+    toName: application.candidate.fullName,
+    subject,
+    html,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: application.tenantId,
+      actorName: "Admin",
+      action: "email.sent",
+      entityType: "Application",
+      entityId: applicationId,
+      metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error }),
+    },
+  });
+
+  if (!result.sent) throw new Error(result.error || "Failed to send email");
+
+  revalidatePath(`/applications/${applicationId}`);
 }
 
 export async function verifyDocumentAction(formData: FormData) {

@@ -117,6 +117,7 @@ export const AUDIT_ACTIONS = [
   "application.assigned",
   "document.uploaded",
   "document.verified",
+  "email.sent",
   "interview.scheduled",
   "interview.rescheduled",
   "interview.completed",
