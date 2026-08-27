@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as XLSX from "xlsx";
 import type { PrismaClient } from "../../src/generated/prisma/client";
-import { syncTenantSheet } from "./sync";
+import { syncTenantSheet, parseSheetDateTime } from "./sync";
 import type { SheetImportConfig } from "./types";
 
 // syncTenantSheet does real network (fetch the Sheet export) and real
@@ -412,6 +412,48 @@ describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
 
     expect(db.applications).toHaveLength(1);
     expect(db.applications[0].applicationNumber).toBe("AC-2");
+  });
+});
+
+describe("parseSheetDateTime", () => {
+  // Regression: a real "submitted the application" activity timestamp
+  // showed up in the future. Root cause was xlsx's own `cellDates: true`
+  // conversion resolving a sheet's timezone-less date serial using the
+  // *executing process's* local timezone rather than the sheet's (always
+  // IST for every college this app syncs) — so the exact same file parsed
+  // correctly on an IST dev machine and wrong on Vercel's UTC runtime.
+  // These pin down that the fix (manual, IST-explicit decoding) can never
+  // vary by the host process's own timezone again.
+  const originalTZ = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = originalTZ;
+  });
+
+  it("decodes a sheet's date serial as IST and returns the correct UTC instant", () => {
+    // Serial for the naive reading "2026-01-01 05:30:00" — what a sheet
+    // configured to IST would show for the instant 2026-01-01T00:00:00Z.
+    const serial = 46023.22916666667;
+    expect(parseSheetDateTime(serial)?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("returns the identical result no matter what timezone the process itself is running in", () => {
+    const serial = 46023.22916666667;
+    process.env.TZ = "Asia/Kolkata";
+    const fromIST = parseSheetDateTime(serial)?.toISOString();
+    process.env.TZ = "UTC";
+    const fromUTC = parseSheetDateTime(serial)?.toISOString();
+    process.env.TZ = "America/Los_Angeles";
+    const fromPT = parseSheetDateTime(serial)?.toISOString();
+
+    expect(fromIST).toBe("2026-01-01T00:00:00.000Z");
+    expect(fromUTC).toBe(fromIST);
+    expect(fromPT).toBe(fromIST);
+  });
+
+  it("returns null for a non-numeric or missing cell", () => {
+    expect(parseSheetDateTime(null)).toBeNull();
+    expect(parseSheetDateTime(undefined)).toBeNull();
+    expect(parseSheetDateTime("not a date")).toBeNull();
   });
 });
 

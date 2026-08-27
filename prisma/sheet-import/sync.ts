@@ -43,6 +43,34 @@ function applyTemplate(template: string, value: string) {
   return template.replace(/\{value3\}/g, value.slice(0, 3).toUpperCase()).replace(/\{value\}/g, value);
 }
 
+// Google Sheets/Excel date-time cells are stored as a plain numeric day
+// count with no timezone attached — what that number *means* depends
+// entirely on what timezone the sheet's own clock was set to when the row
+// was recorded (IST, for every college sheet this app has ever synced).
+// xlsx's own `cellDates: true` conversion resolves that ambiguity using
+// the *executing process's* local timezone, not the sheet's — so the same
+// file parsed identically otherwise gave a correct instant on a
+// IST-timezoned dev machine and a silently-wrong (5.5h-ahead-of-real-time)
+// one on Vercel's UTC runtime. Real bug, found via a "submitted" activity
+// timestamp that was in the future.
+//
+// Fixed by never letting xlsx's Date conversion run at all: `cellDates`
+// stays off for the whole sheet, and cells expected to hold a date/time
+// are decomposed from their raw numeric serial by hand (pure arithmetic,
+// no process-timezone involvement anywhere) into naive Y-M-D-H-M-S
+// components, which are then explicitly reinterpreted as IST — the one
+// timezone actually true of this data — to compute the real UTC instant.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const EXCEL_EPOCH_TO_UNIX_EPOCH_DAYS = 25569;
+
+export function parseSheetDateTime(value: unknown): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const totalDays = Math.floor(value);
+  const fractionOfDay = value - totalDays;
+  const naiveUtcMs = Date.UTC(1970, 0, 1) + (totalDays - EXCEL_EPOCH_TO_UNIX_EPOCH_DAYS) * 86400000 + Math.round(fractionOfDay * 86400000);
+  return new Date(naiveUtcMs - IST_OFFSET_MS);
+}
+
 export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug: tenantSlug } });
   if (!tenant.sheetSourceUrl || !tenant.sheetMappingJson) {
@@ -53,7 +81,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   const res = await fetch(toSheetExportUrl(tenant.sheetSourceUrl));
   if (!res.ok) throw new Error(`Failed to fetch Sheet export: HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });
+  const wb = XLSX.read(buf, { cellDates: false, type: "buffer" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
   const dataRows = rows.slice(1);
@@ -226,10 +254,8 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
       continue;
     }
 
-    const addedTimeRaw = row[addedTimeCol];
-    const submittedAt = addedTimeRaw instanceof Date ? addedTimeRaw : new Date();
-    const dobRaw = dobCol !== null ? row[dobCol] : null;
-    const dob = dobRaw instanceof Date ? dobRaw : null;
+    const submittedAt = parseSheetDateTime(row[addedTimeCol]) ?? new Date();
+    const dob = dobCol !== null ? parseSheetDateTime(row[dobCol]) : null;
     const mobile = mobileCol !== null ? cell(row, mobileCol) : null;
     const gender = genderCol !== null ? cell(row, genderCol) : null;
 
@@ -261,7 +287,8 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
       if (raw === null || raw === undefined || raw === "") continue;
       const isNumberField = field.fieldKey === "age";
       const isDateField = field.fieldKey === "dob";
-      const text = isDateField && raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw).trim();
+      const parsedDate = isDateField ? parseSheetDateTime(raw) : null;
+      const text = parsedDate ? parsedDate.toISOString().slice(0, 10) : String(raw).trim();
       if (!text) continue;
       fieldValues.push({
         applicationId: application.id,
