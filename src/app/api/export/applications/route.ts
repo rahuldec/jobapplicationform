@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
   const q = params.get("q") ?? "";
   const jobId = params.get("jobId") ?? "";
   const isToday = params.get("since") === "today";
+  // Which columns to include, and in what order — omitted entirely means
+  // "everything", so older bookmarked/shared export links keep working.
+  const columnsParam = params.get("columns");
+  const selectedColumns = columnsParam ? columnsParam.split(",").filter(Boolean) : null;
   const statusList = (params.get("status") ?? "")
     .split(",")
     .filter((s): s is (typeof APPLICATION_STATUSES)[number] => APPLICATION_STATUSES.includes(s as never));
@@ -99,7 +103,17 @@ export async function GET(request: NextRequest) {
     return row;
   });
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const finalRows = selectedColumns
+    ? rows.map((row) => {
+        const filtered: Record<string, string | number> = {};
+        for (const col of selectedColumns) {
+          if (col in row) filtered[col] = row[col];
+        }
+        return filtered;
+      })
+    : rows;
+
+  const worksheet = XLSX.utils.json_to_sheet(finalRows);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Applications");
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;

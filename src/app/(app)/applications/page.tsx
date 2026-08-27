@@ -2,12 +2,26 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, Button } from "@/components/ui/primitives";
+import { Card, EmptyState } from "@/components/ui/primitives";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { formatDate, startOfTodayIST } from "@/lib/date";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 import { ApplicationsFilters } from "./applications-filters";
+import { ExportColumnsPicker } from "./export-columns-picker";
+
+const CORE_EXPORT_COLUMNS = [
+  "Application #",
+  "Candidate Name",
+  "Email",
+  "Mobile",
+  "Date of Birth",
+  "Gender",
+  "Job",
+  "Department",
+  "Status",
+  "Applied Date",
+];
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -51,7 +65,7 @@ export default async function ApplicationsPage({
       : {}),
   };
 
-  const [applications, total, jobs, documentTypeRows, recruiters] = await Promise.all([
+  const [applications, total, jobs, documentTypeRows, recruiters, applicationForm] = await Promise.all([
     prisma.application.findMany({
       where,
       include: { candidate: true, job: true, assignedRecruiter: true },
@@ -68,8 +82,19 @@ export default async function ApplicationsPage({
       orderBy: { documentType: "asc" },
     }),
     prisma.user.findMany({ where: { tenantId: tenant.id, role: "recruiter" }, orderBy: { name: "asc" } }),
+    prisma.applicationForm.findFirst({
+      where: { tenantId: tenant.id },
+      include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } },
+    }),
   ]);
   const documentTypes = documentTypeRows.map((d) => d.documentType);
+
+  // Every column the export can possibly produce — core fields, every
+  // dynamic form field the tenant has ever configured, and every document
+  // type ever uploaded — independent of the current filter, so the
+  // column-picker's list doesn't shift depending on which page you're on.
+  const fieldExportColumns = (applicationForm?.sections ?? []).flatMap((s) => s.fields.map((f) => f.label));
+  const exportColumns = [...CORE_EXPORT_COLUMNS, ...fieldExportColumns, ...documentTypes.map((t) => `Document: ${t}`)];
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -118,9 +143,7 @@ export default async function ApplicationsPage({
         </div>
         {total > 0 && (
           <div className="flex flex-wrap justify-end gap-2">
-            <a href={exportHref}>
-              <Button variant="secondary">Export to Excel</Button>
-            </a>
+            <ExportColumnsPicker baseHref={exportHref} columns={exportColumns} />
           </div>
         )}
       </div>
