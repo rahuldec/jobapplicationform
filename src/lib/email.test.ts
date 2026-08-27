@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderTemplate, sendEmail } from "./email";
+import { parseCcList, renderTemplate, sendEmail } from "./email";
 
 describe("renderTemplate", () => {
   it("substitutes every placeholder present in the values map", () => {
@@ -60,5 +60,59 @@ describe("sendEmail", () => {
     const result = await sendEmail({ to: "candidate@example.com", subject: "Hi", html: "<p>Hi</p>" });
 
     expect(result).toEqual({ sent: false, error: "HTTP 401" });
+  });
+
+  it("includes cc addresses in the ZeptoMail request body when provided", async () => {
+    vi.stubEnv("ZEPTOMAIL_TOKEN", "test-token");
+    vi.stubEnv("ZEPTOMAIL_FROM_EMAIL", "noreply@example.com");
+    const fetchMock = vi.fn(async (_url: string, _options: RequestInit) => ({ ok: true, status: 200, text: async () => "" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendEmail({ to: "candidate@example.com", cc: ["hr@example.com", "dept@example.com"], subject: "Hi", html: "<p>Hi</p>" });
+
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const [, options] = call;
+    const body = JSON.parse(options.body as string);
+    expect(body.cc).toEqual([{ email_address: { address: "hr@example.com" } }, { email_address: { address: "dept@example.com" } }]);
+  });
+
+  it("omits cc from the request body when no cc addresses are given", async () => {
+    vi.stubEnv("ZEPTOMAIL_TOKEN", "test-token");
+    vi.stubEnv("ZEPTOMAIL_FROM_EMAIL", "noreply@example.com");
+    const fetchMock = vi.fn(async (_url: string, _options: RequestInit) => ({ ok: true, status: 200, text: async () => "" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendEmail({ to: "candidate@example.com", subject: "Hi", html: "<p>Hi</p>" });
+
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("fetch was not called");
+    const [, options] = call;
+    const body = JSON.parse(options.body as string);
+    expect(body.cc).toBeUndefined();
+  });
+});
+
+describe("parseCcList", () => {
+  it("splits comma and semicolon separated addresses and trims whitespace", () => {
+    expect(parseCcList("hr@example.com, dept@example.com ; another@example.com")).toEqual([
+      "hr@example.com",
+      "dept@example.com",
+      "another@example.com",
+    ]);
+  });
+
+  it("drops entries that don't look like an email address", () => {
+    expect(parseCcList("hr@example.com, not-an-email, dept@example.com")).toEqual(["hr@example.com", "dept@example.com"]);
+  });
+
+  it("deduplicates repeated addresses", () => {
+    expect(parseCcList("hr@example.com, hr@example.com")).toEqual(["hr@example.com"]);
+  });
+
+  it("returns an empty array for null, undefined, or empty input", () => {
+    expect(parseCcList(null)).toEqual([]);
+    expect(parseCcList(undefined)).toEqual([]);
+    expect(parseCcList("")).toEqual([]);
   });
 });

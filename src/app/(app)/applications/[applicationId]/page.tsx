@@ -421,6 +421,9 @@ export default async function ApplicationDetailPage({
                   className={inputClass}
                 />
               </Field>
+              <Field label="CC" htmlFor="emailCc" hint="Optional — comma-separated addresses, e.g. hr@college.edu, dept@college.edu">
+                <input id="emailCc" name="cc" placeholder="cc addresses (optional)" className={inputClass} />
+              </Field>
               <Field label="Message" htmlFor="emailBody" required hint={<PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} />}>
                 <textarea
                   id="emailBody"
@@ -452,20 +455,25 @@ export default async function ApplicationDetailPage({
                     let subject = "";
                     let sent = true;
                     let isInterview = false;
+                    let cc: string[] = [];
                     try {
                       const meta = entry.metadataJson ? JSON.parse(entry.metadataJson) : {};
                       subject = meta.subject ?? "";
                       sent = meta.sent !== false;
                       isInterview = meta.interview === true;
+                      cc = Array.isArray(meta.cc) ? meta.cc : [];
                     } catch {
                       // Malformed metadata — still show the entry, just without a subject.
                     }
                     return (
                       <li key={entry.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-700">{subject || "(no subject)"}</span>
-                          {isInterview && <Badge tone="blue">Interview</Badge>}
-                          {!sent && <Badge tone="red">Failed</Badge>}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-700">{subject || "(no subject)"}</span>
+                            {isInterview && <Badge tone="blue">Interview</Badge>}
+                            {!sent && <Badge tone="red">Failed</Badge>}
+                          </div>
+                          {cc.length > 0 && <p className="mt-0.5 text-xs text-slate-400">cc: {cc.join(", ")}</p>}
                         </div>
                         <span className="text-xs text-slate-400">
                           {formatDateTime(entry.createdAt)}

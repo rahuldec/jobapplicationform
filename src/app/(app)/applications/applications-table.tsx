@@ -43,6 +43,7 @@ export function ApplicationsTable({
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [emailCc, setEmailCc] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
 
@@ -89,12 +90,14 @@ export function ApplicationsTable({
         applicationIds: Array.from(selected),
         subject: emailSubject,
         body: emailBody,
+        cc: emailCc,
       });
       setEmailResult(failed > 0 ? `Sent ${sent}, failed ${failed}.` : `Sent to all ${sent} candidates.`);
       if (failed === 0) {
         setShowEmailComposer(false);
         setEmailSubject("");
         setEmailBody("");
+        setEmailCc("");
         setSelected(new Set());
       }
       router.refresh();
@@ -173,6 +176,12 @@ export function ApplicationsTable({
             value={emailSubject}
             onChange={(e) => setEmailSubject(e.target.value)}
             placeholder="Subject"
+            className={`${inputClass} bg-white`}
+          />
+          <input
+            value={emailCc}
+            onChange={(e) => setEmailCc(e.target.value)}
+            placeholder="CC addresses (optional, comma-separated) — applies to every email in this batch"
             className={`${inputClass} bg-white`}
           />
           <textarea

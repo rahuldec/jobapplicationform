@@ -5,7 +5,13 @@
 // tenant that hasn't set up email yet doesn't break interview scheduling.
 const ZEPTOMAIL_API_URL = process.env.ZEPTOMAIL_API_URL || "https://api.zeptomail.com/v1.1/email";
 
-export async function sendEmail(input: { to: string; toName?: string; subject: string; html: string }): Promise<{ sent: boolean; error?: string }> {
+export async function sendEmail(input: {
+  to: string;
+  toName?: string;
+  cc?: string[];
+  subject: string;
+  html: string;
+}): Promise<{ sent: boolean; error?: string }> {
   const token = process.env.ZEPTOMAIL_TOKEN;
   const fromEmail = process.env.ZEPTOMAIL_FROM_EMAIL;
   if (!token || !fromEmail) {
@@ -22,6 +28,7 @@ export async function sendEmail(input: { to: string; toName?: string; subject: s
     body: JSON.stringify({
       from: { address: fromEmail, name: process.env.ZEPTOMAIL_FROM_NAME || undefined },
       to: [{ email_address: { address: input.to, name: input.toName || undefined } }],
+      cc: input.cc?.length ? input.cc.map((address) => ({ email_address: { address } })) : undefined,
       subject: input.subject,
       htmlbody: input.html,
     }),
@@ -41,6 +48,21 @@ export async function sendEmail(input: { to: string; toName?: string; subject: s
 // not in the map is simply removed.
 export function renderTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_match, key: string) => values[key] ?? "");
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Comma or semicolon separated CC input from a plain text field ->
+// deduplicated, validated address list. Silently drops anything that
+// doesn't look like an email rather than rejecting the whole send over one
+// typo'd address.
+export function parseCcList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const addresses = raw
+    .split(/[,;]/)
+    .map((a) => a.trim())
+    .filter((a) => EMAIL_PATTERN.test(a));
+  return [...new Set(addresses)];
 }
 
 export const INTERVIEW_EMAIL_PLACEHOLDERS = ["candidateName", "jobTitle", "collegeName", "scheduledAt", "mode", "location"];
