@@ -93,8 +93,14 @@ export default async function ApplicationsPage({
   // dynamic form field the tenant has ever configured, and every document
   // type ever uploaded — independent of the current filter, so the
   // column-picker's list doesn't shift depending on which page you're on.
+  // Deduplicated by label: a tenant's form can have two different fields
+  // (in different sections, e.g. repeated-question blocks) that share the
+  // exact same display label — the export route already collapses those
+  // into a single output column keyed by that label, so the picker should
+  // only ever show one checkbox for it too, not two that silently fight
+  // over the same "select all" state.
   const fieldExportColumns = (applicationForm?.sections ?? []).flatMap((s) => s.fields.map((f) => f.label));
-  const exportColumns = [...CORE_EXPORT_COLUMNS, ...fieldExportColumns, ...documentTypes.map((t) => `Document: ${t}`)];
+  const exportColumns = [...new Set([...CORE_EXPORT_COLUMNS, ...fieldExportColumns, ...documentTypes.map((t) => `Document: ${t}`)])];
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
