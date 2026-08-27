@@ -46,6 +46,10 @@ model Tenant {
   // used, so a tenant works with zero setup until they want to customize it.
   interviewEmailSubject String?
   interviewEmailBody    String?
+  // Comma-separated addresses (e.g. HR, the panel) always cc'd on that
+  // automatic email — parsed with the same parseCcList used by the
+  // ad-hoc/bulk send forms. Null/empty means no cc.
+  interviewEmailCc      String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

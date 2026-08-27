@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { updateTenantBranding, updateInterviewEmailTemplate } from "@/lib/actions/tenants";
 import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
-import { Card, CardHeader, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
+import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
@@ -44,8 +44,7 @@ export default async function AdminTenantPage({
         </p>
       </div>
 
-      <Card>
-        <CardHeader title="Branding" description="Shown in the nav bar and on the synopsis PDF header." />
+      <CollapsibleCard title="Branding" description="Shown in the nav bar and on the synopsis PDF header.">
         <form action={updateTenantBranding} encType="multipart/form-data" className="space-y-4 px-5 py-5">
           <input type="hidden" name="tenantId" value={tenant.id} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -77,13 +76,12 @@ export default async function AdminTenantPage({
             <Button type="submit">Save branding</Button>
           </div>
         </form>
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <CardHeader
-          title="Staff"
-          description="Recruiters and panel members — shown in the bulk-assign dropdown on Applications. Creating one here doesn't grant them any login access, since none exists yet."
-        />
+      <CollapsibleCard
+        title="Staff"
+        description="Recruiters and panel members — shown in the bulk-assign dropdown on Applications. Creating one here doesn't grant them any login access, since none exists yet."
+      >
         {staff.length === 0 ? (
           <div className="p-5">
             <EmptyState title="No staff added yet" />
@@ -131,13 +129,12 @@ export default async function AdminTenantPage({
             <Button type="submit">Add</Button>
           </div>
         </form>
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <CardHeader
-          title="Interview email"
-          description="Sent to the candidate automatically when an interview is scheduled or rescheduled. Leave blank to use the default wording below."
-        />
+      <CollapsibleCard
+        title="Interview email"
+        description="Sent to the candidate automatically when an interview is scheduled or rescheduled. Leave blank to use the default wording below."
+      >
         <form action={updateInterviewEmailTemplate} className="space-y-4 px-5 py-5">
           <input type="hidden" name="tenantId" value={tenant.id} />
           <Field
@@ -163,25 +160,34 @@ export default async function AdminTenantPage({
               className={`${inputClass} resize-y font-mono text-xs`}
             />
           </Field>
+          <Field label="CC" htmlFor="interviewEmailCc" hint="Optional — comma-separated addresses always cc'd on this email, e.g. hr@college.edu">
+            <input
+              id="interviewEmailCc"
+              name="interviewEmailCc"
+              defaultValue={tenant.interviewEmailCc ?? ""}
+              placeholder="hr@college.edu, dept@college.edu"
+              className={inputClass}
+            />
+          </Field>
           <div className="flex justify-end border-t border-slate-100 pt-4">
             <Button type="submit">Save Template</Button>
           </div>
         </form>
-      </Card>
+      </CollapsibleCard>
 
-      <div>
-        <h2 className="text-sm font-semibold text-slate-900">Sheet sync</h2>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Maps this client&apos;s Google Sheet columns onto the application form. Existing data is never rewritten by
-          saving here — only future syncs use the updated mapping.
-        </p>
-      </div>
-      <SheetConfigBuilder
-        tenantId={tenant.id}
-        tenantName={tenant.name}
-        initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
-        initialConfig={initialConfig}
-      />
+      <CollapsibleCard
+        title="Sheet sync"
+        description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping."
+      >
+        <div className="space-y-5 p-5">
+          <SheetConfigBuilder
+            tenantId={tenant.id}
+            tenantName={tenant.name}
+            initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
+            initialConfig={initialConfig}
+          />
+        </div>
+      </CollapsibleCard>
     </div>
   );
 }

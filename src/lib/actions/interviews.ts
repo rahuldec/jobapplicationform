@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { INTERVIEW_MODES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
-import { sendEmail, renderTemplate, DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
+import { sendEmail, renderTemplate, parseCcList, DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
 
 function invalidateApplicationViews(applicationId: string) {
@@ -72,7 +72,8 @@ export async function scheduleInterview(formData: FormData) {
     };
     const subject = renderTemplate(application.tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT, placeholders);
     const html = renderTemplate(application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY, placeholders);
-    const result = await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html });
+    const cc = parseCcList(application.tenant.interviewEmailCc);
+    const result = await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, cc, subject, html });
 
     await prisma.auditLog.create({
       data: {
@@ -81,7 +82,7 @@ export async function scheduleInterview(formData: FormData) {
         action: "email.sent",
         entityType: "Application",
         entityId: applicationId,
-        metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, interview: true }),
+        metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, interview: true, cc: cc.length ? cc : undefined }),
       },
     });
   } catch (err) {

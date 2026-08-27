@@ -35,6 +35,47 @@ export function CardHeader({
   );
 }
 
+// A Card that starts collapsed and expands on click — pure HTML
+// <details>/<summary>, so it needs no client-side JS and works from a
+// Server Component with server-action forms inside. Use for long config
+// pages where every section doesn't need to be visible at once.
+export function CollapsibleCard({
+  title,
+  description,
+  defaultOpen = false,
+  className = "",
+  children,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details open={defaultOpen} className={`group rounded-xl bg-white shadow-sm ring-1 ring-slate-200/70 ${className}`}>
+      <summary className="marker:hidden flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
+        </div>
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </summary>
+      <div className="border-t border-slate-200">{children}</div>
+    </details>
+  );
+}
+
 const statTileTones = {
   default: { text: "text-slate-900", chip: "bg-slate-100 text-slate-600" },
   brand: { text: "text-orange-700", chip: "bg-orange-100 text-orange-600" },

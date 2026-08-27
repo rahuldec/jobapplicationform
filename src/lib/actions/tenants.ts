@@ -122,10 +122,11 @@ export async function updateInterviewEmailTemplate(formData: FormData) {
   const tenantId = String(formData.get("tenantId"));
   const subject = String(formData.get("interviewEmailSubject") ?? "").trim() || null;
   const body = String(formData.get("interviewEmailBody") ?? "").trim() || null;
+  const cc = String(formData.get("interviewEmailCc") ?? "").trim() || null;
 
   await prisma.tenant.update({
     where: { id: tenantId },
-    data: { interviewEmailSubject: subject, interviewEmailBody: body },
+    data: { interviewEmailSubject: subject, interviewEmailBody: body, interviewEmailCc: cc },
   });
 
   revalidatePath(`/admin/${tenantId}`);
