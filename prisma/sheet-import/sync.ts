@@ -156,15 +156,36 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
       where: { tenantId: tenant.id },
       select: { applicationNumber: true, candidate: { select: { email: true } } },
     });
-    // Maps a number to the email it's already claimed by, so a genuine
-    // re-sync of the same row (same email) is still recognized as already
-    // imported, while a *different* candidate's row landing on the same
-    // Sheet-assigned ID — e.g. after a tenant's Sheet was swapped for a new
-    // one that happens to reuse the same numbering scheme — is caught as a
-    // real collision instead of silently vanishing (regression: real
-    // production bug where 15 genuine applications were dropped this way).
-    const claimedBy = new Map(existing.map((a) => [a.applicationNumber, a.candidate.email.toLowerCase()]));
+    // A collision (see below) gets a disambiguated number like "DN-1-2" —
+    // which means the *natural* number ("DN-1") can no longer be trusted
+    // as "not yet imported" on its own: if whatever claimed "DN-1" is ever
+    // deleted (e.g. an old, unrelated posting's data getting cleaned up),
+    // "DN-1" looks free again even though this exact candidate's row was
+    // already imported under "DN-1-2" — and a later sync would create a
+    // second, duplicate application for them (regression: real production
+    // bug, discovered as 16 candidates each holding two applications for
+    // the same job after exactly that sequence of events).
+    //
+    // Fixed by checking, per row, whether *this row's own* natural number
+    // (bare, or with any "-N" disambiguation suffix) is already claimed by
+    // this same email — rather than trying to strip a suffix back off an
+    // arbitrary stored number, which is ambiguous: a bare natural number
+    // like "DN-7" already ends in "-7" and looks identical in shape to a
+    // disambiguated one. Checking outward from the current row's own known
+    // natural number sidesteps that ambiguity entirely. A candidate who
+    // legitimately re-submits the same job's form as a separate row (a
+    // different Sheet-assigned ID, hence a different natural number) still
+    // correctly creates its own application, per this file's own
+    // re-application policy documented up top.
     const usedNumbers = new Set(existing.map((a) => a.applicationNumber));
+    const claimedNaturalNumbers = new Map(existing.map((a) => [a.applicationNumber, a.candidate.email.toLowerCase()]));
+    const existingNumbersByEmail = new Map<string, string[]>();
+    for (const a of existing) {
+      const email = a.candidate.email.toLowerCase();
+      const list = existingNumbersByEmail.get(email) ?? [];
+      list.push(a.applicationNumber);
+      existingNumbersByEmail.set(email, list);
+    }
     alreadyImported = existing.length;
 
     newRows = [];
@@ -172,10 +193,16 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
       const rawId = cell(row, applicationNumberCol);
       if (!rawId) continue;
       const email = cell(row, emailCol)?.toLowerCase();
-      let applicationNumber = `${config.applicationNumberPrefix}${rawId}`;
-      const claimant = claimedBy.get(applicationNumber);
-      if (claimant !== undefined) {
-        if (claimant === email) continue;
+      const naturalNumber = `${config.applicationNumberPrefix}${rawId}`;
+
+      const alreadyImportedThisRow = email
+        ? (existingNumbersByEmail.get(email) ?? []).some((n) => n === naturalNumber || n.startsWith(`${naturalNumber}-`))
+        : false;
+      if (alreadyImportedThisRow) continue;
+
+      let applicationNumber = naturalNumber;
+      const claimant = claimedNaturalNumbers.get(applicationNumber);
+      if (claimant !== undefined && claimant !== email) {
         let suffix = 2;
         while (usedNumbers.has(`${applicationNumber}-${suffix}`)) suffix++;
         applicationNumber = `${applicationNumber}-${suffix}`;

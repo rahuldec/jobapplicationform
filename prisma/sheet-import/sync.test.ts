@@ -400,6 +400,67 @@ describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
     expect(dave?.applicationNumber).toBe("AC-1-2");
   });
 
+  it("does not create a duplicate once the number a disambiguated row collided with is later deleted (regression: real production bug)", async () => {
+    // Continuation of the scenario above: once alice's original "AC-1" is
+    // deleted (e.g. cleaning up an old, unrelated closed posting's data),
+    // "AC-1" looks unclaimed again to a naive number-only check — but
+    // dave's row was already imported, just filed under "AC-1-2". Syncing
+    // the exact same sheet again must recognize that and not create a
+    // second application for dave under the now-free "AC-1".
+    const firstRun = [[new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"]];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], firstRun);
+    const { prisma, db } = createFakePrisma(makeTenant({}, idConfig));
+    await syncTenantSheet(prisma, "acme");
+
+    const secondRun = [
+      [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"],
+      [new Date(), "dave@x.com", "Dave D", "Science", "note4", null, "AC-1"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], secondRun);
+    await syncTenantSheet(prisma, "acme");
+    expect(db.applications).toHaveLength(2);
+
+    // Simulate deleting alice's original application, freeing "AC-1".
+    db.applications = db.applications.filter((a) => a.applicationNumber !== "AC-1");
+    expect(db.applications).toHaveLength(1);
+
+    const thirdRun = [
+      [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"],
+      [new Date(), "dave@x.com", "Dave D", "Science", "note4", null, "AC-1"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], thirdRun);
+    const result = await syncTenantSheet(prisma, "acme");
+
+    // Alice's row comes back in fresh (her original was deleted); dave's
+    // must NOT be re-imported a second time under the now-free "AC-1".
+    expect(result.created).toBe(1);
+    expect(db.applications.map((a) => a.applicationNumber).sort()).toEqual(["AC-1", "AC-1-2"]);
+    expect(db.applications.filter((a) => a.applicationNumber === "AC-1")[0].candidateId).not.toBe(
+      db.applications.find((a) => a.applicationNumber === "AC-1-2")?.candidateId,
+    );
+  });
+
+  it("still creates a separate application when the same candidate genuinely re-submits under a different Sheet ID", async () => {
+    // Must not be caught by the new same-email dedup check above — a
+    // different natural number (a different Sheet-assigned ID) means a
+    // real, separate submission, and this file's own policy is to never
+    // merge those.
+    const firstRun = [[new Date(), "neha@x.com", "Neha N", "Commerce", "note1", null, "AC-7"]];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], firstRun);
+    const { prisma, db } = createFakePrisma(makeTenant({}, idConfig));
+    await syncTenantSheet(prisma, "acme");
+
+    const secondRun = [
+      [new Date(), "neha@x.com", "Neha N", "Commerce", "note1", null, "AC-7"],
+      [new Date(), "neha@x.com", "Neha N", "Commerce", "note2", null, "AC-25"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], secondRun);
+    const result = await syncTenantSheet(prisma, "acme");
+
+    expect(result.created).toBe(1);
+    expect(db.applications.map((a) => a.applicationNumber).sort()).toEqual(["AC-25", "AC-7"]);
+  });
+
   it("skips a row with no value in the ID column", async () => {
     const rows = [
       [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, null],
