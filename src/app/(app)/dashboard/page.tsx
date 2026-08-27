@@ -4,7 +4,13 @@ import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, EmptyState, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
 import { ApplicationsByJobChart } from "./charts";
+import { SyncNowButton } from "./sync-now-button";
 import { IconLayers, IconClock, IconCalendar, IconPaperPlane } from "@/components/ui/icons";
+
+// A first-ever sync against a large, never-before-imported sheet can take
+// a while (every row needs a Candidate + Application + field values +
+// documents write) — matches the cron route's own cap for the same work.
+export const maxDuration = 300;
 
 // Same tones StatusBadge uses elsewhere, so a stage reads the same color
 // here as it does on every application row.
@@ -82,10 +88,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Overview</p>
-        <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Every application moving through the pipeline, and what still needs a look.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Overview</p>
+          <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Every application moving through the pipeline, and what still needs a look.</p>
+        </div>
+        {tenant.sheetSourceUrl && <SyncNowButton />}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
