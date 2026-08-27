@@ -422,7 +422,13 @@ export default async function ApplicationDetailPage({
                 />
               </Field>
               <Field label="CC" htmlFor="emailCc" hint="Optional — comma-separated addresses, e.g. hr@college.edu, dept@college.edu">
-                <input id="emailCc" name="cc" placeholder="cc addresses (optional)" className={inputClass} />
+                <input
+                  id="emailCc"
+                  name="cc"
+                  defaultValue={application.tenant.interviewEmailCc ?? ""}
+                  placeholder="cc addresses (optional)"
+                  className={inputClass}
+                />
               </Field>
               <Field label="Message" htmlFor="emailBody" required hint={<PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} />}>
                 <textarea

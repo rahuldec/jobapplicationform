@@ -28,11 +28,13 @@ export function ApplicationsTable({
   recruiters,
   defaultEmailSubject,
   defaultEmailBody,
+  defaultEmailCc,
 }: {
   rows: ApplicationRow[];
   recruiters: { id: string; name: string }[];
   defaultEmailSubject: string;
   defaultEmailBody: string;
+  defaultEmailCc: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -156,6 +158,7 @@ export function ApplicationsTable({
               if (!emailSubject && !emailBody) {
                 setEmailSubject(defaultEmailSubject);
                 setEmailBody(defaultEmailBody);
+                setEmailCc(defaultEmailCc);
               }
             }}
           >
