@@ -72,7 +72,18 @@ export async function scheduleInterview(formData: FormData) {
     };
     const subject = renderTemplate(application.tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT, placeholders);
     const html = renderTemplate(application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY, placeholders);
-    await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html });
+    const result = await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, subject, html });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId: application.tenantId,
+        actorName: "Admin",
+        action: "email.sent",
+        entityType: "Application",
+        entityId: applicationId,
+        metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, interview: true }),
+      },
+    });
   } catch (err) {
     console.error(`[interview email] Failed to send for application ${applicationId}:`, err);
   }

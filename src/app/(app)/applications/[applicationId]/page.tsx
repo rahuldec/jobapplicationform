@@ -451,10 +451,12 @@ export default async function ApplicationDetailPage({
                   {sentEmails.map((entry) => {
                     let subject = "";
                     let sent = true;
+                    let isInterview = false;
                     try {
                       const meta = entry.metadataJson ? JSON.parse(entry.metadataJson) : {};
                       subject = meta.subject ?? "";
                       sent = meta.sent !== false;
+                      isInterview = meta.interview === true;
                     } catch {
                       // Malformed metadata — still show the entry, just without a subject.
                     }
@@ -462,6 +464,7 @@ export default async function ApplicationDetailPage({
                       <li key={entry.id} className="flex items-center justify-between px-5 py-3 text-sm">
                         <div className="flex items-center gap-2">
                           <span className="text-slate-700">{subject || "(no subject)"}</span>
+                          {isInterview && <Badge tone="blue">Interview</Badge>}
                           {!sent && <Badge tone="red">Failed</Badge>}
                         </div>
                         <span className="text-xs text-slate-400">
