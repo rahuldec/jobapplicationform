@@ -44,6 +44,23 @@ export default async function AdminTenantPage({
         </p>
       </div>
 
+      <CollapsibleCard title="User manual" description="A step-by-step guide to every section below — branding, staff, interview email, and Sheet sync.">
+        <div className="flex items-center justify-between gap-4 px-5 py-5">
+          <p className="text-sm text-slate-600">
+            Written for anyone setting up or updating a client, no coding knowledge required. Opens in a new tab so you
+            can keep it open alongside this page.
+          </p>
+          <Link
+            href="/manual"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-orange-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-1"
+          >
+            Open manual
+          </Link>
+        </div>
+      </CollapsibleCard>
+
       <CollapsibleCard title="Branding" description="Shown in the nav bar and on the synopsis PDF header.">
         <form action={updateTenantBranding} encType="multipart/form-data" className="space-y-4 px-5 py-5">
           <input type="hidden" name="tenantId" value={tenant.id} />
