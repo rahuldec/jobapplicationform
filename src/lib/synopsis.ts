@@ -3,7 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
 import { formatDate } from "@/lib/date";
-import { parseSynopsisConfig } from "@/lib/synopsis-config";
+import {
+  parseSynopsisConfig,
+  resolveBlockOrder,
+  CANDIDATE_DETAILS_BLOCK,
+  APPLICATION_DETAILS_BLOCK,
+  DECLARATION_BLOCK,
+  sectionBlockId,
+} from "@/lib/synopsis-config";
 
 // Fallback when a logo's format can't be read (getImageDimensions
 // returned null) — matches the previous fixed NBGSM logo's proportions
@@ -192,62 +199,69 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     const isCandidateFieldShown = (key: string) => !synopsisConfig.excludedCandidateFields.includes(key);
     const isApplicationFieldShown = (key: string) => !synopsisConfig.excludedApplicationFields.includes(key);
 
-    const candidateRows: [string, string][] = [["Full Name", application.candidate.fullName]];
-    if (isCandidateFieldShown("email")) candidateRows.push(["Email", application.candidate.email]);
-    if (isCandidateFieldShown("mobile")) candidateRows.push(["Mobile", application.candidate.mobile ?? "—"]);
-    if (isCandidateFieldShown("dob")) candidateRows.push(["Date of Birth", fmtDate(application.candidate.dateOfBirth)]);
-    if (isCandidateFieldShown("gender")) candidateRows.push(["Gender", application.candidate.gender ?? "—"]);
-    if (isCandidateFieldShown("status")) candidateRows.push(["Status", status]);
-    sectionHeader(doc, "Candidate Details");
-    gridRows(doc, pageWidth, candidateRows);
+    // Each block is a self-contained render step so the resolved block
+    // order (admin-customizable — see the "Synopsis" admin section) can
+    // invoke them in any sequence instead of the fixed order they used
+    // to run in.
+    const renderCandidateDetails = () => {
+      const candidateRows: [string, string][] = [["Full Name", application.candidate.fullName]];
+      if (isCandidateFieldShown("email")) candidateRows.push(["Email", application.candidate.email]);
+      if (isCandidateFieldShown("mobile")) candidateRows.push(["Mobile", application.candidate.mobile ?? "—"]);
+      if (isCandidateFieldShown("dob")) candidateRows.push(["Date of Birth", fmtDate(application.candidate.dateOfBirth)]);
+      if (isCandidateFieldShown("gender")) candidateRows.push(["Gender", application.candidate.gender ?? "—"]);
+      if (isCandidateFieldShown("status")) candidateRows.push(["Status", status]);
+      sectionHeader(doc, "Candidate Details");
+      gridRows(doc, pageWidth, candidateRows);
+    };
 
-    const applicationRows: [string, string][] = [];
-    if (isApplicationFieldShown("job")) applicationRows.push(["Job", application.job.title]);
-    if (isApplicationFieldShown("department")) applicationRows.push(["Department", application.job.department?.name ?? "—"]);
-    if (isApplicationFieldShown("appliedOn")) applicationRows.push(["Applied On", fmtDate(application.submittedAt)]);
-    if (applicationRows.length) {
-      sectionHeader(doc, "Application Details");
-      gridRows(doc, pageWidth, applicationRows);
-    }
-
-    if (application.job.form) {
-      for (const section of application.job.form.sections) {
-        if (synopsisConfig.excludedFormSectionIds.includes(section.id)) continue;
-        const rawValues = section.fields
-          .map((f) => {
-            const v = application.fieldValues.find((fv) => fv.fieldId === f.id);
-            const text = v?.valueText || (v?.valueNumber !== null && v?.valueNumber !== undefined ? String(v.valueNumber) : "");
-            return text ? { label: f.label, value: text } : null;
-          })
-          .filter((x): x is { label: string; value: string } => x !== null);
-        if (rawValues.length === 0) continue;
-
-        // Sections flow naturally one after another (sectionHeader/gridRows/
-        // compoundCard each break to a new page only when the content
-        // itself won't fit) — forcing specific sections to always start
-        // fresh reliably left blank gaps whenever the preceding section
-        // was short or only slightly overflowed onto a new page.
-
-        // Split each section into short, simple fields (a compact grid)
-        // and packed "Label:Value,..." fields (their own card, broken back
-        // into labelled sub-fields) instead of forcing every field into
-        // one layout — a bare "Yes"/"Na" and a 7-part qualification record
-        // don't read well side by side.
-        const simple: [string, string][] = [];
-        const compound: { label: string; pairs: { label: string; value: string }[] }[] = [];
-        for (const { label, value } of rawValues) {
-          const parsed = parseCompoundValue(value);
-          if (parsed) compound.push({ label, pairs: parsed });
-          else simple.push([label, stripAnswerPrefix(value)]);
-        }
-
-        sectionHeader(doc, section.name);
-        if (simple.length) gridRows(doc, pageWidth, simple);
-        for (const c of compound) compoundCard(doc, pageWidth, c.label, c.pairs);
+    const renderApplicationDetails = () => {
+      const applicationRows: [string, string][] = [];
+      if (isApplicationFieldShown("job")) applicationRows.push(["Job", application.job.title]);
+      if (isApplicationFieldShown("department")) applicationRows.push(["Department", application.job.department?.name ?? "—"]);
+      if (isApplicationFieldShown("appliedOn")) applicationRows.push(["Applied On", fmtDate(application.submittedAt)]);
+      if (applicationRows.length) {
+        sectionHeader(doc, "Application Details");
+        gridRows(doc, pageWidth, applicationRows);
       }
-    }
+    };
 
-    if (signatureImage && !synopsisConfig.hideDeclaration) {
+    type SynopsisFormSection = NonNullable<SynopsisApplication["job"]["form"]>["sections"][number];
+    const renderFormSection = (section: SynopsisFormSection) => {
+      const rawValues = section.fields
+        .map((f) => {
+          const v = application.fieldValues.find((fv) => fv.fieldId === f.id);
+          const text = v?.valueText || (v?.valueNumber !== null && v?.valueNumber !== undefined ? String(v.valueNumber) : "");
+          return text ? { label: f.label, value: text } : null;
+        })
+        .filter((x): x is { label: string; value: string } => x !== null);
+      if (rawValues.length === 0) return;
+
+      // Sections flow naturally one after another (sectionHeader/gridRows/
+      // compoundCard each break to a new page only when the content
+      // itself won't fit) — forcing specific sections to always start
+      // fresh reliably left blank gaps whenever the preceding section
+      // was short or only slightly overflowed onto a new page.
+
+      // Split each section into short, simple fields (a compact grid)
+      // and packed "Label:Value,..." fields (their own card, broken back
+      // into labelled sub-fields) instead of forcing every field into
+      // one layout — a bare "Yes"/"Na" and a 7-part qualification record
+      // don't read well side by side.
+      const simple: [string, string][] = [];
+      const compound: { label: string; pairs: { label: string; value: string }[] }[] = [];
+      for (const { label, value } of rawValues) {
+        const parsed = parseCompoundValue(value);
+        if (parsed) compound.push({ label, pairs: parsed });
+        else simple.push([label, stripAnswerPrefix(value)]);
+      }
+
+      sectionHeader(doc, section.name);
+      if (simple.length) gridRows(doc, pageWidth, simple);
+      for (const c of compound) compoundCard(doc, pageWidth, c.label, c.pairs);
+    };
+
+    const renderDeclaration = () => {
+      if (!signatureImage || synopsisConfig.hideDeclaration) return;
       sectionHeader(doc, "Declaration");
       doc
         .fillColor(SLATE_500)
@@ -265,6 +279,20 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       doc.strokeColor(SLATE_200).lineWidth(0.5).moveTo(leftX, sigY + sigHeight + 4).lineTo(leftX + sigWidth, sigY + sigHeight + 4).stroke();
       doc.fillColor(SLATE_900).fontSize(9).font("Helvetica-Bold").text(application.candidate.fullName, leftX, sigY + sigHeight + 8, { width: sigWidth });
       doc.fillColor(SLATE_500).fontSize(7.5).font("Helvetica").text("Candidate Signature", leftX, doc.y, { width: sigWidth, characterSpacing: 0.2 });
+    };
+
+    const formSections = application.job.form?.sections ?? [];
+    const includedFormSections = formSections.filter((s) => !synopsisConfig.excludedFormSectionIds.includes(s.id));
+    const resolvedOrder = resolveBlockOrder(synopsisConfig.blockOrder, formSections.map((s) => s.id));
+
+    for (const blockId of resolvedOrder) {
+      if (blockId === CANDIDATE_DETAILS_BLOCK) renderCandidateDetails();
+      else if (blockId === APPLICATION_DETAILS_BLOCK) renderApplicationDetails();
+      else if (blockId === DECLARATION_BLOCK) renderDeclaration();
+      else {
+        const section = includedFormSections.find((s) => sectionBlockId(s.id) === blockId);
+        if (section) renderFormSection(section);
+      }
     }
 
     doc.end();
