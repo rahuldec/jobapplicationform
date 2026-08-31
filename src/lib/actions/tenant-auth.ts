@@ -12,7 +12,18 @@ export async function loginToTenant(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   const tenant = await prisma.tenant.findUnique({ where: { slug } });
-  if (!tenant || !(await validateTenantCredentials(slug, username, password))) {
+  if (!tenant) {
+    redirect(`/${slug}?error=1`);
+  }
+
+  let valid: boolean;
+  try {
+    valid = await validateTenantCredentials(slug, username, password);
+  } catch (err) {
+    console.error(`[tenant-auth] Failed to validate credentials for "${slug}":`, err);
+    redirect(`/${slug}?error=2`);
+  }
+  if (!valid) {
     redirect(`/${slug}?error=1`);
   }
 

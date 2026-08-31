@@ -46,7 +46,10 @@ export default async function TenantLoginPage({
             <Field label="Password" htmlFor="password">
               <input id="password" name="password" type="password" required className={inputClass} />
             </Field>
-            {error && <p className="text-sm text-red-600">Incorrect username or password.</p>}
+            {error === "1" && <p className="text-sm text-red-600">Incorrect username or password.</p>}
+            {error === "2" && (
+              <p className="text-sm text-red-600">Couldn&apos;t check your credentials right now — please try again in a moment.</p>
+            )}
             <Button type="submit" className="w-full justify-center">
               Sign in
             </Button>
