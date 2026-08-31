@@ -3,6 +3,7 @@ import { ZipArchive } from "archiver";
 import { PassThrough, Readable } from "node:stream";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
+import { isTenantAuthenticated } from "@/lib/tenant-auth";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { renderSynopsisPdf } from "@/lib/synopsis";
@@ -40,6 +41,9 @@ function safeName(s: string) {
 
 export async function GET(request: NextRequest) {
   const tenant = await getCurrentTenant();
+  if (!(await isTenantAuthenticated(tenant.id))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const params = request.nextUrl.searchParams;
 
   // A specific selection from the Applications page's multi-select

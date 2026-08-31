@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getTenantBranding } from "@/lib/branding";
+import { isTenantAuthenticated } from "@/lib/tenant-auth";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -13,6 +15,9 @@ const NAV = [
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const tenant = await getCurrentTenant();
+  if (!(await isTenantAuthenticated(tenant.id))) {
+    redirect(`/${tenant.slug}`);
+  }
   const branding = getTenantBranding(tenant);
 
   const gradientCss = `linear-gradient(90deg, ${branding.gradient.from} 0%, ${branding.gradient.via} 50%, ${branding.gradient.to} 100%)`;

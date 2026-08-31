@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
+import { isTenantAuthenticated } from "@/lib/tenant-auth";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { formatDate, startOfTodayIST } from "@/lib/date";
 
@@ -11,6 +12,9 @@ export const maxDuration = 60;
 // always reflects exactly what's currently on screen — the "dynamic" part.
 export async function GET(request: NextRequest) {
   const tenant = await getCurrentTenant();
+  if (!(await isTenantAuthenticated(tenant.id))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const params = request.nextUrl.searchParams;
 
   const q = params.get("q") ?? "";
