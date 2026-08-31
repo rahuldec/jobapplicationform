@@ -52,6 +52,13 @@ model Tenant {
   interviewEmailCc      String?
   interviewEmailBcc     String?
 
+  // Which sections appear on this tenant's synopsis PDF — see
+  // SynopsisConfig in src/lib/synopsis.ts. Null/empty means everything
+  // shows, so a tenant works with zero setup until they want to trim it,
+  // and a form section added later shows up automatically rather than
+  // needing to be opted back in.
+  synopsisConfigJson String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

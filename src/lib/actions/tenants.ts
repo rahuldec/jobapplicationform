@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
 import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
 import { autoMapSheetColumns, type AutoMapResult } from "../../../prisma/sheet-import/auto-map";
+import { CANDIDATE_FIELD_OPTIONS, APPLICATION_FIELD_OPTIONS, type SynopsisConfig } from "@/lib/synopsis-config";
 
 function slugify(raw: string) {
   return raw
@@ -128,6 +129,42 @@ export async function updateInterviewEmailTemplate(formData: FormData) {
   await prisma.tenant.update({
     where: { id: tenantId },
     data: { interviewEmailSubject: subject, interviewEmailBody: body, interviewEmailCc: cc, interviewEmailBcc: bcc },
+  });
+
+  revalidatePath(`/admin/${tenantId}`);
+}
+
+// Unchecked checkboxes submit nothing at all, so a checked box means
+// "keep this in the synopsis" and everything else in the known set (the
+// fixed candidate/application field keys, or the section ids listed in
+// the hidden allSectionIds field) becomes the excluded list — this is
+// what makes a newly-added form section default to visible instead of
+// silently excluded just because it didn't exist when the admin last saved.
+export async function updateSynopsisConfig(formData: FormData) {
+  const tenantId = String(formData.get("tenantId"));
+
+  const excludedCandidateFields = CANDIDATE_FIELD_OPTIONS.map((f) => f.key).filter(
+    (key) => formData.get(`candidateField_${key}`) === null,
+  );
+  const excludedApplicationFields = APPLICATION_FIELD_OPTIONS.map((f) => f.key).filter(
+    (key) => formData.get(`applicationField_${key}`) === null,
+  );
+  const hideDeclaration = formData.get("showDeclaration") === null;
+  const allSectionIds = String(formData.get("allSectionIds") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const excludedFormSectionIds = allSectionIds.filter((id) => formData.get(`formSection_${id}`) === null);
+
+  const config: SynopsisConfig = {
+    excludedCandidateFields,
+    excludedApplicationFields,
+    hideDeclaration,
+    excludedFormSectionIds,
+  };
+
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { synopsisConfigJson: JSON.stringify(config) },
   });
 
   revalidatePath(`/admin/${tenantId}`);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { updateTenantBranding, updateInterviewEmailTemplate } from "@/lib/actions/tenants";
+import { updateTenantBranding, updateInterviewEmailTemplate, updateSynopsisConfig } from "@/lib/actions/tenants";
 import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
@@ -9,6 +9,7 @@ import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
+import { CANDIDATE_FIELD_OPTIONS, APPLICATION_FIELD_OPTIONS, parseSynopsisConfig } from "@/lib/synopsis-config";
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -22,6 +23,11 @@ export default async function AdminTenantPage({
 
   const branding = getTenantBranding(tenant);
   const staff = await prisma.user.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } });
+  const applicationForm = await prisma.applicationForm.findFirst({
+    where: { tenantId: tenant.id },
+    include: { sections: { orderBy: { order: "asc" } } },
+  });
+  const synopsisConfig = parseSynopsisConfig(tenant.synopsisConfigJson);
 
   let initialConfig = null;
   if (tenant.sheetMappingJson) {
@@ -197,6 +203,86 @@ export default async function AdminTenantPage({
           </Field>
           <div className="flex justify-end border-t border-slate-100 pt-4">
             <Button type="submit">Save Template</Button>
+          </div>
+        </form>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Synopsis"
+        description="Which sections appear on this client's synopsis PDF — the single download, the bulk ZIP, and the Docs export all use the same setup. Leave everything checked to include the full report."
+      >
+        <form action={updateSynopsisConfig} className="space-y-5 px-5 py-5">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <input type="hidden" name="allSectionIds" value={applicationForm?.sections.map((s) => s.id).join(",") ?? ""} />
+
+          <div>
+            <h3 className="text-sm font-medium text-slate-700">Candidate Details</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CANDIDATE_FIELD_OPTIONS.map((f) => (
+                <label key={f.key} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    name={`candidateField_${f.key}`}
+                    defaultChecked={!synopsisConfig.excludedCandidateFields.includes(f.key)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-slate-700">Application Details</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {APPLICATION_FIELD_OPTIONS.map((f) => (
+                <label key={f.key} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    name={`applicationField_${f.key}`}
+                    defaultChecked={!synopsisConfig.excludedApplicationFields.includes(f.key)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {applicationForm && applicationForm.sections.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-slate-700">Application form sections</h3>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {applicationForm.sections.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      name={`formSection_${s.id}`}
+                      defaultChecked={!synopsisConfig.excludedFormSectionIds.includes(s.id)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-medium text-slate-700">Other</h3>
+            <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                name="showDeclaration"
+                defaultChecked={!synopsisConfig.hideDeclaration}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+              />
+              Declaration &amp; signature block
+            </label>
+          </div>
+
+          <div className="flex justify-end border-t border-slate-100 pt-4">
+            <Button type="submit">Save</Button>
           </div>
         </form>
       </CollapsibleCard>

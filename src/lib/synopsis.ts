@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
 import { formatDate } from "@/lib/date";
+import { parseSynopsisConfig } from "@/lib/synopsis-config";
 
 // Fallback when a logo's format can't be read (getImageDimensions
 // returned null) — matches the previous fixed NBGSM logo's proportions
@@ -187,26 +188,31 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
     doc.moveDown(1);
 
     const status = APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] ?? application.status;
+    const synopsisConfig = parseSynopsisConfig(application.tenant.synopsisConfigJson);
+    const isCandidateFieldShown = (key: string) => !synopsisConfig.excludedCandidateFields.includes(key);
+    const isApplicationFieldShown = (key: string) => !synopsisConfig.excludedApplicationFields.includes(key);
 
+    const candidateRows: [string, string][] = [["Full Name", application.candidate.fullName]];
+    if (isCandidateFieldShown("email")) candidateRows.push(["Email", application.candidate.email]);
+    if (isCandidateFieldShown("mobile")) candidateRows.push(["Mobile", application.candidate.mobile ?? "—"]);
+    if (isCandidateFieldShown("dob")) candidateRows.push(["Date of Birth", fmtDate(application.candidate.dateOfBirth)]);
+    if (isCandidateFieldShown("gender")) candidateRows.push(["Gender", application.candidate.gender ?? "—"]);
+    if (isCandidateFieldShown("status")) candidateRows.push(["Status", status]);
     sectionHeader(doc, "Candidate Details");
-    gridRows(doc, pageWidth, [
-      ["Full Name", application.candidate.fullName],
-      ["Email", application.candidate.email],
-      ["Mobile", application.candidate.mobile ?? "—"],
-      ["Date of Birth", fmtDate(application.candidate.dateOfBirth)],
-      ["Gender", application.candidate.gender ?? "—"],
-      ["Status", status],
-    ]);
+    gridRows(doc, pageWidth, candidateRows);
 
-    sectionHeader(doc, "Application Details");
-    gridRows(doc, pageWidth, [
-      ["Job", application.job.title],
-      ["Department", application.job.department?.name ?? "—"],
-      ["Applied On", fmtDate(application.submittedAt)],
-    ]);
+    const applicationRows: [string, string][] = [];
+    if (isApplicationFieldShown("job")) applicationRows.push(["Job", application.job.title]);
+    if (isApplicationFieldShown("department")) applicationRows.push(["Department", application.job.department?.name ?? "—"]);
+    if (isApplicationFieldShown("appliedOn")) applicationRows.push(["Applied On", fmtDate(application.submittedAt)]);
+    if (applicationRows.length) {
+      sectionHeader(doc, "Application Details");
+      gridRows(doc, pageWidth, applicationRows);
+    }
 
     if (application.job.form) {
       for (const section of application.job.form.sections) {
+        if (synopsisConfig.excludedFormSectionIds.includes(section.id)) continue;
         const rawValues = section.fields
           .map((f) => {
             const v = application.fieldValues.find((fv) => fv.fieldId === f.id);
@@ -241,7 +247,7 @@ export async function renderSynopsisPdf(application: SynopsisApplication, option
       }
     }
 
-    if (signatureImage) {
+    if (signatureImage && !synopsisConfig.hideDeclaration) {
       sectionHeader(doc, "Declaration");
       doc
         .fillColor(SLATE_500)
