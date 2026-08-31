@@ -171,6 +171,7 @@ export default async function ApplicationsPage({
               defaultEmailSubject={tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT}
               defaultEmailBody={tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY}
               defaultEmailCc={tenant.interviewEmailCc ?? ""}
+              defaultEmailBcc={tenant.interviewEmailBcc ?? ""}
             />
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">

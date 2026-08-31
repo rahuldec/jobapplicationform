@@ -186,6 +186,15 @@ export default async function AdminTenantPage({
               className={inputClass}
             />
           </Field>
+          <Field label="BCC" htmlFor="interviewEmailBcc" hint="Optional — comma-separated addresses always bcc'd on this email, invisible to the candidate and other recipients">
+            <input
+              id="interviewEmailBcc"
+              name="interviewEmailBcc"
+              defaultValue={tenant.interviewEmailBcc ?? ""}
+              placeholder="records@college.edu"
+              className={inputClass}
+            />
+          </Field>
           <div className="flex justify-end border-t border-slate-100 pt-4">
             <Button type="submit">Save Template</Button>
           </div>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
-import { sendEmail, renderTemplate, parseCcList } from "@/lib/email";
+import { sendEmail, renderTemplate, parseEmailList } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
 
 function invalidateApplicationsViews() {
@@ -169,7 +169,8 @@ export async function sendCandidateEmail(formData: FormData) {
   const applicationId = String(formData.get("applicationId"));
   const subjectTemplate = String(formData.get("subject") ?? "").trim();
   const bodyTemplate = String(formData.get("body") ?? "").trim();
-  const cc = parseCcList(formData.get("cc") as string | null);
+  const cc = parseEmailList(formData.get("cc") as string | null);
+  const bcc = parseEmailList(formData.get("bcc") as string | null);
 
   if (!subjectTemplate) throw new Error("Subject is required");
   if (!bodyTemplate) throw new Error("Message is required");
@@ -185,6 +186,7 @@ export async function sendCandidateEmail(formData: FormData) {
     to: application.candidate.email,
     toName: application.candidate.fullName,
     cc,
+    bcc,
     subject,
     html,
   });
@@ -196,7 +198,13 @@ export async function sendCandidateEmail(formData: FormData) {
       action: "email.sent",
       entityType: "Application",
       entityId: applicationId,
-      metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, cc: cc.length ? cc : undefined }),
+      metadataJson: JSON.stringify({
+        subject,
+        sent: result.sent,
+        error: result.error,
+        cc: cc.length ? cc : undefined,
+        bcc: bcc.length ? bcc : undefined,
+      }),
     },
   });
 
@@ -211,10 +219,17 @@ export async function sendCandidateEmail(formData: FormData) {
 // Each candidate still gets their own individual email (never a shared
 // to:/cc: list); partial failures don't throw since the caller needs a
 // sent/failed count to show, not a single all-or-nothing error.
-export async function bulkSendCandidateEmail(input: { applicationIds: string[]; subject: string; body: string; cc?: string }) {
+export async function bulkSendCandidateEmail(input: {
+  applicationIds: string[];
+  subject: string;
+  body: string;
+  cc?: string;
+  bcc?: string;
+}) {
   const subjectTemplate = input.subject.trim();
   const bodyTemplate = input.body.trim();
-  const cc = parseCcList(input.cc);
+  const cc = parseEmailList(input.cc);
+  const bcc = parseEmailList(input.bcc);
   if (!subjectTemplate) throw new Error("Subject is required");
   if (!bodyTemplate) throw new Error("Message is required");
   if (input.applicationIds.length === 0) return { sent: 0, failed: 0 };
@@ -230,7 +245,7 @@ export async function bulkSendCandidateEmail(input: { applicationIds: string[]; 
       const { subject, html } = renderEmailContent(subjectTemplate, bodyTemplate, buildEmailPlaceholders(application));
       return {
         application,
-        result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, cc, subject, html }),
+        result: await sendEmail({ to: application.candidate.email, toName: application.candidate.fullName, cc, bcc, subject, html }),
         subject,
       };
     }),
@@ -243,7 +258,14 @@ export async function bulkSendCandidateEmail(input: { applicationIds: string[]; 
       action: "email.sent",
       entityType: "Application",
       entityId: application.id,
-      metadataJson: JSON.stringify({ subject, sent: result.sent, error: result.error, bulk: true, cc: cc.length ? cc : undefined }),
+      metadataJson: JSON.stringify({
+        subject,
+        sent: result.sent,
+        error: result.error,
+        bulk: true,
+        cc: cc.length ? cc : undefined,
+        bcc: bcc.length ? bcc : undefined,
+      }),
     })),
   });
 

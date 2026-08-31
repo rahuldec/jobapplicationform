@@ -29,12 +29,14 @@ export function ApplicationsTable({
   defaultEmailSubject,
   defaultEmailBody,
   defaultEmailCc,
+  defaultEmailBcc,
 }: {
   rows: ApplicationRow[];
   recruiters: { id: string; name: string }[];
   defaultEmailSubject: string;
   defaultEmailBody: string;
   defaultEmailCc: string;
+  defaultEmailBcc: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -46,6 +48,7 @@ export function ApplicationsTable({
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [emailCc, setEmailCc] = useState("");
+  const [emailBcc, setEmailBcc] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
 
@@ -93,6 +96,7 @@ export function ApplicationsTable({
         subject: emailSubject,
         body: emailBody,
         cc: emailCc,
+        bcc: emailBcc,
       });
       setEmailResult(failed > 0 ? `Sent ${sent}, failed ${failed}.` : `Sent to all ${sent} candidates.`);
       if (failed === 0) {
@@ -100,6 +104,7 @@ export function ApplicationsTable({
         setEmailSubject("");
         setEmailBody("");
         setEmailCc("");
+        setEmailBcc("");
         setSelected(new Set());
       }
       router.refresh();
@@ -159,6 +164,7 @@ export function ApplicationsTable({
                 setEmailSubject(defaultEmailSubject);
                 setEmailBody(defaultEmailBody);
                 setEmailCc(defaultEmailCc);
+                setEmailBcc(defaultEmailBcc);
               }
             }}
           >
@@ -185,6 +191,12 @@ export function ApplicationsTable({
             value={emailCc}
             onChange={(e) => setEmailCc(e.target.value)}
             placeholder="CC addresses (optional, comma-separated) — applies to every email in this batch"
+            className={`${inputClass} bg-white`}
+          />
+          <input
+            value={emailBcc}
+            onChange={(e) => setEmailBcc(e.target.value)}
+            placeholder="BCC addresses (optional, comma-separated) — applies to every email in this batch"
             className={`${inputClass} bg-white`}
           />
           <textarea

@@ -430,6 +430,15 @@ export default async function ApplicationDetailPage({
                   className={inputClass}
                 />
               </Field>
+              <Field label="BCC" htmlFor="emailBcc" hint="Optional — comma-separated addresses, invisible to the candidate and other recipients">
+                <input
+                  id="emailBcc"
+                  name="bcc"
+                  defaultValue={application.tenant.interviewEmailBcc ?? ""}
+                  placeholder="bcc addresses (optional)"
+                  className={inputClass}
+                />
+              </Field>
               <Field label="Message" htmlFor="emailBody" required hint={<PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} />}>
                 <textarea
                   id="emailBody"
@@ -462,12 +471,14 @@ export default async function ApplicationDetailPage({
                     let sent = true;
                     let isInterview = false;
                     let cc: string[] = [];
+                    let bcc: string[] = [];
                     try {
                       const meta = entry.metadataJson ? JSON.parse(entry.metadataJson) : {};
                       subject = meta.subject ?? "";
                       sent = meta.sent !== false;
                       isInterview = meta.interview === true;
                       cc = Array.isArray(meta.cc) ? meta.cc : [];
+                      bcc = Array.isArray(meta.bcc) ? meta.bcc : [];
                     } catch {
                       // Malformed metadata — still show the entry, just without a subject.
                     }
@@ -480,6 +491,7 @@ export default async function ApplicationDetailPage({
                             {!sent && <Badge tone="red">Failed</Badge>}
                           </div>
                           {cc.length > 0 && <p className="mt-0.5 text-xs text-slate-400">cc: {cc.join(", ")}</p>}
+                          {bcc.length > 0 && <p className="mt-0.5 text-xs text-slate-400">bcc: {bcc.join(", ")}</p>}
                         </div>
                         <span className="text-xs text-slate-400">
                           {formatDateTime(entry.createdAt)}

@@ -9,6 +9,7 @@ export async function sendEmail(input: {
   to: string;
   toName?: string;
   cc?: string[];
+  bcc?: string[];
   subject: string;
   html: string;
 }): Promise<{ sent: boolean; error?: string }> {
@@ -29,6 +30,7 @@ export async function sendEmail(input: {
       from: { address: fromEmail, name: process.env.ZEPTOMAIL_FROM_NAME || undefined },
       to: [{ email_address: { address: input.to, name: input.toName || undefined } }],
       cc: input.cc?.length ? input.cc.map((address) => ({ email_address: { address } })) : undefined,
+      bcc: input.bcc?.length ? input.bcc.map((address) => ({ email_address: { address } })) : undefined,
       subject: input.subject,
       htmlbody: input.html,
     }),
@@ -52,11 +54,11 @@ export function renderTemplate(template: string, values: Record<string, string>)
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Comma or semicolon separated CC input from a plain text field ->
+// Comma or semicolon separated CC/BCC input from a plain text field ->
 // deduplicated, validated address list. Silently drops anything that
 // doesn't look like an email rather than rejecting the whole send over one
 // typo'd address.
-export function parseCcList(raw: string | null | undefined): string[] {
+export function parseEmailList(raw: string | null | undefined): string[] {
   if (!raw) return [];
   const addresses = raw
     .split(/[,;]/)
