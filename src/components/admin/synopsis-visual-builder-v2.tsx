@@ -157,7 +157,7 @@ export function SynopsisVisualBuilderV2({
             disabled={previewLoading || config.blocks.length === 0}
             size="sm"
             className="w-full"
-            variant={previewMode === "html" ? "default" : "ghost"}
+            variant={previewMode === "html" ? "primary" : "ghost"}
           >
             {previewLoading ? "Loading..." : "Preview HTML"}
           </Button>
