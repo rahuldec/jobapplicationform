@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, inputClass } from "@/components/ui/primitives";
+import { looksLikeReferenceText } from "@/lib/synopsis-template-validation";
 
 const TEMPLATE_VARIABLES = `
 SIMPLE VARIABLES (insert single values):
@@ -101,6 +102,12 @@ export function SynopsisTemplateEditor({
 
   const handleSave = async () => {
     setError(null);
+    if (looksLikeReferenceText(template)) {
+      setError(
+        "This looks like the reference panel's text, not an HTML template — it seems to have been pasted in by mistake. Copy only the specific {{tokens}} you need from the reference on the right into your own HTML on the left, not the whole panel."
+      );
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/synopsis-template", {
@@ -139,20 +146,26 @@ export function SynopsisTemplateEditor({
         {/* Variables Reference */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Available Variables
+            Reference — copy individual {"{{tokens}}"} into your HTML
           </label>
+          <p className="text-xs text-slate-500 mb-2">
+            This is documentation, not a template. Copy just the {"{{token}}"} you need on the
+            left — do not paste this whole box in as your template.
+          </p>
           <pre className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs h-96 overflow-auto">
             {buildFieldVariablesText(formFields) + TEMPLATE_VARIABLES}
           </pre>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
-        <Button type="button" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save Template"}
-        </Button>
-        {error ? <span className="text-sm text-red-600">{error}</span> : null}
-        {!error && savedAt ? <span className="text-sm text-emerald-600">Saved.</span> : null}
+      <div className="border-t border-slate-100 pt-4 space-y-2">
+        <div className="flex items-center gap-3">
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Template"}
+          </Button>
+          {!error && savedAt ? <span className="text-sm text-emerald-600">Saved.</span> : null}
+        </div>
+        {error ? <p className="text-sm text-red-600 max-w-2xl">{error}</p> : null}
       </div>
     </div>
   );
