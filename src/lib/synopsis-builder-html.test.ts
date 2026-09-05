@@ -70,6 +70,18 @@ describe("configToHtml", () => {
     expect(html).toContain(".section-title");
   });
 
+  it("renders section block content with inserted fields", () => {
+    const block = createBlock("section");
+    block.properties.title = "Personal Information";
+    block.properties.content = "{{candidateName}}{{candidateEmail}}";
+
+    const config: SynopsisBuilderConfig = { blocks: [block], version: "1.0" };
+    const html = configToHtml(config);
+
+    expect(html).toContain("{{candidateName}}{{candidateEmail}}");
+    expect(html).toContain("section-content");
+  });
+
   it("renders horizontal line block", () => {
     const block = createBlock("horizontal-line");
 

@@ -138,8 +138,10 @@ function renderTableBlock(block: Block, baseClass: string, style: string): strin
  */
 function renderSectionBlock(block: Block, baseClass: string, style: string): string {
   const title = block.properties.title || "Section";
+  const content = block.properties.content || "";
   return `<section class="${baseClass}" style="${style}">
     <h2 class="section-title">${title}</h2>
+    ${content ? `<div class="section-content">${content}</div>` : ""}
   </section>`;
 }
 
@@ -245,6 +247,11 @@ function generateCSS(): string {
     section {
       margin-bottom: 20px;
       page-break-inside: avoid;
+    }
+
+    .section-content {
+      font-size: 14px;
+      line-height: 1.6;
     }
 
     .section-title {

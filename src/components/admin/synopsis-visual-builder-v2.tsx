@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/primitives";
 import {
   SynopsisBuilderConfig,
@@ -28,8 +28,6 @@ const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
   { type: "empty", label: "Empty Block", icon: "📭" },
 ];
 
-type PreviewMode = "html" | "pdf" | "none";
-
 export function SynopsisVisualBuilderV2({
   tenantId,
   initialConfig,
@@ -40,9 +38,9 @@ export function SynopsisVisualBuilderV2({
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("none");
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedBlock = config.blocks.find((b) => b.id === selectedBlockId);
 
@@ -97,25 +95,34 @@ export function SynopsisVisualBuilderV2({
     });
   };
 
-  const generatePreview = async () => {
-    setPreviewLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/synopsis-builder-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPreviewHtml(data.html);
-      setPreviewMode("html");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate preview");
-    } finally {
-      setPreviewLoading(false);
+  useEffect(() => {
+    if (config.blocks.length === 0) {
+      setPreviewHtml("");
+      return;
     }
-  };
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setPreviewLoading(true);
+      try {
+        const res = await fetch("/api/admin/synopsis-builder-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setPreviewHtml(data.html);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to generate preview");
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]);
 
   const handleSave = async () => {
     setError(null);
@@ -137,7 +144,7 @@ export function SynopsisVisualBuilderV2({
   return (
     <div className="flex h-screen gap-0 bg-gray-100">
       {/* Left Sidebar - Elements */}
-      <div className="w-48 bg-white border-r border-gray-200 p-4 overflow-y-auto flex flex-col">
+      <div className="w-44 bg-white border-r border-gray-200 p-4 overflow-y-auto flex flex-col shrink-0">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Elements</h3>
         <div className="space-y-2 flex-1">
           {ELEMENT_TYPES.map((elem) => (
@@ -153,15 +160,6 @@ export function SynopsisVisualBuilderV2({
         </div>
         <div className="space-y-2 border-t border-gray-200 pt-4">
           <Button
-            onClick={generatePreview}
-            disabled={previewLoading || config.blocks.length === 0}
-            size="sm"
-            className="w-full"
-            variant={previewMode === "html" ? "primary" : "ghost"}
-          >
-            {previewLoading ? "Loading..." : "Preview HTML"}
-          </Button>
-          <Button
             onClick={handleSave}
             disabled={saving}
             size="sm"
@@ -172,10 +170,10 @@ export function SynopsisVisualBuilderV2({
         </div>
       </div>
 
-      {/* Center - Canvas */}
-      <div className="flex-1 bg-white overflow-y-auto p-6 border-r border-gray-200">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Template Blocks</h2>
+      {/* Block list + Properties */}
+      <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto p-4 shrink-0">
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">Template Blocks</h2>
+        <div className="space-y-4">
           {config.blocks.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-sm">
@@ -194,23 +192,23 @@ export function SynopsisVisualBuilderV2({
                       : "border-gray-200 bg-gray-50 hover:border-gray-300"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className="text-lg">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-lg shrink-0">
                         {ELEMENT_TYPES.find((e) => e.type === block.type)?.icon}
                       </span>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-700">
                           {ELEMENT_TYPES.find((e) => e.type === block.type)?.label}
                         </p>
                         {block.properties.content && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                          <p className="text-xs text-gray-500 truncate max-w-[9rem]">
                             {block.properties.content}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 transition-opacity">
+                    <div className="flex gap-0.5 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -260,8 +258,8 @@ export function SynopsisVisualBuilderV2({
         </div>
       </div>
 
-      {/* Right Sidebar - Properties */}
-      <div className="w-72 bg-white overflow-y-auto border-l border-gray-200 flex flex-col">
+      {/* Properties */}
+      <div className="w-64 bg-white overflow-y-auto border-r border-gray-200 flex flex-col shrink-0">
         {selectedBlock ? (
           <div className="flex-1 p-4 space-y-4">
             <h3 className="text-sm font-bold text-gray-900">Block Properties</h3>
@@ -310,25 +308,46 @@ export function SynopsisVisualBuilderV2({
             )}
 
             {selectedBlock.type === "section" && (
-              <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">
-                  Section Title
-                </label>
-                <input
-                  type="text"
-                  value={selectedBlock.properties.title || ""}
-                  onChange={(e) =>
-                    updateBlock(selectedBlock.id, {
-                      properties: {
-                        ...selectedBlock.properties,
-                        title: e.target.value,
-                      },
-                    })
-                  }
-                  className="w-full text-xs border border-gray-300 rounded p-2"
-                  placeholder="e.g., Personal Info"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">
+                    Section Title
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedBlock.properties.title || ""}
+                    onChange={(e) =>
+                      updateBlock(selectedBlock.id, {
+                        properties: {
+                          ...selectedBlock.properties,
+                          title: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full text-xs border border-gray-300 rounded p-2"
+                    placeholder="e.g., Personal Info"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">
+                    Content
+                  </label>
+                  <textarea
+                    value={selectedBlock.properties.content || ""}
+                    onChange={(e) =>
+                      updateBlock(selectedBlock.id, {
+                        properties: {
+                          ...selectedBlock.properties,
+                          content: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full text-xs border border-gray-300 rounded p-2 font-mono"
+                    rows={3}
+                    placeholder="Enter text or {{fieldName}}"
+                  />
+                </div>
+              </>
             )}
 
             <div className="pt-4 border-t border-gray-200">
@@ -369,27 +388,33 @@ export function SynopsisVisualBuilderV2({
         )}
       </div>
 
-      {/* Preview Modal */}
-      {previewMode === "html" && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl max-h-96 overflow-hidden flex flex-col">
-            <div className="bg-gray-100 p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">HTML Preview</h3>
-              <button
-                onClick={() => setPreviewMode("none")}
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <iframe
-              srcDoc={previewHtml}
-              className="flex-1 border-0"
-              title="Preview"
-            />
-          </div>
+      {/* Live Preview */}
+      <div className="flex-1 bg-gray-200 flex flex-col min-w-0">
+        <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+          <h3 className="text-sm font-semibold text-gray-900">Live Preview</h3>
+          <span className="text-xs text-gray-400">
+            {previewLoading ? "Updating…" : "Sample candidate data"}
+          </span>
         </div>
-      )}
+        <div className="flex-1 overflow-auto p-6">
+          {config.blocks.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-gray-400 text-sm">
+                Add elements to see a live preview here
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto bg-white shadow-lg min-h-full">
+              <iframe
+                srcDoc={previewHtml}
+                className="w-full border-0"
+                style={{ height: "1400px" }}
+                title="Live Preview"
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
