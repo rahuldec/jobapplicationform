@@ -8,7 +8,7 @@ import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, Placehol
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { SynopsisConfigBuilder } from "@/components/admin/synopsis-config-builder";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
-import { SynopsisVisualBuilder } from "@/components/admin/synopsis-visual-builder";
+import { SynopsisVisualBuilderV2 } from "@/components/admin/synopsis-visual-builder-v2";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
@@ -241,7 +241,7 @@ export default async function AdminTenantPage({
         title="Visual Template Builder"
         description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
       >
-        <SynopsisVisualBuilder tenantId={tenant.id} initialConfig={builderConfig} />
+        <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} />
       </CollapsibleCard>
 
       <CollapsibleCard
