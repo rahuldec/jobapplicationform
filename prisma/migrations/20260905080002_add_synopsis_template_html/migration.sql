@@ -1,1 +1,2 @@
--- This is an empty migration.
+-- AddColumn
+ALTER TABLE "Tenant" ADD COLUMN "synopsisTemplateHtml" TEXT;
