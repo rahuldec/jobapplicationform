@@ -8,6 +8,7 @@ import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, Placehol
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { SynopsisConfigBuilder } from "@/components/admin/synopsis-config-builder";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
+import { SynopsisVisualBuilder } from "@/components/admin/synopsis-visual-builder";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
@@ -30,6 +31,15 @@ export default async function AdminTenantPage({
     include: { sections: { orderBy: { order: "asc" } } },
   });
   const synopsisConfig = parseSynopsisConfig(tenant.synopsisConfigJson);
+
+  let builderConfig = null;
+  if (tenant.synopsisTemplateBuilderConfig) {
+    try {
+      builderConfig = JSON.parse(tenant.synopsisTemplateBuilderConfig);
+    } catch {
+      // Malformed config — the builder starts from empty
+    }
+  }
 
   let initialConfig = null;
   if (tenant.sheetMappingJson) {
@@ -225,6 +235,24 @@ export default async function AdminTenantPage({
         description="Customize the PDF template with HTML/CSS. Leave empty to use the built-in default. Use {{variable}} syntax to insert candidate data."
       >
         <SynopsisTemplateEditor tenantId={tenant.id} initialTemplate={tenant.synopsisTemplateHtml} />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Visual Template Builder"
+        description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
+      >
+        <SynopsisVisualBuilder
+          tenantId={tenant.id}
+          initialConfig={builderConfig}
+          onSave={async (config) => {
+            const res = await fetch("/api/admin/synopsis-builder-config", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tenantId: tenant.id, config }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          }}
+        />
       </CollapsibleCard>
 
       <CollapsibleCard

@@ -64,6 +64,11 @@ model Tenant {
   // {{jobTitle}}, {{formResponses}}, etc. — see src/lib/synopsis-template.ts
   synopsisTemplateHtml String?
 
+  // Visual template builder configuration (JSON). Stores blocks, layouts,
+  // field mappings, and properties. Null means HTML template is used or
+  // built-in default. When present, this config is converted to HTML for PDF.
+  synopsisTemplateBuilderConfig String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
