@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { SynopsisVisualBuilder } from "@/components/admin/synopsis-visual-builder";
+import { SynopsisVisualBuilderV2 } from "@/components/admin/synopsis-visual-builder-v2";
 
 export default async function VisualBuilderPage({
   params,
@@ -27,7 +27,7 @@ export default async function VisualBuilderPage({
           <h1 className="text-2xl font-bold text-gray-900">{tenant.name}</h1>
           <p className="text-sm text-gray-600">Visual Template Builder</p>
         </div>
-        <SynopsisVisualBuilder tenantId={tenant.id} initialConfig={builderConfig} />
+        <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} />
       </div>
     </div>
   );
