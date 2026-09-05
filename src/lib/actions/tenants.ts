@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
 import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
 import { autoMapSheetColumns, type AutoMapResult } from "../../../prisma/sheet-import/auto-map";
-import type { SynopsisConfig } from "@/lib/synopsis-config";
 
 function slugify(raw: string) {
   return raw
@@ -134,19 +133,9 @@ export async function updateInterviewEmailTemplate(formData: FormData) {
   revalidatePath(`/admin/${tenantId}`);
 }
 
-// Called directly from SynopsisConfigBuilder (a client component), the
-// same way updateTenantSheetConfig below is — not a plain <form action>,
-// since reordering blocks needs live client-side state before the admin
+// Called directly from a client component, not a plain <form action>,
+// since the Sheet mapping needs live client-side state before the admin
 // ever hits Save.
-export async function updateSynopsisConfig(input: { tenantId: string; config: SynopsisConfig }) {
-  await prisma.tenant.update({
-    where: { id: input.tenantId },
-    data: { synopsisConfigJson: JSON.stringify(input.config) },
-  });
-
-  revalidatePath(`/admin/${input.tenantId}`);
-}
-
 export async function updateTenantSheetConfig(input: {
   tenantId: string;
   sheetSourceUrl: string;

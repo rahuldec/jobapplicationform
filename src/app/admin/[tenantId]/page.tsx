@@ -6,12 +6,10 @@ import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
-import { SynopsisConfigBuilder } from "@/components/admin/synopsis-config-builder";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
-import { parseSynopsisConfig } from "@/lib/synopsis-config";
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -34,8 +32,6 @@ export default async function AdminTenantPage({
       },
     },
   });
-  const synopsisConfig = parseSynopsisConfig(tenant.synopsisConfigJson);
-
   const formFieldOptions = (applicationForm?.sections ?? []).flatMap((s) =>
     s.fields.map((f) => ({ id: f.id, label: f.label, sectionName: s.name }))
   );
@@ -219,14 +215,17 @@ export default async function AdminTenantPage({
       </CollapsibleCard>
 
       <CollapsibleCard
-        title="Synopsis"
-        description="Which sections appear on this client's synopsis PDF, and in what order — the single download, the bulk ZIP, and the Docs export all use the same setup. Use the arrows to reorder; leave everything checked to include the full report."
+        title="Sheet sync"
+        description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping. Set this up before Synopsis Template below, since its field reference depends on the form fields this creates."
       >
-        <SynopsisConfigBuilder
-          tenantId={tenant.id}
-          initialConfig={synopsisConfig}
-          sections={applicationForm?.sections.map((s) => ({ id: s.id, name: s.name })) ?? []}
-        />
+        <div className="space-y-5 p-5">
+          <SheetConfigBuilder
+            tenantId={tenant.id}
+            tenantName={tenant.name}
+            initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
+            initialConfig={initialConfig}
+          />
+        </div>
       </CollapsibleCard>
 
       <CollapsibleCard
@@ -238,20 +237,6 @@ export default async function AdminTenantPage({
           initialTemplate={tenant.synopsisTemplateHtml}
           formFields={formFieldOptions}
         />
-      </CollapsibleCard>
-
-      <CollapsibleCard
-        title="Sheet sync"
-        description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping."
-      >
-        <div className="space-y-5 p-5">
-          <SheetConfigBuilder
-            tenantId={tenant.id}
-            tenantName={tenant.name}
-            initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
-            initialConfig={initialConfig}
-          />
-        </div>
       </CollapsibleCard>
     </div>
   );
