@@ -75,10 +75,14 @@ function buildTemplateData(application: SynopsisApplication) {
       sectionName: section.name,
       fields: section.fields
         .map((field) => {
-          const value = application.fieldValues.find((fv) => fv.fieldId === field.id);
+          const fv = application.fieldValues.find((fv) => fv.fieldId === field.id);
+          let displayValue = "—";
+          if (fv) {
+            displayValue = fv.valueText ?? fv.valueNumber?.toString() ?? fv.valueJson ?? "—";
+          }
           return {
             fieldLabel: field.label,
-            fieldValue: value?.value || "—",
+            fieldValue: displayValue,
           };
         })
         .filter((f) => f.fieldValue !== "—"),

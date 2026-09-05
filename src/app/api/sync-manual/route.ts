@@ -24,7 +24,7 @@ export async function POST() {
       try {
         const result = await syncTenantSheet(prisma, tenant.slug);
         results[tenant.slug] = { success: true, ...result };
-        console.log(`✓ [${tenant.slug}] Synced: ${result.imported} imported, ${result.updated} updated`);
+        console.log(`✓ [${tenant.slug}] Synced: ${result.created} created, ${result.skipped} skipped, ${result.alreadyImported} already imported`);
       } catch (err) {
         anyFailed = true;
         const message = err instanceof Error ? err.message : String(err);
