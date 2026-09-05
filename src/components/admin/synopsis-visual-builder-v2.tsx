@@ -10,9 +10,24 @@ import {
   AVAILABLE_FIELDS,
 } from "@/lib/synopsis-builder-types";
 
+interface FormFieldOption {
+  id: string;
+  label: string;
+  sectionName: string;
+}
+
 interface SynopsisVisualBuilderV2Props {
   tenantId: string;
   initialConfig?: SynopsisBuilderConfig | null;
+  formFields?: FormFieldOption[];
+}
+
+function groupBySection(fields: FormFieldOption[]): Record<string, FormFieldOption[]> {
+  const groups: Record<string, FormFieldOption[]> = {};
+  for (const field of fields) {
+    (groups[field.sectionName] ??= []).push(field);
+  }
+  return groups;
 }
 
 const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
@@ -31,6 +46,7 @@ const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
 export function SynopsisVisualBuilderV2({
   tenantId,
   initialConfig,
+  formFields = [],
 }: SynopsisVisualBuilderV2Props) {
   const [config, setConfig] = useState<SynopsisBuilderConfig>(
     initialConfig || { blocks: [], version: "1.0" }
@@ -95,6 +111,14 @@ export function SynopsisVisualBuilderV2({
     });
   };
 
+  const insertIntoContent = (token: string) => {
+    if (!selectedBlock) return;
+    const currentContent = selectedBlock.properties.content || "";
+    updateBlock(selectedBlock.id, {
+      properties: { ...selectedBlock.properties, content: currentContent + token },
+    });
+  };
+
   useEffect(() => {
     if (config.blocks.length === 0) {
       setPreviewHtml("");
@@ -107,7 +131,7 @@ export function SynopsisVisualBuilderV2({
         const res = await fetch("/api/admin/synopsis-builder-preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ config }),
+          body: JSON.stringify({ config, formFields }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -354,19 +378,11 @@ export function SynopsisVisualBuilderV2({
               <p className="text-xs text-gray-600 font-medium mb-2">Quick Insert Fields:</p>
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {Object.entries(AVAILABLE_FIELDS)
-                  .slice(0, 8)
+                  .filter(([key]) => key !== "formSections")
                   .map(([key]) => (
                     <button
                       key={key}
-                      onClick={() => {
-                        const currentContent = selectedBlock.properties.content || "";
-                        updateBlock(selectedBlock.id, {
-                          properties: {
-                            ...selectedBlock.properties,
-                            content: currentContent + `{{${key}}}`,
-                          },
-                        });
-                      }}
+                      onClick={() => insertIntoContent(`{{${key}}}`)}
                       className="block w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-xs text-gray-600 font-mono"
                     >
                       {`{{${key}}}`}
@@ -374,6 +390,31 @@ export function SynopsisVisualBuilderV2({
                   ))}
               </div>
             </div>
+
+            {formFields.length > 0 && (
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-600 font-medium mb-2">Application Form Fields:</p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {Object.entries(groupBySection(formFields)).map(([sectionName, fields]) => (
+                    <div key={sectionName}>
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-2">
+                        {sectionName}
+                      </p>
+                      {fields.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => insertIntoContent(`{{field_${f.id}}}`)}
+                          className="block w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-xs text-gray-600"
+                          title={`{{field_${f.id}}}`}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-4">

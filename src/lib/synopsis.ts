@@ -56,7 +56,22 @@ function buildTemplateData(application: SynopsisApplication) {
   const formSections = application.job.form?.sections ?? [];
   const includedFormSections = formSections.filter((s) => !synopsisConfig.excludedFormSectionIds.includes(s.id));
 
+  // Individual {{field_<fieldId>}} lookups for fields placed directly on a
+  // Text/Section block in the visual builder — separate from the
+  // {{#each formSections}} loop the Table block uses, and not filtered by
+  // excludedFormSectionIds: placing a field explicitly on the template is
+  // a deliberate choice that should render regardless of that toggle.
+  const individualFields: Record<string, string> = {};
+  for (const section of formSections) {
+    for (const field of section.fields) {
+      const fv = application.fieldValues.find((v) => v.fieldId === field.id);
+      const value = fv ? (fv.valueText ?? fv.valueNumber?.toString() ?? fv.valueJson ?? "—") : "—";
+      individualFields[`field_${field.id}`] = value;
+    }
+  }
+
   return {
+    ...individualFields,
     candidateName: application.candidate.fullName,
     candidateEmail: application.candidate.email,
     candidateMobile: application.candidate.mobile || "—",

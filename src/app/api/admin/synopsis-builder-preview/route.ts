@@ -9,10 +9,22 @@ import { renderTemplate } from "@/lib/synopsis-render";
  */
 export async function POST(req: NextRequest) {
   try {
-    const { config } = await req.json();
+    const { config, formFields } = await req.json();
 
     if (!config || !Array.isArray(config.blocks)) {
       return NextResponse.json({ error: "Invalid config structure" }, { status: 400 });
+    }
+
+    // Sample values for {{field_<fieldId>}} tokens inserted from the
+    // "Application Form Fields" quick-insert list, so the live preview
+    // shows real placeholder text instead of a leftover {{field_...}} tag.
+    const individualFieldSamples: Record<string, string> = {};
+    if (Array.isArray(formFields)) {
+      for (const f of formFields) {
+        if (f && typeof f.id === "string") {
+          individualFieldSamples[`field_${f.id}`] = `Sample ${f.label ?? "value"}`;
+        }
+      }
     }
 
     // Generate HTML from config
@@ -20,6 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Apply sample data to preview
     const sampleData = {
+      ...individualFieldSamples,
       candidateName: "John Doe",
       candidateEmail: "john@example.com",
       candidateMobile: "555-1234",

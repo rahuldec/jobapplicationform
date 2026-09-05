@@ -28,9 +28,18 @@ export default async function AdminTenantPage({
   const staff = await prisma.user.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } });
   const applicationForm = await prisma.applicationForm.findFirst({
     where: { tenantId: tenant.id },
-    include: { sections: { orderBy: { order: "asc" } } },
+    include: {
+      sections: {
+        orderBy: { order: "asc" },
+        include: { fields: { orderBy: { order: "asc" } } },
+      },
+    },
   });
   const synopsisConfig = parseSynopsisConfig(tenant.synopsisConfigJson);
+
+  const builderFormFields = (applicationForm?.sections ?? []).flatMap((s) =>
+    s.fields.map((f) => ({ id: f.id, label: f.label, sectionName: s.name }))
+  );
 
   let builderConfig = null;
   if (tenant.synopsisTemplateBuilderConfig) {
@@ -244,7 +253,7 @@ export default async function AdminTenantPage({
         title="Visual Template Builder"
         description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
       >
-        <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} />
+        <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} formFields={builderFormFields} />
       </CollapsibleCard>
     </div>
 
