@@ -84,8 +84,21 @@ export function SynopsisVisualBuilderV2({
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // The live-preview auto-refresh re-renders this component every ~400ms
+  // while typing, and React resets a controlled <textarea>'s cursor to the
+  // end on some of those re-renders. Reading `selectionStart` off the live
+  // element at click-time is unreliable as a result, so track the selection
+  // continuously instead and insert at the last known-good position.
+  const lastSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
 
   const selectedBlock = selectedBlockId ? findBlockById(config.blocks, selectedBlockId) : undefined;
+
+  useEffect(() => {
+    const len = (selectedBlock?.properties.content || "").length;
+    lastSelectionRef.current = { start: len, end: len };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBlockId]);
 
   const addBlock = (type: BlockType) => {
     const newBlock = createBlock(type, config.blocks.length);
@@ -146,11 +159,35 @@ export function SynopsisVisualBuilderV2({
     setSelectedBlockId(newBlock.id);
   };
 
+  const trackCursorPos = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    lastSelectionRef.current = {
+      start: e.currentTarget.selectionStart,
+      end: e.currentTarget.selectionEnd,
+    };
+  };
+
   const insertIntoContent = (token: string) => {
     if (!selectedBlock) return;
     const currentContent = selectedBlock.properties.content || "";
+    const len = currentContent.length;
+    const start = Math.min(lastSelectionRef.current.start, len);
+    const end = Math.min(Math.max(lastSelectionRef.current.end, start), len);
+    // Replace the selection if there is one (like any normal text editor),
+    // otherwise insert at the cursor.
+    const newContent = currentContent.slice(0, start) + token + currentContent.slice(end);
+    const newPos = start + token.length;
     updateBlock(selectedBlock.id, {
-      properties: { ...selectedBlock.properties, content: currentContent + token },
+      properties: { ...selectedBlock.properties, content: newContent },
+    });
+    lastSelectionRef.current = { start: newPos, end: newPos };
+    // Clicking the button steals focus from the textarea — restore it and
+    // land the cursor right after the inserted token so the field appears
+    // where the user was actually typing, not tacked onto the end.
+    requestAnimationFrame(() => {
+      const el = contentTextareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(newPos, newPos);
     });
   };
 
@@ -334,7 +371,12 @@ export function SynopsisVisualBuilderV2({
                   <label className="text-xs font-medium text-gray-700 block mb-1">
                     Content
                   </label>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Type text here. Click a field below to insert it at your cursor — it becomes
+                    a real value (e.g. the candidate&apos;s name) in the preview and the PDF.
+                  </p>
                   <textarea
+                    ref={contentTextareaRef}
                     value={selectedBlock.properties.content || ""}
                     onChange={(e) =>
                       updateBlock(selectedBlock.id, {
@@ -344,6 +386,9 @@ export function SynopsisVisualBuilderV2({
                         },
                       })
                     }
+                    onSelect={trackCursorPos}
+                    onKeyUp={trackCursorPos}
+                    onClick={trackCursorPos}
                     className="w-full text-xs border border-gray-300 rounded p-2 font-mono"
                     rows={3}
                     placeholder="Enter text or {{fieldName}}"
@@ -377,6 +422,9 @@ export function SynopsisVisualBuilderV2({
                   <label className="text-xs font-medium text-gray-700 block mb-1">
                     Section Title
                   </label>
+                  <p className="text-xs text-gray-500 mb-1">
+                    A heading shown above this section, e.g. &quot;Personal Info&quot;.
+                  </p>
                   <input
                     type="text"
                     value={selectedBlock.properties.title || ""}
@@ -396,7 +444,11 @@ export function SynopsisVisualBuilderV2({
                   <label className="text-xs font-medium text-gray-700 block mb-1">
                     Content
                   </label>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Text shown below the title. Click a field below to insert it at your cursor.
+                  </p>
                   <textarea
+                    ref={contentTextareaRef}
                     value={selectedBlock.properties.content || ""}
                     onChange={(e) =>
                       updateBlock(selectedBlock.id, {
@@ -406,6 +458,9 @@ export function SynopsisVisualBuilderV2({
                         },
                       })
                     }
+                    onSelect={trackCursorPos}
+                    onKeyUp={trackCursorPos}
+                    onClick={trackCursorPos}
                     className="w-full text-xs border border-gray-300 rounded p-2 font-mono"
                     rows={3}
                     placeholder="Enter text or {{fieldName}}"
@@ -599,7 +654,9 @@ export function SynopsisVisualBuilderV2({
 
             {(selectedBlock.type === "text" || selectedBlock.type === "section") && (
               <div className="pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-600 font-medium mb-2">Quick Insert Fields:</p>
+                <p className="text-xs text-gray-600 font-medium mb-2">
+                  Candidate fields <span className="font-normal text-gray-400">(click to insert)</span>
+                </p>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {Object.entries(AVAILABLE_FIELDS)
                     .filter(([key]) => key !== "formSections")
@@ -618,7 +675,9 @@ export function SynopsisVisualBuilderV2({
 
             {(selectedBlock.type === "text" || selectedBlock.type === "section") && formFields.length > 0 && (
               <div className="pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-600 font-medium mb-2">Application Form Fields:</p>
+                <p className="text-xs text-gray-600 font-medium mb-2">
+                  Application form fields <span className="font-normal text-gray-400">(click to insert)</span>
+                </p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {Object.entries(groupBySection(formFields)).map(([sectionName, fields]) => (
                     <div key={sectionName}>
@@ -657,9 +716,15 @@ export function SynopsisVisualBuilderV2({
       {/* Live Preview */}
       <div className="flex-1 bg-gray-200 flex flex-col min-w-[360px]">
         <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
-          <h3 className="text-sm font-semibold text-gray-900">Live Preview</h3>
-          <span className="text-xs text-gray-400">
-            {previewLoading ? "Updating…" : "Sample candidate data"}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Live Preview</h3>
+            <p className="text-xs text-gray-400">
+              Updates automatically as you edit — inserted fields show made-up sample data here;
+              real applications get real values.
+            </p>
+          </div>
+          <span className="text-xs text-gray-400 shrink-0 ml-2">
+            {previewLoading ? "Updating…" : "Sample data"}
           </span>
         </div>
         <div className="flex-1 overflow-auto p-6">
