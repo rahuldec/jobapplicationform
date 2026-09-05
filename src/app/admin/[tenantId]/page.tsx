@@ -51,6 +51,7 @@ export default async function AdminTenantPage({
   }
 
   return (
+    <>
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/admin" className="text-xs font-medium text-slate-500 hover:text-slate-800">
         ← All clients
@@ -236,14 +237,18 @@ export default async function AdminTenantPage({
       >
         <SynopsisTemplateEditor tenantId={tenant.id} initialTemplate={tenant.synopsisTemplateHtml} />
       </CollapsibleCard>
+    </div>
 
+    <div className="mx-auto max-w-6xl mt-5">
       <CollapsibleCard
         title="Visual Template Builder"
         description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
       >
         <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} />
       </CollapsibleCard>
+    </div>
 
+    <div className="mx-auto max-w-3xl space-y-5 mt-5">
       <CollapsibleCard
         title="Sheet sync"
         description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping."
@@ -258,5 +263,6 @@ export default async function AdminTenantPage({
         </div>
       </CollapsibleCard>
     </div>
+    </>
   );
 }

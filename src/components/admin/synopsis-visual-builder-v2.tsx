@@ -142,7 +142,7 @@ export function SynopsisVisualBuilderV2({
   };
 
   return (
-    <div className="flex h-screen gap-0 bg-gray-100">
+    <div className="flex h-[640px] gap-0 bg-gray-100 overflow-x-auto">
       {/* Left Sidebar - Elements */}
       <div className="w-44 bg-white border-r border-gray-200 p-4 overflow-y-auto flex flex-col shrink-0">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Elements</h3>
@@ -389,7 +389,7 @@ export function SynopsisVisualBuilderV2({
       </div>
 
       {/* Live Preview */}
-      <div className="flex-1 bg-gray-200 flex flex-col min-w-0">
+      <div className="flex-1 bg-gray-200 flex flex-col min-w-[360px]">
         <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
           <h3 className="text-sm font-semibold text-gray-900">Live Preview</h3>
           <span className="text-xs text-gray-400">
