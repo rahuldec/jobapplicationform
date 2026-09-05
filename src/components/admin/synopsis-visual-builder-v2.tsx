@@ -41,6 +41,17 @@ function findBlockById(blocks: Block[], id: string): Block | undefined {
   return undefined;
 }
 
+function findParentBlock(blocks: Block[], childId: string): Block | undefined {
+  for (const b of blocks) {
+    if (b.children?.some((c) => c.id === childId)) return b;
+    if (b.children) {
+      const found = findParentBlock(b.children, childId);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 function updateBlockInList(blocks: Block[], id: string, updates: Partial<Block>): Block[] {
   return blocks.map((b) => {
     if (b.id === id) return { ...b, ...updates };
@@ -93,6 +104,7 @@ export function SynopsisVisualBuilderV2({
   const lastSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
 
   const selectedBlock = selectedBlockId ? findBlockById(config.blocks, selectedBlockId) : undefined;
+  const parentBlock = selectedBlockId ? findParentBlock(config.blocks, selectedBlockId) : undefined;
 
   useEffect(() => {
     const len = (selectedBlock?.properties.content || "").length;
@@ -364,6 +376,21 @@ export function SynopsisVisualBuilderV2({
         {selectedBlock ? (
           <div className="flex-1 p-4 space-y-4">
             <h3 className="text-sm font-bold text-gray-900">Block Properties</h3>
+
+            {parentBlock && (
+              <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
+                This is 1 of {parentBlock.children?.length ?? 1} block
+                {(parentBlock.children?.length ?? 1) === 1 ? "" : "s"} in the{" "}
+                <button
+                  onClick={() => setSelectedBlockId(parentBlock.id)}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  {ELEMENT_TYPES.find((e) => e.type === parentBlock.type)?.label}
+                </button>{" "}
+                layout above. Each column needs its own block — put one field per block, not
+                several fields in one block, or they&apos;ll all land in the same column.
+              </div>
+            )}
 
             {selectedBlock.type === "text" && (
               <>
