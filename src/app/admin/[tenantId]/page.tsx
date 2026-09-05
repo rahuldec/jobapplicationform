@@ -244,7 +244,11 @@ export default async function AdminTenantPage({
         title="Synopsis Template"
         description="Customize the PDF template with HTML/CSS. Leave empty to use the built-in default. Use {{variable}} syntax to insert candidate data."
       >
-        <SynopsisTemplateEditor tenantId={tenant.id} initialTemplate={tenant.synopsisTemplateHtml} />
+        <SynopsisTemplateEditor
+          tenantId={tenant.id}
+          initialTemplate={tenant.synopsisTemplateHtml}
+          formFields={builderFormFields}
+        />
       </CollapsibleCard>
     </div>
 

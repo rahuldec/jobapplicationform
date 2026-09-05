@@ -52,12 +52,48 @@ EXAMPLE TEMPLATE:
   {{/each}}
 `;
 
+interface FormFieldOption {
+  id: string;
+  label: string;
+  sectionName: string;
+}
+
+function groupBySection(fields: FormFieldOption[]): Record<string, FormFieldOption[]> {
+  const groups: Record<string, FormFieldOption[]> = {};
+  for (const field of fields) {
+    (groups[field.sectionName] ??= []).push(field);
+  }
+  return groups;
+}
+
+// This client's actual mapped Sheet/application-form fields, as
+// {{field_<id>}} tokens — same token format the visual builder generates,
+// and the same field_<id> keys buildTemplateData() in synopsis.ts fills
+// with each field's real answer at PDF-render time. Without this, the raw
+// HTML editor only ever showed the generic candidate-level variables and
+// the {{#each formSections}} loop, with no way to know what to type to
+// reference one specific mapped column directly.
+function buildFieldVariablesText(formFields: FormFieldOption[]): string {
+  if (formFields.length === 0) return "";
+  const grouped = groupBySection(formFields);
+  let text = "THIS CLIENT'S FORM FIELDS (insert one specific answer):\n";
+  for (const [sectionName, fields] of Object.entries(grouped)) {
+    text += `  ${sectionName}:\n`;
+    for (const f of fields) {
+      text += `    {{field_${f.id}}}  - ${f.label}\n`;
+    }
+  }
+  return text + "\n";
+}
+
 export function SynopsisTemplateEditor({
   tenantId,
   initialTemplate,
+  formFields = [],
 }: {
   tenantId: string;
   initialTemplate: string | null;
+  formFields?: FormFieldOption[];
 }) {
   const [template, setTemplate] = useState(initialTemplate || "");
   const [saving, setSaving] = useState(false);
@@ -107,7 +143,7 @@ export function SynopsisTemplateEditor({
             Available Variables
           </label>
           <pre className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-xs h-96 overflow-auto">
-            {TEMPLATE_VARIABLES}
+            {buildFieldVariablesText(formFields) + TEMPLATE_VARIABLES}
           </pre>
         </div>
       </div>
