@@ -170,7 +170,7 @@ function renderLayoutBlock(
   const gap = block.properties.gap || "20px";
   const childBlocks = (block.children || []).map((child) => renderBlock(child)).join("\n");
 
-  return `<div class="${baseClass} layout-${columns}col" style="${style} display: grid; grid-template-columns: repeat(${columns}, 1fr); gap: ${gap};">
+  return `<div class="${baseClass} layout-${columns}col" style="${style}; display: grid; grid-template-columns: repeat(${columns}, 1fr); gap: ${gap};">
     ${childBlocks}
   </div>`;
 }

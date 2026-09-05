@@ -59,7 +59,7 @@ export interface Block {
     dataSource?: "formSections" | "custom";
 
     // Layout
-    columns?: number;
+    layoutColumns?: number;
     gap?: string;
 
     // All blocks
