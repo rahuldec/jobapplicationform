@@ -4,45 +4,52 @@ import { useState } from "react";
 import { Button, inputClass } from "@/components/ui/primitives";
 
 const TEMPLATE_VARIABLES = `
-Available template variables:
+SIMPLE VARIABLES (insert single values):
+  {{candidateName}}      - Candidate's full name
+  {{candidateEmail}}     - Email address
+  {{candidateMobile}}    - Phone number
+  {{candidateDob}}       - Date of birth
+  {{candidateGender}}    - Gender
+  {{candidateStatus}}    - Application status
+  {{jobTitle}}           - Position title
+  {{department}}         - Department
+  {{appliedDate}}        - Application date
+  {{organizationName}}   - Organization name
+  {{logoUrl}}            - Logo image URL
+  {{generatedDate}}      - PDF generation time
+  {{signatureImageUrl}}  - Signature image URL
+  {{declarationText}}    - Declaration/terms text
 
-Candidate Info:
-- {{candidateName}} - Full name
-- {{candidateEmail}} - Email address
-- {{candidateMobile}} - Mobile number
-- {{candidateDob}} - Date of birth
-- {{candidateGender}} - Gender
-- {{candidateStatus}} - Application status
-
-Application Info:
-- {{jobTitle}} - Position title
-- {{department}} - Department
-- {{appliedDate}} - Application date
-
-Organization:
-- {{organizationName}} - Tenant name
-- {{logoUrl}} - Logo image URL (if set in branding)
-
-Signature:
-- {{signatureImageUrl}} - Candidate's signature image
-- {{declarationText}} - Declaration/terms text
-- {{generatedDate}} - PDF generation date/time
-
-Form Sections:
-- {{#each formSections}}
-    {{sectionName}} - Section title
+LOOPS (iterate through form sections):
+  {{#each formSections}}
+    {{sectionName}}  - Section title (e.g., "Personal Info")
     {{#each fields}}
-      {{fieldLabel}} - Field label
-      {{fieldValue}} - Field value
+      {{fieldLabel}}  - Field name (e.g., "Full Name")
+      {{fieldValue}}  - Candidate's answer
     {{/each}}
   {{/each}}
 
-Conditionals:
-- {{#if variable}} content {{/if}} - Show content only if variable is truthy
-- {{#if signatureImageUrl}} <img src="{{signatureImageUrl}}"> {{/if}}
+CONDITIONALS (show content only if exists):
+  {{#if logoUrl}}
+    <img src="{{logoUrl}}" />
+  {{/if}}
+  {{#if signatureImageUrl}}
+    <img src="{{signatureImageUrl}}" />
+  {{/if}}
 
-Loops:
-- {{#each items}} <li>{{\.name}}</li> {{/each}} - Iterate array items
+EXAMPLE TEMPLATE:
+  <h2>{{candidateName}}</h2>
+  <p>Applied for: {{jobTitle}}</p>
+  <h3>Form Answers:</h3>
+  {{#each formSections}}
+    <h4>{{sectionName}}</h4>
+    {{#each fields}}
+      <p>
+        <strong>{{fieldLabel}}</strong>
+        {{fieldValue}}
+      </p>
+    {{/each}}
+  {{/each}}
 `;
 
 export function SynopsisTemplateEditor({

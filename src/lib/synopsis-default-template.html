@@ -1,3 +1,43 @@
+<!--
+SYNOPSIS PDF TEMPLATE
+
+This template uses {{variable}} syntax to inject candidate data. Here's how:
+
+SIMPLE VARIABLES (output a single value):
+  {{candidateName}}     - Candidate's full name
+  {{candidateEmail}}    - Email address
+  {{candidateMobile}}   - Phone number
+  {{candidateStatus}}   - Application status
+  {{jobTitle}}          - Position applied for
+  {{appliedDate}}       - Application date
+  {{organizationName}}  - Your organization name
+  {{generatedDate}}     - PDF generation date
+  {{declarationText}}   - Declaration/agreement text
+  {{logoUrl}}           - Organization logo URL
+  {{signatureImageUrl}} - Signature image URL
+
+LOOPS (iterate through arrays):
+  {{#formSections}}
+    Loops through each form section. Inside the loop, use:
+    - {{sectionName}} - Section title (e.g., "Personal Info", "Education")
+    - {{#fields}} - Inner loop through fields in this section
+      - {{fieldLabel}} - Field name (e.g., "Full Name", "Email")
+      - {{fieldValue}} - Candidate's answer to that field
+    {{/fields}}
+  {{/formSections}}
+
+CONDITIONALS (show/hide content):
+  {{#logoUrl}} ... {{/logoUrl}} - Only show if logo exists
+  {{#signatureImageUrl}} ... {{/signatureImageUrl}} - Only show if signature exists
+
+EXAMPLE:
+  {{#formSections}}
+    <h2>{{sectionName}}</h2>
+    {{#fields}}
+      <p><strong>{{fieldLabel}}:</strong> {{fieldValue}}</p>
+    {{/fields}}
+  {{/formSections}}
+-->
 <!DOCTYPE html>
 <html>
 <head>
