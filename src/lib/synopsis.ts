@@ -141,7 +141,12 @@ function stripAnswerPrefix(raw: string): string {
 // not the full document set — so it's cheap enough to leave on for both
 // the single-application download and a multi-select ZIP.
 export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
-  // If custom template exists, use Puppeteer to render it
+  // Rendering priority:
+  // 1. Builder config → HTML (stored in synopsisTemplateHtml after generation)
+  // 2. Custom HTML template (if user pasted HTML directly)
+  // 3. Built-in PDFKit default (fallback)
+
+  // If template exists (either from builder config or custom HTML), use Puppeteer
   if (application.tenant.synopsisTemplateHtml) {
     const templateData = buildTemplateData(application);
     const html = renderTemplate(application.tenant.synopsisTemplateHtml, templateData);
