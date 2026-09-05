@@ -1,10 +1,33 @@
-import { Browser, launch } from "puppeteer";
+import puppeteer, { type Browser } from "puppeteer-core";
 
 let browser: Browser | null = null;
 
+// Vercel's serverless functions have no system Chrome and don't carry over
+// the Chromium binary `puppeteer` downloads to its local cache during
+// `npm install` — launching plain `puppeteer` there fails with "Could not
+// find Chrome". @sparticuz/chromium ships a Chromium build built for that
+// environment; locally we just point puppeteer-core at the full `puppeteer`
+// package's own already-downloaded binary instead of fetching a second one.
+async function getLaunchOptions() {
+  if (process.env.VERCEL) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    return {
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    };
+  }
+  const fullPuppeteer = await import("puppeteer");
+  return {
+    args: ["--no-sandbox"],
+    executablePath: await fullPuppeteer.executablePath(),
+    headless: true,
+  };
+}
+
 async function getBrowser() {
   if (!browser) {
-    browser = await launch({ headless: true, args: ["--no-sandbox"] });
+    browser = await puppeteer.launch(await getLaunchOptions());
   }
   return browser;
 }
