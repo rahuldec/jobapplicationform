@@ -56,11 +56,11 @@ function buildTemplateData(application: SynopsisApplication) {
   const formSections = application.job.form?.sections ?? [];
   const includedFormSections = formSections.filter((s) => !synopsisConfig.excludedFormSectionIds.includes(s.id));
 
-  // Individual {{field_<fieldId>}} lookups for fields placed directly on a
-  // Text/Section block in the visual builder — separate from the
-  // {{#each formSections}} loop the Table block uses, and not filtered by
-  // excludedFormSectionIds: placing a field explicitly on the template is
-  // a deliberate choice that should render regardless of that toggle.
+  // Individual {{field_<fieldId>}} lookups, for referencing one specific
+  // mapped form field directly in a custom template — separate from the
+  // {{#each formSections}} loop, and not filtered by excludedFormSectionIds:
+  // referencing a field explicitly is a deliberate choice that should
+  // render regardless of that toggle.
   const individualFields: Record<string, string> = {};
   for (const section of formSections) {
     for (const field of section.fields) {
@@ -156,12 +156,9 @@ function stripAnswerPrefix(raw: string): string {
 // not the full document set — so it's cheap enough to leave on for both
 // the single-application download and a multi-select ZIP.
 export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
-  // Rendering priority:
-  // 1. Builder config → HTML (stored in synopsisTemplateHtml after generation)
-  // 2. Custom HTML template (if user pasted HTML directly)
-  // 3. Built-in PDFKit default (fallback)
-
-  // If template exists (either from builder config or custom HTML), use Puppeteer
+  // A tenant-supplied custom HTML template (edited in the admin "Synopsis
+  // Template" section) is rendered via Puppeteer; otherwise fall back to
+  // the built-in PDFKit layout below.
   if (application.tenant.synopsisTemplateHtml) {
     const templateData = buildTemplateData(application);
     const html = renderTemplate(application.tenant.synopsisTemplateHtml, templateData);

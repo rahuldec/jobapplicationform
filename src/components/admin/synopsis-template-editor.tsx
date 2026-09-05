@@ -67,12 +67,11 @@ function groupBySection(fields: FormFieldOption[]): Record<string, FormFieldOpti
 }
 
 // This client's actual mapped Sheet/application-form fields, as
-// {{field_<id>}} tokens — same token format the visual builder generates,
-// and the same field_<id> keys buildTemplateData() in synopsis.ts fills
-// with each field's real answer at PDF-render time. Without this, the raw
-// HTML editor only ever showed the generic candidate-level variables and
-// the {{#each formSections}} loop, with no way to know what to type to
-// reference one specific mapped column directly.
+// {{field_<id>}} tokens — the same field_<id> keys buildTemplateData() in
+// synopsis.ts fills with each field's real answer at PDF-render time.
+// Without this, the reference only showed the generic candidate-level
+// variables and the {{#each formSections}} loop, with no way to know what
+// to type to reference one specific mapped column directly.
 function buildFieldVariablesText(formFields: FormFieldOption[]): string {
   if (formFields.length === 0) return "";
   const grouped = groupBySection(formFields);

@@ -8,7 +8,6 @@ import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, Placehol
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { SynopsisConfigBuilder } from "@/components/admin/synopsis-config-builder";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
-import { SynopsisVisualBuilderV2 } from "@/components/admin/synopsis-visual-builder-v2";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
@@ -37,18 +36,9 @@ export default async function AdminTenantPage({
   });
   const synopsisConfig = parseSynopsisConfig(tenant.synopsisConfigJson);
 
-  const builderFormFields = (applicationForm?.sections ?? []).flatMap((s) =>
+  const formFieldOptions = (applicationForm?.sections ?? []).flatMap((s) =>
     s.fields.map((f) => ({ id: f.id, label: f.label, sectionName: s.name }))
   );
-
-  let builderConfig = null;
-  if (tenant.synopsisTemplateBuilderConfig) {
-    try {
-      builderConfig = JSON.parse(tenant.synopsisTemplateBuilderConfig);
-    } catch {
-      // Malformed config — the builder starts from empty
-    }
-  }
 
   let initialConfig = null;
   if (tenant.sheetMappingJson) {
@@ -60,7 +50,6 @@ export default async function AdminTenantPage({
   }
 
   return (
-    <>
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/admin" className="text-xs font-medium text-slate-500 hover:text-slate-800">
         ← All clients
@@ -247,21 +236,10 @@ export default async function AdminTenantPage({
         <SynopsisTemplateEditor
           tenantId={tenant.id}
           initialTemplate={tenant.synopsisTemplateHtml}
-          formFields={builderFormFields}
+          formFields={formFieldOptions}
         />
       </CollapsibleCard>
-    </div>
 
-    <div className="mx-auto max-w-6xl mt-5">
-      <CollapsibleCard
-        title="Visual Template Builder"
-        description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
-      >
-        <SynopsisVisualBuilderV2 tenantId={tenant.id} initialConfig={builderConfig} formFields={builderFormFields} />
-      </CollapsibleCard>
-    </div>
-
-    <div className="mx-auto max-w-3xl space-y-5 mt-5">
       <CollapsibleCard
         title="Sheet sync"
         description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping."
@@ -276,6 +254,5 @@ export default async function AdminTenantPage({
         </div>
       </CollapsibleCard>
     </div>
-    </>
   );
 }
