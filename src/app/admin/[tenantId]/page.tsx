@@ -7,6 +7,7 @@ import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { SynopsisConfigBuilder } from "@/components/admin/synopsis-config-builder";
+import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
@@ -217,6 +218,13 @@ export default async function AdminTenantPage({
           initialConfig={synopsisConfig}
           sections={applicationForm?.sections.map((s) => ({ id: s.id, name: s.name })) ?? []}
         />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Synopsis Template"
+        description="Customize the PDF template with HTML/CSS. Leave empty to use the built-in default. Use {{variable}} syntax to insert candidate data."
+      >
+        <SynopsisTemplateEditor tenantId={tenant.id} initialTemplate={tenant.synopsisTemplateHtml} />
       </CollapsibleCard>
 
       <CollapsibleCard

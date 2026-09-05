@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { getTenantBranding, logoDataUrlToBuffer, getImageDimensions } from "@/lib/branding";
 import { formatDate } from "@/lib/date";
+import { renderTemplate, renderHtmlToPdf } from "@/lib/synopsis-render";
 import {
   parseSynopsisConfig,
   resolveBlockOrder,
@@ -47,6 +48,42 @@ type SynopsisApplication = NonNullable<Awaited<ReturnType<typeof getSynopsisData
 
 function fmtDate(d: Date | null | undefined) {
   return d ? formatDate(d) : "—";
+}
+
+function buildTemplateData(application: SynopsisApplication) {
+  const branding = getTenantBranding(application.tenant);
+  const synopsisConfig = parseSynopsisConfig(application.tenant.synopsisConfigJson);
+  const formSections = application.job.form?.sections ?? [];
+  const includedFormSections = formSections.filter((s) => !synopsisConfig.excludedFormSectionIds.includes(s.id));
+
+  return {
+    candidateName: application.candidate.fullName,
+    candidateEmail: application.candidate.email,
+    candidateMobile: application.candidate.mobile || "—",
+    candidateDob: fmtDate(application.candidate.dateOfBirth),
+    candidateGender: application.candidate.gender || "—",
+    candidateStatus: APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] || application.status,
+    jobTitle: application.job.title,
+    department: application.job.department?.name || "—",
+    appliedDate: fmtDate(application.createdAt),
+    organizationName: branding.name,
+    logoUrl: branding.logoDataUrl || "",
+    generatedDate: new Date().toLocaleString(),
+    declarationText: "I declare that the information provided above is true and complete.",
+    signatureImageUrl: "", // Would be populated if embedding images
+    formSections: includedFormSections.map((section) => ({
+      sectionName: section.name,
+      fields: section.fields
+        .map((field) => {
+          const value = application.fieldValues.find((fv) => fv.fieldId === field.id);
+          return {
+            fieldLabel: field.label,
+            fieldValue: value?.value || "—",
+          };
+        })
+        .filter((f) => f.fieldValue !== "—"),
+    })),
+  };
 }
 
 function extractDriveFileId(url: string): string | null {
@@ -100,6 +137,14 @@ function stripAnswerPrefix(raw: string): string {
 // not the full document set — so it's cheap enough to leave on for both
 // the single-application download and a multi-select ZIP.
 export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
+  // If custom template exists, use Puppeteer to render it
+  if (application.tenant.synopsisTemplateHtml) {
+    const templateData = buildTemplateData(application);
+    const html = renderTemplate(application.tenant.synopsisTemplateHtml, templateData);
+    return await renderHtmlToPdf(html);
+  }
+
+  // Otherwise use default PDFKit rendering
   const embedImages = options?.embedImages ?? false;
 
   let photoImage: Buffer | null = null;

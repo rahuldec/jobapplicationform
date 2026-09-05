@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Application Summary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6; }
+    .page { page-break-after: always; padding: 40px; background: white; }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 20px;
+    }
+    .logo { max-height: 60px; margin-bottom: 10px; }
+    .org-name { font-size: 24px; font-weight: bold; color: #333; }
+    .section { margin-bottom: 30px; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #667eea;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .field-row { margin-bottom: 12px; }
+    .field-label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-value { font-size: 14px; color: #333; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-item { }
+    .form-sections { margin-top: 20px; }
+    .form-section { margin-bottom: 20px; page-break-inside: avoid; }
+    .form-field { margin-bottom: 16px; }
+    .signature-block { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; }
+    .signature-image { max-width: 150px; max-height: 80px; margin: 10px 0; }
+    .footer {
+      font-size: 11px;
+      color: #999;
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      {{#logoUrl}}<img src="{{logoUrl}}" class="logo" alt="Logo">{{/logoUrl}}
+      <div class="org-name">{{organizationName}}</div>
+    </div>
+
+    <!-- Candidate Details -->
+    <div class="section">
+      <div class="section-title">Candidate Information</div>
+      <div class="grid">
+        <div class="grid-item">
+          <div class="field-row">
+            <div class="field-label">Full Name</div>
+            <div class="field-value">{{candidateName}}</div>
+          </div>
+          <div class="field-row">
+            <div class="field-label">Email</div>
+            <div class="field-value">{{candidateEmail}}</div>
+          </div>
+        </div>
+        <div class="grid-item">
+          <div class="field-row">
+            <div class="field-label">Mobile</div>
+            <div class="field-value">{{candidateMobile}}</div>
+          </div>
+          <div class="field-row">
+            <div class="field-label">Status</div>
+            <div class="field-value">{{candidateStatus}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Details -->
+    <div class="section">
+      <div class="section-title">Application Details</div>
+      <div class="grid">
+        <div class="grid-item">
+          <div class="field-row">
+            <div class="field-label">Position</div>
+            <div class="field-value">{{jobTitle}}</div>
+          </div>
+        </div>
+        <div class="grid-item">
+          <div class="field-row">
+            <div class="field-label">Applied On</div>
+            <div class="field-value">{{appliedDate}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Form Sections -->
+    {{#formSections}}
+    <div class="form-section">
+      <div class="section-title">{{sectionName}}</div>
+      {{#fields}}
+      <div class="form-field">
+        <div class="field-label">{{fieldLabel}}</div>
+        <div class="field-value">{{fieldValue}}</div>
+      </div>
+      {{/fields}}
+    </div>
+    {{/formSections}}
+
+    <!-- Signature Block -->
+    <div class="signature-block">
+      <div class="section-title">Declaration & Signature</div>
+      {{#signatureImageUrl}}<img src="{{signatureImageUrl}}" class="signature-image" alt="Signature">{{/signatureImageUrl}}
+      <div class="field-value">{{declarationText}}</div>
+    </div>
+
+    <div class="footer">
+      Generated on {{generatedDate}} • {{organizationName}}
+    </div>
+  </div>
+</body>
+</html>

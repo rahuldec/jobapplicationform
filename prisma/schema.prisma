@@ -59,6 +59,11 @@ model Tenant {
   // needing to be opted back in.
   synopsisConfigJson String?
 
+  // Custom HTML template for synopsis PDF rendering. Null means use the
+  // built-in template. Template can include variables like {{candidateName}},
+  // {{jobTitle}}, {{formResponses}}, etc. — see src/lib/synopsis-template.ts
+  synopsisTemplateHtml String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
