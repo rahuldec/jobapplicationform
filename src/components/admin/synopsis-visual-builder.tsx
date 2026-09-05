@@ -13,7 +13,6 @@ import {
 interface SynopsisVisualBuilderProps {
   tenantId: string;
   initialConfig?: SynopsisBuilderConfig | null;
-  onSave: (config: SynopsisBuilderConfig) => Promise<void>;
 }
 
 const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
@@ -32,7 +31,6 @@ const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
 export function SynopsisVisualBuilder({
   tenantId,
   initialConfig,
-  onSave,
 }: SynopsisVisualBuilderProps) {
   const [config, setConfig] = useState<SynopsisBuilderConfig>(
     initialConfig || { blocks: [], version: "1.0" }
@@ -73,7 +71,12 @@ export function SynopsisVisualBuilder({
     setError(null);
     setSaving(true);
     try {
-      await onSave(config);
+      const res = await fetch("/api/admin/synopsis-builder-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, config }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {

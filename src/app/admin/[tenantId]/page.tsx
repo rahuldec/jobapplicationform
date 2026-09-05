@@ -241,18 +241,7 @@ export default async function AdminTenantPage({
         title="Visual Template Builder"
         description="Design your PDF template visually by dragging and dropping elements. No HTML knowledge required."
       >
-        <SynopsisVisualBuilder
-          tenantId={tenant.id}
-          initialConfig={builderConfig}
-          onSave={async (config) => {
-            const res = await fetch("/api/admin/synopsis-builder-config", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tenantId: tenant.id, config }),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          }}
-        />
+        <SynopsisVisualBuilder tenantId={tenant.id} initialConfig={builderConfig} />
       </CollapsibleCard>
 
       <CollapsibleCard
