@@ -30,6 +30,33 @@ function groupBySection(fields: FormFieldOption[]): Record<string, FormFieldOpti
   return groups;
 }
 
+function findBlockById(blocks: Block[], id: string): Block | undefined {
+  for (const b of blocks) {
+    if (b.id === id) return b;
+    if (b.children) {
+      const found = findBlockById(b.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function updateBlockInList(blocks: Block[], id: string, updates: Partial<Block>): Block[] {
+  return blocks.map((b) => {
+    if (b.id === id) return { ...b, ...updates };
+    if (b.children) return { ...b, children: updateBlockInList(b.children, id, updates) };
+    return b;
+  });
+}
+
+function removeBlockFromList(blocks: Block[], id: string): Block[] {
+  return blocks
+    .filter((b) => b.id !== id)
+    .map((b) => (b.children ? { ...b, children: removeBlockFromList(b.children, id) } : b));
+}
+
+const COLUMN_CHILD_TYPES: BlockType[] = ["text", "image", "horizontal-line", "button"];
+
 const ELEMENT_TYPES: { type: BlockType; label: string; icon: string }[] = [
   { type: "text", label: "Text", icon: "📝" },
   { type: "image", label: "Image", icon: "🖼️" },
@@ -58,7 +85,7 @@ export function SynopsisVisualBuilderV2({
   const [previewLoading, setPreviewLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const selectedBlock = config.blocks.find((b) => b.id === selectedBlockId);
+  const selectedBlock = selectedBlockId ? findBlockById(config.blocks, selectedBlockId) : undefined;
 
   const addBlock = (type: BlockType) => {
     const newBlock = createBlock(type, config.blocks.length);
@@ -72,7 +99,7 @@ export function SynopsisVisualBuilderV2({
   const removeBlock = (id: string) => {
     setConfig({
       ...config,
-      blocks: config.blocks.filter((b) => b.id !== id),
+      blocks: removeBlockFromList(config.blocks, id),
     });
     if (selectedBlockId === id) {
       setSelectedBlockId(null);
@@ -107,8 +134,16 @@ export function SynopsisVisualBuilderV2({
   const updateBlock = (id: string, updates: Partial<Block>) => {
     setConfig({
       ...config,
-      blocks: config.blocks.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+      blocks: updateBlockInList(config.blocks, id, updates),
     });
+  };
+
+  const addChildBlock = (parentId: string, type: BlockType) => {
+    const parent = findBlockById(config.blocks, parentId);
+    if (!parent) return;
+    const newBlock = createBlock(type, parent.children?.length ?? 0);
+    updateBlock(parentId, { children: [...(parent.children ?? []), newBlock] });
+    setSelectedBlockId(newBlock.id);
   };
 
   const insertIntoContent = (token: string) => {
@@ -228,6 +263,11 @@ export function SynopsisVisualBuilderV2({
                         {block.properties.content && (
                           <p className="text-xs text-gray-500 truncate max-w-[9rem]">
                             {block.properties.content}
+                          </p>
+                        )}
+                        {block.type.startsWith("layout-") && (
+                          <p className="text-xs text-gray-500">
+                            {block.children?.length ?? 0} item{(block.children?.length ?? 0) === 1 ? "" : "s"}
                           </p>
                         )}
                       </div>
@@ -374,24 +414,209 @@ export function SynopsisVisualBuilderV2({
               </>
             )}
 
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-600 font-medium mb-2">Quick Insert Fields:</p>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {Object.entries(AVAILABLE_FIELDS)
-                  .filter(([key]) => key !== "formSections")
-                  .map(([key]) => (
-                    <button
-                      key={key}
-                      onClick={() => insertIntoContent(`{{${key}}}`)}
-                      className="block w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-xs text-gray-600 font-mono"
+            {selectedBlock.type === "image" && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">
+                    Image Source
+                  </label>
+                  <select
+                    value={selectedBlock.properties.source || "url"}
+                    onChange={(e) =>
+                      updateBlock(selectedBlock.id, {
+                        properties: {
+                          ...selectedBlock.properties,
+                          source: e.target.value as "url" | "field",
+                        },
+                      })
+                    }
+                    className="w-full text-xs border border-gray-300 rounded p-2"
+                  >
+                    <option value="url">Image URL</option>
+                    <option value="field">Candidate Field</option>
+                  </select>
+                </div>
+                {selectedBlock.properties.source === "field" ? (
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">
+                      Field
+                    </label>
+                    <select
+                      value={selectedBlock.properties.fieldKey || ""}
+                      onChange={(e) =>
+                        updateBlock(selectedBlock.id, {
+                          properties: {
+                            ...selectedBlock.properties,
+                            fieldKey: e.target.value as typeof selectedBlock.properties.fieldKey,
+                          },
+                        })
+                      }
+                      className="w-full text-xs border border-gray-300 rounded p-2"
                     >
-                      {`{{${key}}}`}
-                    </button>
-                  ))}
-              </div>
-            </div>
+                      <option value="">Select field</option>
+                      <option value="logoUrl">Organization Logo</option>
+                      <option value="signatureImageUrl">Candidate Signature</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">
+                      Image URL
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedBlock.properties.imageUrl || ""}
+                      onChange={(e) =>
+                        updateBlock(selectedBlock.id, {
+                          properties: { ...selectedBlock.properties, imageUrl: e.target.value },
+                        })
+                      }
+                      className="w-full text-xs border border-gray-300 rounded p-2"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">
+                    Max Width
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedBlock.properties.maxWidth || "100%"}
+                    onChange={(e) =>
+                      updateBlock(selectedBlock.id, {
+                        properties: { ...selectedBlock.properties, maxWidth: e.target.value },
+                      })
+                    }
+                    className="w-full text-xs border border-gray-300 rounded p-2"
+                    placeholder="100%"
+                  />
+                </div>
+              </>
+            )}
 
-            {formFields.length > 0 && (
+            {selectedBlock.type === "button" && (
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">
+                  Button Label
+                </label>
+                <input
+                  type="text"
+                  value={selectedBlock.properties.label || ""}
+                  onChange={(e) =>
+                    updateBlock(selectedBlock.id, {
+                      properties: { ...selectedBlock.properties, label: e.target.value },
+                    })
+                  }
+                  className="w-full text-xs border border-gray-300 rounded p-2"
+                  placeholder="e.g., View Application"
+                />
+              </div>
+            )}
+
+            {selectedBlock.type.startsWith("layout-") && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">
+                    Column Gap
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedBlock.properties.gap || "20px"}
+                    onChange={(e) =>
+                      updateBlock(selectedBlock.id, {
+                        properties: { ...selectedBlock.properties, gap: e.target.value },
+                      })
+                    }
+                    className="w-full text-xs border border-gray-300 rounded p-2"
+                    placeholder="20px"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-700 mb-1">Column Contents</p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Blocks fill the columns in order, wrapping to the next row.
+                  </p>
+                  {(selectedBlock.children ?? []).length === 0 ? (
+                    <p className="text-xs text-gray-400 mb-2">No blocks added yet.</p>
+                  ) : (
+                    <div className="space-y-1 mb-2">
+                      {(selectedBlock.children ?? []).map((child) => (
+                        <div
+                          key={child.id}
+                          onClick={() => setSelectedBlockId(child.id)}
+                          className={`flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer border ${
+                            selectedBlockId === child.id
+                              ? "border-blue-400 bg-blue-50"
+                              : "border-transparent hover:bg-gray-100"
+                          }`}
+                        >
+                          <span className="truncate">
+                            {ELEMENT_TYPES.find((e) => e.type === child.type)?.icon}{" "}
+                            {ELEMENT_TYPES.find((e) => e.type === child.type)?.label}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeBlock(child.id);
+                            }}
+                            className="text-red-500 hover:bg-red-100 rounded px-1 shrink-0"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs font-medium text-gray-700 mb-1">Add to column:</p>
+                  <div className="flex gap-1">
+                    {COLUMN_CHILD_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => addChildBlock(selectedBlock.id, t)}
+                        title={`Add ${ELEMENT_TYPES.find((e) => e.type === t)?.label}`}
+                        className="flex-1 border border-gray-300 rounded p-1.5 hover:bg-blue-50 text-sm"
+                      >
+                        {ELEMENT_TYPES.find((e) => e.type === t)?.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {(selectedBlock.type === "horizontal-line" || selectedBlock.type === "empty") && (
+              <p className="text-xs text-gray-500">This block has no configurable properties.</p>
+            )}
+
+            {selectedBlock.type === "table" && (
+              <p className="text-xs text-gray-500">
+                Automatically lists every answered field from the application form, grouped by
+                section.
+              </p>
+            )}
+
+            {(selectedBlock.type === "text" || selectedBlock.type === "section") && (
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-600 font-medium mb-2">Quick Insert Fields:</p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {Object.entries(AVAILABLE_FIELDS)
+                    .filter(([key]) => key !== "formSections")
+                    .map(([key]) => (
+                      <button
+                        key={key}
+                        onClick={() => insertIntoContent(`{{${key}}}`)}
+                        className="block w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-xs text-gray-600 font-mono"
+                      >
+                        {`{{${key}}}`}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {(selectedBlock.type === "text" || selectedBlock.type === "section") && formFields.length > 0 && (
               <div className="pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-600 font-medium mb-2">Application Form Fields:</p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
