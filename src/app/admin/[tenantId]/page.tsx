@@ -234,20 +234,24 @@ export default async function AdminTenantPage({
       >
         <form action={updateSynopsisEmbedDocuments} className="px-5 py-5 border-b border-slate-100 space-y-3">
           <input type="hidden" name="tenantId" value={tenant.id} />
-          <label className="flex items-start gap-2.5 text-sm text-slate-700">
+          <h3 className="text-sm font-semibold text-slate-900">Add Uploaded Documents</h3>
+          <p className="text-sm text-slate-600">
+            Choose whether to include the candidate&apos;s uploaded documents (certificates, ID proofs, etc.) in the
+            Synopsis PDF.
+          </p>
+          <p className="text-sm text-slate-600">
+            The candidate&apos;s <strong>Photograph and Signature will always be included</strong> in the
+            header/declaration, regardless of this setting.
+          </p>
+          <p className="text-sm text-slate-600">This option only controls the other documents uploaded by the candidate.</p>
+          <label className="flex items-center gap-2.5 text-sm text-slate-700">
             <input
               type="checkbox"
               name="synopsisEmbedDocuments"
               defaultChecked={tenant.synopsisEmbedDocuments}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
             />
-            <span>
-              Embed this candidate&apos;s uploaded documents (certificates, ID proofs, etc.) into their synopsis PDF.
-              <span className="block text-xs text-slate-500 mt-0.5">
-                Off by default. Photograph and Signature are always shown in the header/declaration either way —
-                this only affects everything else they&apos;ve uploaded.
-              </span>
-            </span>
+            Include uploaded documents in the Synopsis PDF
           </label>
           <div className="flex justify-end">
             <Button type="submit" size="sm">Save</Button>
