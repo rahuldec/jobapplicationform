@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getTenantBranding } from "@/lib/branding";
 import { isTenantAuthenticated } from "@/lib/tenant-auth";
+import { syncSheetIfStale } from "@/lib/sheet-sync-throttle";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -18,6 +19,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!(await isTenantAuthenticated(tenant.id))) {
     redirect(`/${tenant.slug}`);
   }
+  // Runs on every page load/refresh under this layout (Dashboard,
+  // Applications, Jobs, Emails) so staff see new Sheet rows without
+  // clicking "Sync now" — throttled to once a minute per tenant.
+  await syncSheetIfStale(tenant);
   const branding = getTenantBranding(tenant);
 
   const gradientCss = `linear-gradient(90deg, ${branding.gradient.from} 0%, ${branding.gradient.via} 50%, ${branding.gradient.to} 100%)`;

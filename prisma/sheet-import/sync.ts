@@ -86,6 +86,12 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
   const dataRows = rows.slice(1);
 
+  // Stamped as soon as the Sheet is actually read, not just when new rows
+  // are found — the "nothing new" case below returns early, and the
+  // auto-sync-on-page-load throttle needs this to move forward on every
+  // successful check or it would never stop re-syncing a quiet tenant.
+  await prisma.tenant.update({ where: { id: tenant.id }, data: { lastSheetSyncAt: new Date() } });
+
   console.log(`[${tenantSlug}] Syncing ${dataRows.length} rows from the live Sheet...`);
 
   let form = await prisma.applicationForm.findFirst({

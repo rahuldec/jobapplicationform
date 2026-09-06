@@ -40,6 +40,12 @@ function createFakePrisma(tenant: FakeRow) {
         if (!t) throw new Error(`No tenant "${where.slug}"`);
         return t;
       },
+      update: async ({ where, data }: { where: { id: string }; data: FakeRow }) => {
+        const t = db.tenants.find((t) => t.id === where.id);
+        if (!t) throw new Error(`No tenant "${where.id}"`);
+        Object.assign(t, data);
+        return t;
+      },
     },
     applicationForm: {
       findFirst: async ({ where }: { where: { tenantId: string; name: string } }) =>
