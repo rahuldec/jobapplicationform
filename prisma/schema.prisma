@@ -64,10 +64,17 @@ model Tenant {
   // {{jobTitle}}, {{formResponses}}, etc. — see src/lib/synopsis-template.ts
   synopsisTemplateHtml String?
 
-  // Visual template builder configuration (JSON). Stores blocks, layouts,
-  // field mappings, and properties. Null means HTML template is used or
-  // built-in default. When present, this config is converted to HTML for PDF.
+  // Unused since the visual template builder was removed — kept rather
+  // than migrated away since it's nullable and harmless either way.
   synopsisTemplateBuilderConfig String?
+
+  // Whether the candidate's uploaded documents (certificates, ID proofs,
+  // etc. — everything except Photograph/Signature, which are always
+  // embedded in the header/declaration) get appended as extra pages onto
+  // the synopsis PDF. Off by default: fetching and merging every document
+  // is real extra work per download, so a tenant should opt in rather
+  // than have every existing client's PDFs suddenly grow.
+  synopsisEmbedDocuments Boolean @default(false)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

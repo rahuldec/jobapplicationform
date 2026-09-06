@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { updateTenantBranding, updateInterviewEmailTemplate } from "@/lib/actions/tenants";
+import { updateTenantBranding, updateInterviewEmailTemplate, updateSynopsisEmbedDocuments } from "@/lib/actions/tenants";
 import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
@@ -232,6 +232,27 @@ export default async function AdminTenantPage({
         title="Synopsis Template"
         description="Customize the PDF template with HTML/CSS. Leave empty to use the built-in default. Use {{variable}} syntax to insert candidate data."
       >
+        <form action={updateSynopsisEmbedDocuments} className="px-5 py-5 border-b border-slate-100 space-y-3">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <label className="flex items-start gap-2.5 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="synopsisEmbedDocuments"
+              defaultChecked={tenant.synopsisEmbedDocuments}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span>
+              Embed this candidate&apos;s uploaded documents (certificates, ID proofs, etc.) into their synopsis PDF.
+              <span className="block text-xs text-slate-500 mt-0.5">
+                Off by default. Photograph and Signature are always shown in the header/declaration either way —
+                this only affects everything else they&apos;ve uploaded.
+              </span>
+            </span>
+          </label>
+          <div className="flex justify-end">
+            <Button type="submit" size="sm">Save</Button>
+          </div>
+        </form>
         <SynopsisTemplateEditor
           tenantId={tenant.id}
           initialTemplate={tenant.synopsisTemplateHtml}

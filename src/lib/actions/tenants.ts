@@ -133,6 +133,20 @@ export async function updateInterviewEmailTemplate(formData: FormData) {
   revalidatePath(`/admin/${tenantId}`);
 }
 
+// Unchecked checkboxes submit no key at all in a plain <form>, so absence
+// of the field (not an explicit "false") means off.
+export async function updateSynopsisEmbedDocuments(formData: FormData) {
+  const tenantId = String(formData.get("tenantId"));
+  const embed = formData.get("synopsisEmbedDocuments") === "on";
+
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { synopsisEmbedDocuments: embed },
+  });
+
+  revalidatePath(`/admin/${tenantId}`);
+}
+
 // Called directly from a client component, not a plain <form action>,
 // since the Sheet mapping needs live client-side state before the admin
 // ever hits Save.

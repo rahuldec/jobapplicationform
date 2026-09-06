@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
         try {
           const pdf = await renderSynopsisPdf(app, {
             embedImages: true,
-            embedDocuments: true,
+            embedDocuments: app.tenant.synopsisEmbedDocuments,
             maxDocuments: SYNOPSIS_MAX_DOCUMENTS_PER_CANDIDATE,
           });
           const folder = `${safeName(app.candidate.fullName)} - ${app.applicationNumber}`;

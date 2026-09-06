@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       await runWithConcurrency(applications, CANDIDATE_CONCURRENCY, async (app) => {
         const pdf = await renderSynopsisPdf(app, {
           embedImages,
-          embedDocuments: true,
+          embedDocuments: app.tenant.synopsisEmbedDocuments,
           maxDocuments: MAX_DOCUMENTS_PER_CANDIDATE,
         });
         addToArchive(app, pdf);
