@@ -11,7 +11,12 @@ import { startOfTodayIST } from "@/lib/date";
 
 export const maxDuration = 60;
 
-const SYNOPSIS_CONCURRENCY = 4;
+// Lower than the export/synopsis route's already-conservative number:
+// this ZIP is simultaneously fetching every matching raw document again
+// for its own entries (up to MAX_DOCUMENTS below) in the same request, so
+// document-merging synopses on top of that needs more headroom, not less.
+const SYNOPSIS_CONCURRENCY = 2;
+const SYNOPSIS_MAX_DOCUMENTS_PER_CANDIDATE = 5;
 
 // Fetching real file bytes from Google Drive for every matching document
 // is nothing like the synopsis ZIP (which only reads already-loaded
@@ -178,7 +183,11 @@ export async function GET(request: NextRequest) {
     if (includeSynopsis) {
       await runWithConcurrency(synopsisApplications, SYNOPSIS_CONCURRENCY, async (app) => {
         try {
-          const pdf = await renderSynopsisPdf(app, { embedImages: true });
+          const pdf = await renderSynopsisPdf(app, {
+            embedImages: true,
+            embedDocuments: true,
+            maxDocuments: SYNOPSIS_MAX_DOCUMENTS_PER_CANDIDATE,
+          });
           const folder = `${safeName(app.candidate.fullName)} - ${app.applicationNumber}`;
           archive.append(pdf, { name: `${folder}/Synopsis.pdf` });
         } catch {

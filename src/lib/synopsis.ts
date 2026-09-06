@@ -147,15 +147,28 @@ function stripAnswerPrefix(raw: string): string {
 }
 
 // Builds one candidate's synopsis PDF and resolves with the full buffer.
-// This is the clean report — candidate details, education, employment,
-// etc. — with just the candidate's photo in the page-1 header and their
-// signature in a closing declaration block. It does NOT list or embed
-// the candidate's other uploaded documents; that's what the "Docs"
-// download (bulk document ZIP) is for. `embedImages` fetches only the
-// Photograph/Signature documents from Google Drive — two small images,
-// not the full document set — so it's cheap enough to leave on for both
-// the single-application download and a multi-select ZIP.
-export async function renderSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
+// The report itself is candidate details, education, employment, etc.,
+// with the candidate's photo in the page-1 header and their signature in
+// a closing declaration block (`embedImages` — two small images, cheap
+// enough to leave on for both the single download and a bulk ZIP).
+// `embedDocuments` additionally merges every other uploaded document
+// (Aadhar, certificates, ...) onto the end of the same PDF — images as
+// their own labeled page, real PDFs with their pages copied in directly.
+// That used to be the only way this worked and was rewritten away after
+// bulk generation of it started timing out (see /api/export/synopsis's
+// history); re-enabling it means callers must pick a document/candidate
+// cap appropriate to their own context rather than assuming it's free.
+export async function renderSynopsisPdf(
+  application: SynopsisApplication,
+  options?: { embedImages?: boolean; embedDocuments?: boolean; maxDocuments?: number }
+): Promise<Buffer> {
+  const basePdf = await renderBaseSynopsisPdf(application, options);
+  if (!options?.embedDocuments) return basePdf;
+  const { appendDocumentsToPdf } = await import("@/lib/synopsis-documents");
+  return appendDocumentsToPdf(basePdf, application.documents, { maxDocuments: options.maxDocuments });
+}
+
+async function renderBaseSynopsisPdf(application: SynopsisApplication, options?: { embedImages?: boolean }): Promise<Buffer> {
   // A tenant-supplied custom HTML template (edited in the admin "Synopsis
   // Template" section) is rendered via Puppeteer; otherwise fall back to
   // the built-in PDFKit layout below.

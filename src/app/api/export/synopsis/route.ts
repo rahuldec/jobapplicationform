@@ -13,18 +13,16 @@ export const maxDuration = 60;
 
 // A specific `ids` selection (the Applications page's multi-select
 // checkboxes) embeds each candidate's Photograph/Signature into their
-// report, same as the single-application download. Now that
-// renderSynopsisPdf only fetches two small images per candidate instead
-// of merging every document's real PDF pages, this is much cheaper than
-// it used to be — re-measured against production after that rewrite:
-// 20 candidates ~7.8s, 50 ~18.5s, 80 ~25s, 100 ~30s, all comfortably
-// linear with real margin. But 150 and the full 348 both landed at
-// 60-62s — a non-linear jump, most likely Drive-side throttling under
-// sustained request volume (the same kind of surprise concurrency=24
-// caused on the document export). That cliff sits somewhere between 100
-// and 150, so the cap stays at 100 rather than chase the exact edge.
-const MAX_EMBEDDED_IDS = 100;
-const CANDIDATE_CONCURRENCY = 4;
+// report, same as the single-application download — measured at 100
+// candidates comfortably under the time limit (see git history for the
+// full numbers). Now also merging every other document (embedDocuments)
+// onto each candidate's PDF is real, uncapped-per-candidate work this
+// measurement never accounted for, so this cap is a deliberately
+// conservative guess rather than a re-benchmarked number — tighten
+// further if bulk runs still time out in practice.
+const MAX_EMBEDDED_IDS = 25;
+const CANDIDATE_CONCURRENCY = 2;
+const MAX_DOCUMENTS_PER_CANDIDATE = 5;
 
 // Bulk-generates one synopsis PDF per application — either a specific
 // `ids` selection (embeds real documents, capped — see above) or
@@ -129,7 +127,11 @@ export async function GET(request: NextRequest) {
       // documents fetched from Drive) at the same time instead of one
       // candidate finishing before the next starts.
       await runWithConcurrency(applications, CANDIDATE_CONCURRENCY, async (app) => {
-        const pdf = await renderSynopsisPdf(app, { embedImages });
+        const pdf = await renderSynopsisPdf(app, {
+          embedImages,
+          embedDocuments: true,
+          maxDocuments: MAX_DOCUMENTS_PER_CANDIDATE,
+        });
         addToArchive(app, pdf);
       });
     } else {
