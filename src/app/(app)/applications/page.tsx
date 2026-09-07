@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState } from "@/components/ui/primitives";
+import { Card, EmptyState, Button } from "@/components/ui/primitives";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { formatDate, startOfTodayIST } from "@/lib/date";
@@ -114,6 +114,12 @@ export default async function ApplicationsPage({
     return qs ? `${base}?${qs}` : base;
   };
   const exportHref = buildHref({ page: undefined, documentType: undefined }, "/api/export/applications");
+  // Every application matching the current filters, not just what's on
+  // this page — the self-serve alternative to checkbox-selecting a page
+  // at a time in the table below. The route itself caps how many it will
+  // embed photos for and returns a clear error past that, so this link
+  // doesn't need to duplicate that check.
+  const allSynopsisHref = buildHref({ page: undefined, documentType: undefined, images: "true" }, "/api/export/synopsis");
 
   const rows: ApplicationRow[] = applications.map((app, i) => ({
     id: app.id,
@@ -149,6 +155,11 @@ export default async function ApplicationsPage({
         </div>
         {total > 0 && (
           <div className="flex flex-wrap justify-end gap-2">
+            <a href={allSynopsisHref}>
+              <Button variant="secondary" size="sm">
+                Download all synopsis ({total})
+              </Button>
+            </a>
             <ExportColumnsPicker baseHref={exportHref} columns={exportColumns} />
           </div>
         )}

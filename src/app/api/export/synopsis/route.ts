@@ -9,19 +9,34 @@ import { APPLICATION_STATUSES } from "@/lib/enums";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { startOfTodayIST } from "@/lib/date";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // A specific `ids` selection (the Applications page's multi-select
 // checkboxes) embeds each candidate's Photograph/Signature into their
-// report, same as the single-application download — measured at 100
-// candidates comfortably under the time limit (see git history for the
-// full numbers). Now also merging every other document (embedDocuments)
-// onto each candidate's PDF is real, uncapped-per-candidate work this
-// measurement never accounted for, so this cap is a deliberately
-// conservative guess rather than a re-benchmarked number — tighten
-// further if bulk runs still time out in practice.
-const MAX_EMBEDDED_IDS = 25;
-const CANDIDATE_CONCURRENCY = 2;
+// report, same as the single-application download.
+//
+// Measured directly (a real 268-candidate tenant, images-only, no other
+// documents embedded): concurrency 6 finished in 86s, concurrency 10 in
+// 50s, concurrency 16 in 31s, concurrency 24 in 22s — all with zero
+// failures, run from a clean local network. That last part matters: this
+// project's *other* bulk-export route (export/documents) measured real
+// Google Drive contention on Vercel's own infrastructure once concurrency
+// passed ~12-16 (24 was slower than 16, which was slower than 12) — a
+// clean local network won't show that. This route also does real CPU work
+// per candidate (PDFKit rendering) that competes for the same limited
+// serverless CPU share, on top of the fetches. 6 is chosen as a
+// deliberately conservative middle ground given that prior finding, not
+// the fastest number my own measurement showed — retune with a real
+// Vercel measurement (see git history of export/documents/route.ts for
+// how that was done) if bulk runs are slower than expected in practice.
+//
+// Merging every OTHER document (embedDocuments, a separate per-tenant
+// toggle) onto each candidate's PDF is real additional per-candidate work
+// this measurement didn't cover, so that path keeps the original,
+// unbenchmarked-but-safe cap.
+const MAX_EMBEDDED_IDS_IMAGES_ONLY = 400;
+const MAX_EMBEDDED_IDS_WITH_DOCUMENTS = 25;
+const CANDIDATE_CONCURRENCY = 6;
 const MAX_DOCUMENTS_PER_CANDIDATE = 5;
 
 // Bulk-generates one synopsis PDF per application — either a specific
@@ -45,10 +60,17 @@ export async function GET(request: NextRequest) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (ids.length > MAX_EMBEDDED_IDS) {
+  // "Download every application matching the current filters, with
+  // Photograph/Signature embedded" — the self-serve alternative to
+  // manually checkbox-selecting a page at a time. Only meaningful without
+  // an explicit `ids` selection, which already always embeds images.
+  const wantsAllWithImages = ids.length === 0 && params.get("images") === "true";
+
+  const maxEmbeddedIds = tenant.synopsisEmbedDocuments ? MAX_EMBEDDED_IDS_WITH_DOCUMENTS : MAX_EMBEDDED_IDS_IMAGES_ONLY;
+  if (ids.length > maxEmbeddedIds) {
     return NextResponse.json(
       {
-        error: `${ids.length} applications selected, which is too many for one download (limit ${MAX_EMBEDDED_IDS}) — each one's documents are fetched individually. Select fewer and try again.`,
+        error: `${ids.length} applications selected, which is too many for one download (limit ${maxEmbeddedIds}) — each one's documents are fetched individually. Select fewer and try again.`,
       },
       { status: 400 },
     );
@@ -103,13 +125,21 @@ export async function GET(request: NextRequest) {
   if (applications.length === 0) {
     return NextResponse.json({ error: "No applications match the current filters." }, { status: 404 });
   }
+  if (wantsAllWithImages && applications.length > maxEmbeddedIds) {
+    return NextResponse.json(
+      {
+        error: `${applications.length} applications match the current filters, which is too many for one download with photos (limit ${maxEmbeddedIds}) — each one's Photograph/Signature is fetched individually. Narrow the filters (by job, status, or search) and try again, or download without photos instead.`,
+      },
+      { status: 400 },
+    );
+  }
 
   const passthrough = new PassThrough();
   const archive = new ZipArchive({ zlib: { level: 6 } });
   archive.on("error", (err) => passthrough.destroy(err));
   archive.pipe(passthrough);
 
-  const embedImages = ids.length > 0;
+  const embedImages = ids.length > 0 || wantsAllWithImages;
 
   (async () => {
     const usedNames = new Set<string>();
