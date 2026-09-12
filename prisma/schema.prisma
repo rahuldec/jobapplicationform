@@ -40,6 +40,14 @@ model Tenant {
   sheetSourceUrl   String?
   sheetMappingJson String?
 
+  // Per-tenant custom column setup for the Applications page's "Export to
+  // Excel" — which columns to include, what to label each one in the
+  // exported file, and what order they appear in. Parses to
+  // ExportColumnMapping in src/lib/export-columns.ts. Null means "use the
+  // default: every column, in its natural order, under its own internal
+  // label" — the export route's original behavior before this existed.
+  exportColumnsJson String?
+
   // Stamped by syncTenantSheet on every successful run (cron, the manual
   // "Sync now" button, or the auto-sync-on-page-load check in the (app)
   // layout) — lets that layout throttle to "at most once a minute" without

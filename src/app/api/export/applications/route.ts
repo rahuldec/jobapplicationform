@@ -5,6 +5,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { isTenantAuthenticated } from "@/lib/tenant-auth";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_LABELS } from "@/lib/enums";
 import { formatDate, startOfTodayIST } from "@/lib/date";
+import { applyExportColumnsMapping, parseExportColumnsMapping } from "@/lib/export-columns";
 
 export const maxDuration = 60;
 
@@ -107,6 +108,11 @@ export async function GET(request: NextRequest) {
     return row;
   });
 
+  // An explicit `columns` param (an older bookmarked/shared export link)
+  // wins outright. Otherwise, a tenant's saved column mapping — set up on
+  // the Applications page — renames and reorders columns; falling back to
+  // every column, in its natural order, if nothing's been configured.
+  const savedMapping = parseExportColumnsMapping(tenant.exportColumnsJson);
   const finalRows = selectedColumns
     ? rows.map((row) => {
         const filtered: Record<string, string | number> = {};
@@ -115,7 +121,9 @@ export async function GET(request: NextRequest) {
         }
         return filtered;
       })
-    : rows;
+    : savedMapping
+      ? rows.map((row) => applyExportColumnsMapping(row, savedMapping))
+      : rows;
 
   const worksheet = XLSX.utils.json_to_sheet(finalRows);
   const workbook = XLSX.utils.book_new();

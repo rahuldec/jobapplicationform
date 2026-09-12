@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate, parseEmailList } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
+import type { ExportColumnRule } from "@/lib/export-columns";
 
 function invalidateApplicationsViews() {
   revalidatePath("/applications");
@@ -295,6 +296,20 @@ export async function verifyDocumentAction(formData: FormData) {
 
   revalidatePath(`/applications/${doc.applicationId}`);
   revalidatePath("/dashboard");
+}
+
+// Saves the Applications page's "Export to Excel" column setup — which
+// columns to include, what to call each one in the file, and what order
+// they appear in. Edited inline on that page rather than in the admin
+// panel, but persisted per-tenant so it's remembered next time, not
+// re-entered on every export.
+export async function updateExportColumnsMapping(input: { tenantId: string; rules: ExportColumnRule[] }) {
+  const { tenantId, rules } = input;
+  await prisma.tenant.update({
+    where: { id: tenantId },
+    data: { exportColumnsJson: rules.length ? JSON.stringify(rules) : null },
+  });
+  revalidatePath("/applications");
 }
 
 export async function unverifyDocumentAction(formData: FormData) {

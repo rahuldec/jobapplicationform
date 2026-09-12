@@ -9,6 +9,7 @@ import { formatDate, startOfTodayIST } from "@/lib/date";
 import { ApplicationsTable, type ApplicationRow } from "./applications-table";
 import { ApplicationsFilters } from "./applications-filters";
 import { ExportColumnsPicker } from "./export-columns-picker";
+import { parseExportColumnsMapping } from "@/lib/export-columns";
 
 const CORE_EXPORT_COLUMNS = [
   "Application #",
@@ -160,7 +161,12 @@ export default async function ApplicationsPage({
                 Download all synopsis ({total})
               </Button>
             </a>
-            <ExportColumnsPicker baseHref={exportHref} columns={exportColumns} />
+            <ExportColumnsPicker
+              baseHref={exportHref}
+              columns={exportColumns}
+              tenantId={tenant.id}
+              initialMapping={parseExportColumnsMapping(tenant.exportColumnsJson)}
+            />
           </div>
         )}
       </div>
