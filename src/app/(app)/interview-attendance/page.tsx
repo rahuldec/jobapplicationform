@@ -42,7 +42,7 @@ export default async function InterviewAttendancePage({ searchParams }: { search
         <AttendanceControls date={date} hasRows={interviews.length > 0} />
       </Card>
 
-      <Card className="overflow-hidden print:rounded-none print:shadow-none print:ring-0">
+      <Card className="overflow-hidden print:rounded-none print:bg-white print:shadow-none print:ring-0 print:backdrop-blur-none">
         {/* Letterhead — screen-hidden, print-only. Real borders (not the
             soft on-screen ones) since this is meant to be handled as a
             paper form, possibly photocopied, not just glanced at on a

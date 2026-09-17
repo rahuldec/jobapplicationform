@@ -35,13 +35,13 @@ export function Button({
   const { pending } = useFormStatus();
   const isPending = type === "submit" && pending;
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-orange-500 disabled:opacity-50 disabled:pointer-events-none";
-  const sizes = { sm: "px-2.5 py-1.5 text-xs", md: "px-3.5 py-2 text-sm" };
+    "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-all duration-150 ease-out active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-500 disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100";
+  const sizes = { sm: "px-3 py-1.5 text-[13px]", md: "px-4 py-2.5 text-[14px]" };
   const variants = {
-    primary: "bg-orange-600 text-white hover:bg-orange-700",
-    secondary: "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50",
+    primary: "bg-orange-600 text-white shadow-sm shadow-orange-600/20 hover:bg-orange-700 hover:shadow-md hover:shadow-orange-600/25",
+    secondary: "bg-white text-slate-700 ring-1 ring-inset ring-slate-200 shadow-sm hover:bg-slate-50 hover:ring-slate-300",
     ghost: "text-slate-600 hover:bg-slate-100",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    danger: "bg-red-600 text-white shadow-sm shadow-red-600/20 hover:bg-red-700 hover:shadow-md hover:shadow-red-600/25",
   };
   return (
     <button

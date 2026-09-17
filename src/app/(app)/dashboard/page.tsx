@@ -1,17 +1,11 @@
 import Link from "next/link";
-import { Inter } from "next/font/google";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
-import { EmptyState } from "@/components/ui/primitives";
+import { Card, CardHeader, EmptyState, StatTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
 import { ApplicationsByJobChart } from "./charts";
 import { SyncNowButton } from "./sync-now-button";
 import { IconLayers, IconClock, IconCalendar, IconPaperPlane } from "@/components/ui/icons";
-import { AppleCard, AppleCardHeader, AppleStatTile } from "./apple-ui";
-
-// Loaded only on this page (not the root layout) — this is a scoped
-// preview of an Apple-style redesign, not yet rolled out app-wide.
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
 // A first-ever sync against a large, never-before-imported sheet can take
 // a while (every row needs a Candidate + Application + field values +
@@ -64,8 +58,8 @@ function Avatar({ name, tone = "orange" }: { name: string; tone?: "orange" | "re
 function PipelineByStatus({ byStatus }: { byStatus: Record<ApplicationStatus, number> }) {
   const max = Math.max(1, ...VISIBLE_APPLICATION_STATUSES.map((s) => byStatus[s]));
   return (
-    <AppleCard>
-      <AppleCardHeader title="Pipeline by status" description="Click a stage to filter Applications." />
+    <Card>
+      <CardHeader title="Pipeline by status" description="Click a stage to filter Applications." />
       <div className="space-y-4 px-6 pb-6">
         {VISIBLE_APPLICATION_STATUSES.map((status) => {
           const value = byStatus[status];
@@ -88,7 +82,7 @@ function PipelineByStatus({ byStatus }: { byStatus: Record<ApplicationStatus, nu
           );
         })}
       </div>
-    </AppleCard>
+    </Card>
   );
 }
 
@@ -97,7 +91,7 @@ export default async function DashboardPage() {
   const data = await getDashboardData(tenant.id);
 
   return (
-    <div className={`${inter.className} space-y-8`}>
+    <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
@@ -108,22 +102,22 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <AppleStatTile label="Total applications" value={data.stats.totalApplications} sublabel="all time" icon={IconLayers} href="/applications" />
-        <AppleStatTile
+        <StatTile label="Total applications" value={data.stats.totalApplications} sublabel="all time" icon={IconLayers} href="/applications" />
+        <StatTile
           label="New today"
           value={data.today.newApplications}
           sublabel={`${data.today.shortlisted} shortlisted · ${data.today.rejected} rejected today`}
           icon={IconClock}
           href="/applications?since=today"
         />
-        <AppleStatTile
+        <StatTile
           label="Interviews scheduled"
           value={data.stats.byStatus.interview_scheduled}
           sublabel="awaiting outcome"
           icon={IconCalendar}
           href="/applications?status=interview_scheduled"
         />
-        <AppleStatTile label="Emails sent" value={data.stats.emailsSent} sublabel="single + bulk" icon={IconPaperPlane} href="/emails" />
+        <StatTile label="Emails sent" value={data.stats.emailsSent} sublabel="single + bulk" icon={IconPaperPlane} href="/emails" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[3fr_2fr]">
@@ -131,8 +125,8 @@ export default async function DashboardPage() {
         <PipelineByStatus byStatus={data.stats.byStatus} />
       </div>
 
-      <AppleCard>
-        <AppleCardHeader title="Attention required" description="Items that need action, most recent first." />
+      <Card>
+        <CardHeader title="Attention required" description="Items that need action, most recent first." />
         {data.attentionRequired.pendingReviewApps.length === 0 && data.attentionRequired.missingDocumentsApps.length === 0 ? (
           <div className="px-6 pb-6">
             <EmptyState title="Nothing needs attention right now" />
@@ -167,7 +161,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         )}
-      </AppleCard>
+      </Card>
     </div>
   );
 }

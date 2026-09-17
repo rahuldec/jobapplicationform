@@ -1,7 +1,7 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { AppleCard, AppleCardHeader } from "./apple-ui";
+import { Card, CardHeader } from "@/components/ui/primitives";
 import { shortenJobLabels } from "@/lib/job-labels";
 
 const tooltipStyle = {
@@ -22,8 +22,8 @@ export function ApplicationsByJobChart({ data }: { data: { jobTitle: string; cou
   const chartHeight = Math.max(MIN_CHART_HEIGHT, rows.length * ROW_HEIGHT);
 
   return (
-    <AppleCard>
-      <AppleCardHeader title="Applications by job" description="Where the pipeline is concentrated." />
+    <Card>
+      <CardHeader title="Applications by job" description="Where the pipeline is concentrated." />
       <div className="px-6 pb-6">
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -45,6 +45,6 @@ export function ApplicationsByJobChart({ data }: { data: { jobTitle: string; cou
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </AppleCard>
+    </Card>
   );
 }

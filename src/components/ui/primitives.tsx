@@ -9,10 +9,13 @@ import type { ComponentType, SVGProps } from "react";
 // `icon`), which breaks the moment the module itself carries "use client".
 export { Button } from "./button";
 
+// Soft, diffuse shadow (vs. a flat drop shadow) plus a hairline ring
+// instead of a heavier border — this is the Apple-style card treatment
+// rolled out from the Dashboard preview to the whole app.
+const CARD_SHADOW = "shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_28px_-12px_rgba(15,23,42,0.10)]";
+
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl bg-white shadow-sm ring-1 ring-slate-200/70 ${className}`}>{children}</div>
-  );
+  return <div className={`rounded-[22px] bg-white/90 ring-1 ring-black/[0.04] backdrop-blur-xl ${CARD_SHADOW} ${className}`}>{children}</div>;
 }
 
 export function CardHeader({
@@ -25,10 +28,10 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+    <div className="flex items-start justify-between gap-4 border-b border-black/[0.04] px-6 pb-4 pt-6">
       <div>
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
+        <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>
+        {description ? <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{description}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -53,11 +56,11 @@ export function CollapsibleCard({
   children: ReactNode;
 }) {
   return (
-    <details open={defaultOpen} className={`group rounded-xl bg-white shadow-sm ring-1 ring-slate-200/70 ${className}`}>
-      <summary className="marker:hidden flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+    <details open={defaultOpen} className={`group rounded-[22px] bg-white/90 ring-1 ring-black/[0.04] backdrop-blur-xl ${CARD_SHADOW} ${className}`}>
+      <summary className="marker:hidden flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 [&::-webkit-details-marker]:hidden">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-          {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
+          <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>
+          {description ? <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{description}</p> : null}
         </div>
         <svg
           viewBox="0 0 20 20"
@@ -71,24 +74,24 @@ export function CollapsibleCard({
           />
         </svg>
       </summary>
-      <div className="border-t border-slate-200">{children}</div>
+      <div className="border-t border-black/[0.04]">{children}</div>
     </details>
   );
 }
 
 const statTileTones = {
-  default: { text: "text-slate-900", chip: "bg-slate-100 text-slate-600" },
-  brand: { text: "text-orange-700", chip: "bg-orange-100 text-orange-600" },
-  warning: { text: "text-amber-600", chip: "bg-amber-50 text-amber-600" },
-  success: { text: "text-emerald-600", chip: "bg-emerald-50 text-emerald-600" },
-  danger: { text: "text-red-600", chip: "bg-red-50 text-red-600" },
+  default: { text: "text-slate-900", chip: "bg-slate-50 text-slate-600" },
+  brand: { text: "text-slate-900", chip: "bg-orange-50 text-orange-600" },
+  warning: { text: "text-slate-900", chip: "bg-amber-50 text-amber-600" },
+  success: { text: "text-slate-900", chip: "bg-emerald-50 text-emerald-600" },
+  danger: { text: "text-slate-900", chip: "bg-red-50 text-red-600" },
 } as const;
 
 export function StatTile({
   label,
   value,
   sublabel,
-  tone = "default",
+  tone = "brand",
   href,
   icon: Icon,
 }: {
@@ -103,23 +106,25 @@ export function StatTile({
   const content = (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="text-[13px] font-medium text-slate-500">{label}</p>
         {Icon ? (
-          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tones.chip}`}>
-            <Icon className="h-4 w-4" />
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tones.chip}`}>
+            <Icon className="h-[18px] w-[18px]" />
           </span>
         ) : null}
       </div>
-      <p className={`mt-2 text-[1.75rem] font-semibold leading-none tabular-nums ${tones.text}`}>{value}</p>
-      {sublabel ? <p className="mt-1.5 text-xs text-slate-500">{sublabel}</p> : null}
+      <p className={`mt-3 text-[34px] font-semibold leading-none tracking-tight tabular-nums ${tones.text}`}>{value}</p>
+      {sublabel ? <p className="mt-2 text-[13px] leading-snug text-slate-500">{sublabel}</p> : null}
     </>
   );
+
+  const base = `block rounded-[22px] bg-white/90 p-5 ring-1 ring-black/[0.04] backdrop-blur-xl ${CARD_SHADOW}`;
 
   if (href) {
     return (
       <Link
         href={href}
-        className="block rounded-xl bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-orange-200"
+        className={`${base} transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_20px_36px_-12px_rgba(15,23,42,0.16)]`}
         title="Click to see the matching applications"
       >
         {content}
@@ -127,7 +132,7 @@ export function StatTile({
     );
   }
 
-  return <div className="rounded-xl bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">{content}</div>;
+  return <div className={base}>{content}</div>;
 }
 
 const badgeTones: Record<string, string> = {
@@ -147,9 +152,7 @@ export function Badge({
   tone?: keyof typeof badgeTones;
 }) {
   return (
-    <span
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeTones[tone]}`}
-    >
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ring-inset ${badgeTones[tone]}`}>
       {children}
     </span>
   );
@@ -184,10 +187,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 px-6 py-14 text-center">
-      <p className="text-sm font-medium text-slate-900">{title}</p>
-      {description ? <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p> : null}
-      {action ? <div className="mt-4">{action}</div> : null}
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 px-6 py-16 text-center">
+      <p className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</p>
+      {description ? <p className="mt-1.5 max-w-sm text-[14px] text-slate-500">{description}</p> : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }
@@ -202,7 +205,7 @@ export function PlaceholderChips({ names }: { names: string[] }) {
       {names.map((p) => (
         <code
           key={p}
-          className="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
+          className="rounded-md bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200"
         >
           {`{${p}}`}
         </code>
@@ -226,15 +229,15 @@ export function Field({
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-slate-700">
         {label}
         {required ? <span className="ml-0.5 text-red-500">*</span> : null}
       </label>
       <div className="mt-1.5">{children}</div>
-      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
+      {hint ? <div className="mt-1.5 text-[13px] text-slate-500">{hint}</div> : null}
     </div>
   );
 }
 
 export const inputClass =
-  "block w-full rounded-md border-0 px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-orange-500";
+  "block w-full rounded-xl border-0 px-3.5 py-2.5 text-[14px] text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 transition-shadow focus:ring-2 focus:ring-inset focus:ring-orange-500";
