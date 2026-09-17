@@ -39,3 +39,22 @@ export function startOfTodayIST(): Date {
   const day = Number(parts.find((p) => p.type === "day")!.value);
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - IST_OFFSET_MS);
 }
+
+// Today's IST calendar date as "YYYY-MM-DD" — the default value for any
+// date-picker input, since a bare `new Date().toISOString().slice(0,10)`
+// would give the server's UTC date instead (wrong after ~5:30pm IST).
+export function todayIST(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }).format(new Date());
+}
+
+// Midnight-to-midnight IST range for one arbitrary calendar date (not
+// just "today") — e.g. for a report scoped to whatever day a user picks.
+// `dateStr` is a plain "YYYY-MM-DD" (a <input type="date"> value), parsed
+// as calendar digits rather than through `new Date(dateStr)` so it can't
+// be reinterpreted through the server's own timezone.
+export function dayRangeIST(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - IST_OFFSET_MS);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatDate, formatDateTime, formatDateTimeFull, startOfTodayIST } from "./date";
+import { dayRangeIST, formatDate, formatDateTime, formatDateTimeFull, startOfTodayIST, todayIST } from "./date";
 
 describe("formatDate / formatDateTime / formatDateTimeFull", () => {
   it("renders in IST regardless of the runtime's own timezone", () => {
@@ -38,6 +38,35 @@ describe("startOfTodayIST", () => {
     // Same instant, same result regardless of process.env.TZ — Node reads
     // Intl timeZone from the option passed in, not the process's own zone.
     expect(startOfTodayIST().toISOString()).toBe("2026-05-31T18:30:00.000Z");
+    process.env.TZ = originalTZ;
+  });
+});
+
+describe("todayIST", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns the IST calendar date, not the server's own UTC date", () => {
+    // 2026-03-10 19:00 UTC = 2026-03-11 00:30 IST — already the next day in IST.
+    vi.setSystemTime(new Date("2026-03-10T19:00:00.000Z"));
+    expect(todayIST()).toBe("2026-03-11");
+  });
+});
+
+describe("dayRangeIST", () => {
+  it("spans exactly midnight-to-midnight IST for the given calendar date", () => {
+    const { start, end } = dayRangeIST("2026-03-10");
+    expect(start.toISOString()).toBe("2026-03-09T18:30:00.000Z");
+    expect(end.toISOString()).toBe("2026-03-10T18:30:00.000Z");
+  });
+
+  it("is unaffected by the host process's own timezone", () => {
+    const originalTZ = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    const { start, end } = dayRangeIST("2026-06-01");
+    expect(start.toISOString()).toBe("2026-05-31T18:30:00.000Z");
+    expect(end.toISOString()).toBe("2026-06-01T18:30:00.000Z");
     process.env.TZ = originalTZ;
   });
 });

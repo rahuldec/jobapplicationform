@@ -11,6 +11,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/jobs", label: "Jobs" },
   { href: "/applications", label: "Applications" },
+  { href: "/interview-attendance", label: "Attendance" },
   { href: "/emails", label: "Emails" },
 ];
 
@@ -29,7 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-md print:hidden">
         <div className="h-1.5 w-full shrink-0" style={{ background: gradientCss }} />
         <div className="flex items-center px-5 py-4">
           <Link href="/dashboard" className="flex items-center gap-4">
@@ -70,8 +71,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-10 text-center">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:p-0">{children}</main>
+      <footer className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-10 text-center print:hidden">
         <a
           href="https://okiedokiepay.com/"
           target="_blank"
