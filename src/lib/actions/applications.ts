@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
+import { SETTABLE_APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate, parseEmailList } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
 import type { ExportColumnRule } from "@/lib/export-columns";
@@ -15,7 +15,7 @@ function invalidateApplicationsViews() {
 export async function changeApplicationStatus(formData: FormData) {
   const applicationId = String(formData.get("applicationId"));
   const status = String(formData.get("status"));
-  if (!APPLICATION_STATUSES.includes(status as never)) throw new Error("Invalid status");
+  if (!SETTABLE_APPLICATION_STATUSES.includes(status as never)) throw new Error("Invalid status");
 
   const application = await prisma.application.update({
     where: { id: applicationId },
@@ -44,7 +44,7 @@ export async function changeApplicationStatus(formData: FormData) {
 // query) — same tradeoff the export routes already make for bulk ops.
 export async function bulkChangeApplicationStatus(input: { applicationIds: string[]; status: string }) {
   const { applicationIds, status } = input;
-  if (!APPLICATION_STATUSES.includes(status as never)) throw new Error("Invalid status");
+  if (!SETTABLE_APPLICATION_STATUSES.includes(status as never)) throw new Error("Invalid status");
   if (applicationIds.length === 0) return { count: 0 };
 
   const apps = await prisma.application.findMany({

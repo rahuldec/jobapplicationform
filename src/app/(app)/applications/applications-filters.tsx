@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { inputClass, Button } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES } from "@/lib/enums";
+import { APPLICATION_STATUS_LABELS, FILTERABLE_APPLICATION_STATUSES } from "@/lib/enums";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -72,7 +72,7 @@ export function ApplicationsFilters({ jobs, documentTypes }: { jobs: { id: strin
         <label className="block text-xs font-medium text-slate-600">Status</label>
         <select value={status} onChange={(e) => navigate({ status: e.target.value || undefined })} className={`${inputClass} mt-1`}>
           <option value="">All</option>
-          {VISIBLE_APPLICATION_STATUSES.map((s) => (
+          {FILTERABLE_APPLICATION_STATUSES.map((s) => (
             <option key={s} value={s}>
               {APPLICATION_STATUS_LABELS[s]}
             </option>

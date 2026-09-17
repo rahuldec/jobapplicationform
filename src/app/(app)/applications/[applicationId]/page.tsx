@@ -131,6 +131,17 @@ export default async function ApplicationDetailPage({
             <form action={changeApplicationStatus} className="flex items-center gap-2">
               <input type="hidden" name="applicationId" value={application.id} />
               <select name="status" defaultValue={application.status} className={`${inputClass} w-52`}>
+                {/* "interview_scheduled" isn't picked from this generic dropdown
+                    (see SETTABLE_APPLICATION_STATUSES) — it only comes from
+                    actually scheduling an interview below, which also emails
+                    the candidate. If that's already this application's status,
+                    it still needs to show correctly here; just not as
+                    something you can re-select without a real interview. */}
+                {application.status === "interview_scheduled" && (
+                  <option value="interview_scheduled" disabled>
+                    {APPLICATION_STATUS_LABELS.interview_scheduled}
+                  </option>
+                )}
                 {SETTABLE_APPLICATION_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {APPLICATION_STATUS_LABELS[s]}

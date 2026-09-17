@@ -45,10 +45,26 @@ export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 const HIDDEN_APPLICATION_STATUSES: readonly ApplicationStatus[] = ["draft", "submitted", "shortlisted", "withdrawn"];
 export const VISIBLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => !HIDDEN_APPLICATION_STATUSES.includes(s));
 
-// For the "change this application's status" action (not display/filter):
-// still lets HR move an application back to "submitted" if needed, just
-// never to "draft" — nothing in this app creates a draft application.
-export const SETTABLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft");
+// The Applications page's own Status *filter* dropdown — deliberately
+// separate from VISIBLE_APPLICATION_STATUSES (which the Dashboard's
+// status-breakdown chart also uses, and which someone previously asked
+// to keep shortlisted/withdrawn off of). Filtering the full list is a
+// different, lower-stakes surface than "what stat tiles are worth
+// showing at a glance" — every real status except "draft" is worth being
+// able to filter by, including interview_scheduled, which is no longer
+// manually settable below but is still very much worth filtering for.
+export const FILTERABLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft");
+
+// For the "change this application's status" action (the quick dropdown
+// on an application's own page, and the Applications list's bulk status
+// changer) — deliberately excludes "draft" (nothing in this app creates
+// a draft application) and "interview_scheduled". That status has to
+// come from actually scheduling an interview (src/lib/actions/
+// interviews.ts's scheduleInterview), which also emails the candidate —
+// letting this generic dropdown set the same label directly produced
+// applications marked "Interview Scheduled" with no real interview and
+// no email ever sent, which is exactly the bug that was reported.
+export const SETTABLE_APPLICATION_STATUSES = APPLICATION_STATUSES.filter((s) => s !== "draft" && s !== "interview_scheduled");
 
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",
