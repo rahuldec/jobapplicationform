@@ -37,3 +37,20 @@ body {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Printed reports (e.g. the interview attendance sheet) — a plain
+   @media/print: utility can't reach the page box itself, and without
+   this the browser's own default print margins (~12.7mm, sized for
+   regular pages, not a form someone will handle/photocopy) apply. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  /* The app's own light-slate page background (--background) would
+     otherwise print too, wasting ink/toner on something meant to look
+     like a plain paper form. */
+  body {
+    background: #fff;
+  }
+}
