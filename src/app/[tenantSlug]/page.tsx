@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getTenantBranding } from "@/lib/branding";
@@ -10,6 +11,18 @@ const FEATURES = [
   { label: "Review Applications" },
   { label: "Schedule Interviews" },
 ];
+
+// Overrides the root layout's static "Recruitment Ops Portal" tab title
+// with something tenant-specific — otherwise every college's sign-in page
+// shows the same generic, internal-sounding title regardless of which
+// entry link brought them here.
+export async function generateMetadata({ params }: { params: Promise<{ tenantSlug: string }> }): Promise<Metadata> {
+  const { tenantSlug } = await params;
+  const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+  if (!tenant) return {};
+  const branding = getTenantBranding(tenant);
+  return { title: `${branding.name} — Job Portal` };
+}
 
 // Per-client entry link, e.g. /dn — gated by the shared credentials Sheet
 // (tenant/username/password columns, see src/lib/tenant-auth.ts) before
@@ -79,7 +92,8 @@ export default async function TenantLoginPage({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={branding.logoDataUrl} alt="" className="mx-auto mb-4 h-14 w-auto object-contain" />
               )}
-              <h2 className="text-center text-lg font-semibold text-slate-900">{branding.name}</h2>
+              <p className="text-center text-[13px] font-semibold uppercase tracking-wide text-slate-400">Job Portal</p>
+              <h2 className="mt-1 text-center text-lg font-semibold text-slate-900">{branding.name}</h2>
               <p className="mt-1 text-center text-sm text-slate-500">Sign in to your account</p>
 
               <form action={loginToTenant} className="mt-6 space-y-4">
