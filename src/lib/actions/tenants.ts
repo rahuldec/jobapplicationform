@@ -94,26 +94,57 @@ export async function updateTenantSheetSourceUrl(input: { tenantId: string; shee
   return sheetSourceUrl;
 }
 
+export type AutoMapActionResult = ({ ok: true } & AutoMapResult) | { ok: false; error: string };
+
 // Fetches the Sheet's header row (+ one sample data row) and runs the
 // keyword-matching heuristic in prisma/sheet-import/auto-map.ts to build
 // a starting SheetImportConfig — so an admin pasting a new client's Sheet
 // doesn't have to hand-type every column number. Purely a suggestion:
 // nothing is saved here, the caller reviews/edits it in the builder and
 // saves via updateTenantSheetConfig when ready.
-export async function autoMapTenantSheet(sheetSourceUrl: string): Promise<AutoMapResult> {
+//
+// Returns a result object instead of throwing — a thrown error here is an
+// "uncaught exception" as far as the Server Action boundary is concerned,
+// and Next.js replaces its message with a generic digest-only one in
+// production (see node_modules/next/dist/docs/01-app/01-getting-started/
+// 10-error-handling.md — "model expected errors as return values"), which
+// is exactly why a real, actionable message like "this Sheet isn't
+// shared" was showing as an unhelpful "Minified React error #441" in
+// production while working fine locally in dev (where messages aren't
+// masked).
+export async function autoMapTenantSheet(sheetSourceUrl: string): Promise<AutoMapActionResult> {
   const url = toSheetExportUrl(sheetSourceUrl.trim());
-  if (!url) throw new Error("Enter a Sheet export URL first.");
+  if (!url) return { ok: false, error: "Enter a Sheet export URL first." };
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch the Sheet: HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
-  const [headerRow, ...dataRows] = rows;
-  if (!headerRow || headerRow.length === 0) throw new Error("Couldn't find a header row in that Sheet.");
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    return { ok: false, error: "Couldn't reach that Sheet — check the URL and your connection, then try again." };
+  }
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      return {
+        ok: false,
+        error:
+          'This Sheet isn\'t publicly accessible (Google returned "not authorized"). Open it in Google Sheets, click Share, and set general access to "Anyone with the link can view" — then try again.',
+      };
+    }
+    return { ok: false, error: `Failed to fetch the Sheet: HTTP ${res.status}` };
+  }
 
-  return autoMapSheetColumns(headerRow, dataRows.slice(0, 15));
+  try {
+    const buf = Buffer.from(await res.arrayBuffer());
+    const wb = XLSX.read(buf, { cellDates: true, type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true }) as unknown[][];
+    const [headerRow, ...dataRows] = rows;
+    if (!headerRow || headerRow.length === 0) return { ok: false, error: "Couldn't find a header row in that Sheet." };
+
+    return { ok: true, ...autoMapSheetColumns(headerRow, dataRows.slice(0, 15)) };
+  } catch {
+    return { ok: false, error: "Couldn't read that Sheet as a spreadsheet — check the URL points to a real Google Sheet." };
+  }
 }
 
 // Blank subject/body clears the override and falls back to the built-in

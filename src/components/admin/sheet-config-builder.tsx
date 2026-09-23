@@ -101,7 +101,12 @@ export function SheetConfigBuilder({
     setAutoMapWarning(null);
     setAutoMapping(true);
     try {
-      const { config: mapped, unmatchedCoreRoles } = await autoMapTenantSheet(sheetSourceUrl);
+      const result = await autoMapTenantSheet(sheetSourceUrl);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      const { config: mapped, unmatchedCoreRoles } = result;
       setConfig((c) => ({ ...mapped, formName: c.formName || `${tenantName} Application` }));
       const fieldCount = mapped.sections.reduce((n, s) => n + s.fields.length, 0);
       setAutoMapMessage(`Auto-mapped ${fieldCount} field(s) into ${mapped.sections.length} section(s) and ${mapped.documents.length} document column(s).`);
@@ -110,6 +115,8 @@ export function SheetConfigBuilder({
         setAutoMapWarning(`Couldn't confidently detect: ${names}. Check these under "Core columns" below.`);
       }
     } catch (err) {
+      // Genuinely unexpected (network/runtime) failures still land here —
+      // the known/expected cases are all handled via result.ok above now.
       setError(err instanceof Error ? err.message : "Auto-map failed.");
     } finally {
       setAutoMapping(false);
