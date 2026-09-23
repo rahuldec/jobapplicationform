@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createTenant } from "@/lib/actions/tenants";
 import { Card, CardHeader, Field, inputClass, Button, EmptyState } from "@/components/ui/primitives";
+import { formatDateTime } from "@/lib/date";
 
 // This page has no cookies()/headers() usage to signal dynamic rendering
 // to Next, and its only data source is a direct Prisma call (not a
@@ -13,7 +14,14 @@ import { Card, CardHeader, Field, inputClass, Button, EmptyState } from "@/compo
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const tenants = await prisma.tenant.findMany({ orderBy: { createdAt: "asc" } });
+  const [tenants, lastLogins] = await Promise.all([
+    prisma.tenant.findMany({ orderBy: { createdAt: "asc" } }),
+    // One grouped query for every tenant's most recent login, rather than
+    // N queries per row — see src/lib/actions/tenant-auth.ts for where
+    // "tenant.login" gets written.
+    prisma.auditLog.groupBy({ by: ["tenantId"], where: { action: "tenant.login" }, _max: { createdAt: true } }),
+  ]);
+  const lastLoginByTenant = new Map(lastLogins.map((l) => [l.tenantId, l._max.createdAt]));
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -38,6 +46,12 @@ export default async function AdminPage() {
                   </Link>
                   <p className="mt-0.5 text-xs text-slate-500">
                     Entry link: <code className="text-slate-600">/{t.slug}</code>
+                    {" · "}
+                    {lastLoginByTenant.get(t.id) ? (
+                      <>Last login: {formatDateTime(lastLoginByTenant.get(t.id)!)}</>
+                    ) : (
+                      <span className="text-slate-400">Never logged in</span>
+                    )}
                   </p>
                 </div>
                 <Link href={`/admin/${t.id}`} className="text-xs font-medium text-slate-500 hover:text-slate-800">
