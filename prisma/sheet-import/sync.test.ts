@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as XLSX from "xlsx";
 import type { PrismaClient } from "../../src/generated/prisma/client";
-import { syncTenantSheet, parseSheetDateTime } from "./sync";
+import { syncTenantSheet, parseSheetDateTime, findApplicationsNotInSheet } from "./sync";
 import type { SheetImportConfig } from "./types";
 
 // syncTenantSheet does real network (fetch the Sheet export) and real
@@ -84,17 +84,35 @@ function createFakePrisma(tenant: FakeRow) {
       },
     },
     application: {
+      // Broad enough to serve both syncTenantSheet's own "already
+      // imported" lookup (applicationNumber + candidate.email) and
+      // findApplicationsNotInSheet's fuller one (id/status/job.title) —
+      // ignores `include`/`orderBy` like the rest of this fake, since no
+      // caller here depends on their absence mattering.
       findMany: async ({ where }: { where: { tenantId: string } }) =>
         db.applications
           .filter((a) => a.tenantId === where.tenantId)
-          .map((a) => ({
-            applicationNumber: a.applicationNumber,
-            candidate: { email: db.candidates.find((c) => c.id === a.candidateId)?.email ?? "" },
-          })),
+          .map((a) => {
+            const candidate = db.candidates.find((c) => c.id === a.candidateId);
+            const job = db.jobs.find((j) => j.id === a.jobId);
+            return {
+              id: a.id,
+              applicationNumber: a.applicationNumber,
+              status: a.status,
+              candidate: { fullName: candidate?.fullName ?? "", email: candidate?.email ?? "" },
+              job: { title: job?.title ?? "" },
+            };
+          }),
       create: async ({ data }: { data: FakeRow }) => {
         const app = { id: nextId("app"), ...data };
         db.applications.push(app);
         return app;
+      },
+      deleteMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+        const ids = new Set(where.id.in);
+        const before = db.applications.length;
+        db.applications = db.applications.filter((a) => !ids.has(a.id as string));
+        return { count: before - db.applications.length };
       },
     },
     candidate: {
@@ -479,6 +497,94 @@ describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
 
     expect(db.applications).toHaveLength(1);
     expect(db.applications[0].applicationNumber).toBe("AC-2");
+  });
+});
+
+describe("findApplicationsNotInSheet", () => {
+  const idConfig: SheetImportConfig = {
+    ...BASE_CONFIG,
+    applicationNumberPrefix: "",
+    coreFields: { ...BASE_CONFIG.coreFields, applicationNumberCol: 6 },
+  };
+
+  it("is unsupported when the tenant has no unique-ID column (row-position numbering)", async () => {
+    const { prisma } = createFakePrisma(makeTenant());
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo"], []);
+
+    const result = await findApplicationsNotInSheet(prisma, "acme");
+
+    expect(result).toEqual({
+      supported: false,
+      reason: expect.stringContaining("no unique ID column"),
+    });
+  });
+
+  it("reports nothing removed when every application still has a matching row", async () => {
+    const rows = [
+      [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"],
+      [new Date(), "bob@x.com", "Bob B", "Science", "note2", null, "AC-2"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], rows);
+    const { prisma } = createFakePrisma(makeTenant({}, idConfig));
+    await syncTenantSheet(prisma, "acme");
+
+    // Same Sheet, unchanged — re-fetched fresh for the check itself.
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], rows);
+    const result = await findApplicationsNotInSheet(prisma, "acme");
+
+    expect(result).toEqual({ supported: true, removed: [] });
+  });
+
+  it("flags an application whose row was deleted from the Sheet, and leaves the others alone", async () => {
+    const rows = [
+      [new Date(), "alice@x.com", "Alice A", "Commerce", "note1", null, "AC-1"],
+      [new Date(), "bob@x.com", "Bob B", "Science", "note2", null, "AC-2"],
+      [new Date(), "carol@x.com", "Carol C", "Commerce", "note3", null, "AC-3"],
+    ];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], rows);
+    const { prisma } = createFakePrisma(makeTenant({}, idConfig));
+    await syncTenantSheet(prisma, "acme");
+
+    // Bob's row (AC-2) is gone from the Sheet now — Alice and Carol's rows are untouched.
+    const rowsAfterDeletion = [rows[0], rows[2]];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"], rowsAfterDeletion);
+    const result = await findApplicationsNotInSheet(prisma, "acme");
+
+    expect(result.supported).toBe(true);
+    if (!result.supported) return;
+    expect(result.removed).toHaveLength(1);
+    expect(result.removed[0]).toMatchObject({ applicationNumber: "AC-2", candidateName: "Bob B" });
+  });
+
+  it("does not flag a disambiguated application ('NATURAL-N') whose natural ID is still present", async () => {
+    // Regression guard: the "-N" collision suffix (see syncTenantSheet's
+    // own comment on this) must not be mistaken for the row itself being
+    // gone just because the exact suffixed string isn't a literal Sheet
+    // cell value — matching a disambiguated number must fall through to
+    // its underlying natural number, same as syncTenantSheet's own
+    // "already imported" check does.
+    const { prisma, db } = createFakePrisma(makeTenant({}, idConfig));
+    db.candidates.push({ id: "cand_x", tenantId: "tenant_1", fullName: "Dana D", email: "dana@x.com" });
+    db.jobs.push({ id: "job_x", tenantId: "tenant_1", title: "Commerce" });
+    db.applications.push({
+      id: "app_x",
+      tenantId: "tenant_1",
+      applicationNumber: "AC-1-2", // a disambiguated collision number
+      candidateId: "cand_x",
+      jobId: "job_x",
+      status: "submitted",
+    });
+
+    // The Sheet still has a row whose raw ID is "AC-1" (the natural number
+    // "AC-1-2" was disambiguated from) — the disambiguated application
+    // should NOT be reported as removed.
+    mockFetchWithSheet(
+      ["Added", "Email", "Name", "Post", "Notes", "Photo", "ID"],
+      [[new Date(), "dana@x.com", "Dana D", "Commerce", "note", null, "AC-1"]],
+    );
+    const result = await findApplicationsNotInSheet(prisma, "acme");
+
+    expect(result).toEqual({ supported: true, removed: [] });
   });
 });
 

@@ -332,3 +332,43 @@ export async function unverifyDocumentAction(formData: FormData) {
   revalidatePath(`/applications/${doc.applicationId}`);
   revalidatePath("/dashboard");
 }
+
+// Permanently deletes applications a staff member has confirmed are no
+// longer in the source Sheet (see checkApplicationsRemovedFromSheet in
+// actions/tenants.ts — this is the destructive half of that review flow,
+// deliberately kept separate so nothing gets deleted without a human
+// looking at the list first). Cascades to that application's field
+// values, documents, and interviews at the database level; the candidate
+// record itself is left alone even if this was their only application.
+export async function deleteApplicationsNotInSheet(applicationIds: string[]) {
+  if (applicationIds.length === 0) return { count: 0 };
+
+  const apps = await prisma.application.findMany({
+    where: { id: { in: applicationIds } },
+    select: { id: true, tenantId: true, applicationNumber: true, candidate: { select: { fullName: true, email: true } } },
+  });
+  if (apps.length === 0) return { count: 0 };
+
+  // Logged before deletion, with the identifying details captured in the
+  // metadata — AuditLog.entityId is a plain string, not a foreign key, so
+  // these entries survive the application they describe being gone.
+  await prisma.auditLog.createMany({
+    data: apps.map((a) => ({
+      tenantId: a.tenantId,
+      actorName: "Admin",
+      action: "application.deleted_not_in_sheet",
+      entityType: "Application",
+      entityId: a.id,
+      metadataJson: JSON.stringify({
+        applicationNumber: a.applicationNumber,
+        candidateName: a.candidate.fullName,
+        candidateEmail: a.candidate.email,
+      }),
+    })),
+  });
+
+  await prisma.application.deleteMany({ where: { id: { in: apps.map((a) => a.id) } } });
+
+  invalidateApplicationsViews();
+  return { count: apps.length };
+}
