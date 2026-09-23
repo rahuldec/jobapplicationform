@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createTenant } from "@/lib/actions/tenants";
-import { Card, CardHeader, Field, inputClass, Button, EmptyState } from "@/components/ui/primitives";
+import { Card, CardHeader, Field, inputClass, Button, EmptyState, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/date";
 
 // This page has no cookies()/headers() usage to signal dynamic rendering
@@ -14,14 +14,21 @@ import { formatDateTime } from "@/lib/date";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const [tenants, lastLogins] = await Promise.all([
+  const [tenants, lastLogins, totalApplications, totalJobs] = await Promise.all([
     prisma.tenant.findMany({ orderBy: { createdAt: "asc" } }),
     // One grouped query for every tenant's most recent login, rather than
     // N queries per row — see src/lib/actions/tenant-auth.ts for where
     // "tenant.login" gets written.
     prisma.auditLog.groupBy({ by: ["tenantId"], where: { action: "tenant.login" }, _max: { createdAt: true } }),
+    prisma.application.count(),
+    prisma.job.count(),
   ]);
   const lastLoginByTenant = new Map(lastLogins.map((l) => [l.tenantId, l._max.createdAt]));
+  // lastLogins only has a row per tenant that has ever logged in
+  // (groupBy skips tenants with zero matching rows), so its length is
+  // exactly the "has logged in at least once" count.
+  const loggedInCount = lastLogins.length;
+  const activePct = tenants.length > 0 ? (loggedInCount / tenants.length) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -29,6 +36,13 @@ export default async function AdminPage() {
         <h1 className="text-lg font-semibold text-slate-900">Clients</h1>
         <p className="text-sm text-slate-500">Every tenant configured on this portal, and their entry link.</p>
       </div>
+
+      <OverviewCard title="Recruitment Ops Portal" badgeLabel={`${activePct.toFixed(0)}% have logged in`}>
+        <OverviewSubTile label="Total clients" value={tenants.length} color="#64748b" />
+        <OverviewSubTile label="Logged in" value={loggedInCount} color="#10b981" href="/admin/activity?action=tenant.login" />
+        <OverviewSubTile label="Total applications" value={totalApplications} color="#3b82f6" href="/admin/activity" />
+        <OverviewSubTile label="Total jobs" value={totalJobs} color="#8b5cf6" />
+      </OverviewCard>
 
       <Card>
         <CardHeader title="Existing clients" />

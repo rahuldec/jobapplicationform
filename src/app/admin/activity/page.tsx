@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { Card, CardHeader, Badge, EmptyState, Field, inputClass, Button } from "@/components/ui/primitives";
+import { Card, CardHeader, Badge, EmptyState, Field, inputClass, Button, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS } from "@/lib/enums";
-import { formatDateTime } from "@/lib/date";
+import { formatDateTime, startOfTodayIST } from "@/lib/date";
 
 // Same staleness problem as /admin itself (no cookies()/headers(), only
 // direct Prisma reads) — force dynamic so new activity shows up without
@@ -87,7 +87,7 @@ export default async function AdminActivityPage({
     action: params.action || undefined,
   };
 
-  const [entries, total, tenants] = await Promise.all([
+  const [entries, total, tenants, actionGroups, eventsToday] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       include: { tenant: true },
@@ -97,7 +97,13 @@ export default async function AdminActivityPage({
     }),
     prisma.auditLog.count({ where }),
     prisma.tenant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Unfiltered, all-time counts for the Overview card — `total` above is
+    // scoped to whatever client/action filter is active.
+    prisma.auditLog.groupBy({ by: ["action"], _count: { _all: true } }),
+    prisma.auditLog.count({ where: { createdAt: { gte: startOfTodayIST() } } }),
   ]);
+  const countByAction = (action: string) => actionGroups.find((g) => g.action === action)?._count._all ?? 0;
+  const totalEvents = actionGroups.reduce((sum, g) => sum + g._count._all, 0);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -117,6 +123,18 @@ export default async function AdminActivityPage({
         <h1 className="text-lg font-semibold text-slate-900">Activity</h1>
         <p className="text-sm text-slate-500">What every client is doing on this portal — logins, applications, emails, interviews, and job postings.</p>
       </div>
+
+      <OverviewCard title="Recruitment Ops Portal" badgeLabel={`${eventsToday} today`} badgeTone="blue">
+        <OverviewSubTile label="Total events" value={totalEvents} color="#64748b" />
+        <OverviewSubTile label="Logins" value={countByAction("tenant.login")} color="#10b981" href="/admin/activity?action=tenant.login" />
+        <OverviewSubTile
+          label="Applications submitted"
+          value={countByAction("application.submitted")}
+          color="#3b82f6"
+          href="/admin/activity?action=application.submitted"
+        />
+        <OverviewSubTile label="Emails sent" value={countByAction("email.sent")} color="#8b5cf6" href="/admin/activity?action=email.sent" />
+      </OverviewCard>
 
       <Card className="p-4">
         <form method="get" className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">

@@ -4,12 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { updateTenantBranding, updateInterviewEmailTemplate, updateSynopsisEmbedDocuments } from "@/lib/actions/tenants";
 import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
-import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
+import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY, INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
+import { formatDateTime } from "@/lib/date";
 import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 
 export default async function AdminTenantPage({
@@ -22,7 +23,12 @@ export default async function AdminTenantPage({
   if (!tenant) notFound();
 
   const branding = getTenantBranding(tenant);
-  const staff = await prisma.user.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } });
+  const [staff, totalApplications, totalJobs, lastLogin] = await Promise.all([
+    prisma.user.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
+    prisma.application.count({ where: { tenantId: tenant.id } }),
+    prisma.job.count({ where: { tenantId: tenant.id } }),
+    prisma.auditLog.findFirst({ where: { tenantId: tenant.id, action: "tenant.login" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+  ]);
   const applicationForm = await prisma.applicationForm.findFirst({
     where: { tenantId: tenant.id },
     include: {
@@ -56,6 +62,17 @@ export default async function AdminTenantPage({
           Entry link: <code className="text-slate-700">/{tenant.slug}</code> — visiting it sets this browser to this client.
         </p>
       </div>
+
+      <OverviewCard
+        title={tenant.name}
+        badgeLabel={lastLogin ? `Last login ${formatDateTime(lastLogin.createdAt)}` : "Never logged in"}
+        badgeTone={lastLogin ? "green" : "slate"}
+      >
+        <OverviewSubTile label="Staff accounts" value={staff.length} color="#64748b" />
+        <OverviewSubTile label="Total applications" value={totalApplications} color="#3b82f6" href={`/admin/activity?tenantId=${tenant.id}`} />
+        <OverviewSubTile label="Jobs posted" value={totalJobs} color="#8b5cf6" />
+        <OverviewSubTile label="Activity log" value="View all →" color="#10b981" href={`/admin/activity?tenantId=${tenant.id}`} />
+      </OverviewCard>
 
       <CollapsibleCard title="User manual" description="A step-by-step guide to every section below — branding, staff, interview email, and Sheet sync.">
         <div className="flex items-center justify-between gap-4 px-5 py-5">
