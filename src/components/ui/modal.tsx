@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
-// Client-only (Escape handling, body-scroll lock) so it lives in its own
-// file like Button — keeping the rest of primitives.tsx server-safe.
+// Client-only (Escape handling, body-scroll lock, portal) so it lives in
+// its own file like Button — keeping the rest of primitives.tsx server-safe.
 export function Modal({
   open,
   onClose,
@@ -20,6 +21,16 @@ export function Modal({
   children: ReactNode;
   widthClass?: string;
 }) {
+  // Portal to document.body rather than rendering in place: callers like
+  // the applications table nest this inside a Card, and Card carries
+  // backdrop-blur-xl — a `filter`/`backdrop-filter` on any ancestor
+  // creates a new containing block for `position: fixed` descendants, so
+  // without the portal this renders clipped inside that ancestor's own
+  // (much smaller, overflow-hidden) box instead of centered over the
+  // whole viewport.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -34,9 +45,9 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <div className="modal-overlay absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <div
@@ -62,6 +73,7 @@ export function Modal({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
