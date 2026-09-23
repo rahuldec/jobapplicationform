@@ -92,8 +92,7 @@ export default async function TenantLoginPage({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={branding.logoDataUrl} alt="" className="mx-auto mb-4 h-14 w-auto object-contain" />
               )}
-              <p className="text-center text-[13px] font-semibold uppercase tracking-wide text-slate-400">Job Portal</p>
-              <h2 className="mt-1 text-center text-lg font-semibold text-slate-900">{branding.name}</h2>
+              <p className="text-center text-[13px] font-semibold uppercase tracking-wide text-slate-700">Job Portal</p>
               <p className="mt-1 text-center text-sm text-slate-500">Sign in to your account</p>
 
               <form action={loginToTenant} className="mt-6 space-y-4">
