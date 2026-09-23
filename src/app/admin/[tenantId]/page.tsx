@@ -6,7 +6,6 @@ import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
-import { RemovedApplicationsChecker } from "@/components/admin/removed-applications-checker";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
@@ -226,7 +225,6 @@ export default async function AdminTenantPage({
             initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
             initialConfig={initialConfig}
           />
-          {tenant.sheetSourceUrl && <RemovedApplicationsChecker tenantSlug={tenant.slug} />}
         </div>
       </CollapsibleCard>
 

@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
 import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
 import { autoMapSheetColumns, type AutoMapResult } from "../../../prisma/sheet-import/auto-map";
-import { findApplicationsNotInSheet, type FindRemovedResult } from "../../../prisma/sheet-import/sync";
 
 function slugify(raw: string) {
   return raw
@@ -146,15 +145,6 @@ export async function autoMapTenantSheet(sheetSourceUrl: string): Promise<AutoMa
   } catch {
     return { ok: false, error: "Couldn't read that Sheet as a spreadsheet — check the URL points to a real Google Sheet." };
   }
-}
-
-// Read-only check: which of this tenant's applications no longer have a
-// matching row in the live Sheet (deleted, or their ID cell cleared)?
-// syncTenantSheet itself never removes anything for exactly this reason
-// (safe to run unattended) — this is the deliberate, human-reviewed
-// counterpart for a client who actually wants those gone.
-export async function checkApplicationsRemovedFromSheet(tenantSlug: string): Promise<FindRemovedResult> {
-  return findApplicationsNotInSheet(prisma, tenantSlug);
 }
 
 // Blank subject/body clears the override and falls back to the built-in
