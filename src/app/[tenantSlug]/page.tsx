@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getTenantBranding } from "@/lib/branding";
-import { Field, inputClass, Button } from "@/components/ui/primitives";
+import { Card, Field, inputClass, Button } from "@/components/ui/primitives";
 import { TenantLoginPasswordField } from "@/components/tenant-login-password-field";
 import { loginToTenant } from "@/lib/actions/tenant-auth";
 
@@ -73,7 +73,7 @@ export default async function TenantLoginPage({
       {/* Sign-in panel */}
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+          <Card className="overflow-hidden">
             <div className="px-6 py-8">
               {branding.logoDataUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -121,7 +121,7 @@ export default async function TenantLoginPage({
                 Trouble signing in? Contact your organization&apos;s administrator.
               </p>
             </div>
-          </div>
+          </Card>
 
           <a
             href="https://okiedokiepay.com/"
