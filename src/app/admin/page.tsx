@@ -3,6 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { createTenant } from "@/lib/actions/tenants";
 import { Card, CardHeader, Field, inputClass, Button, EmptyState } from "@/components/ui/primitives";
 
+// This page has no cookies()/headers() usage to signal dynamic rendering
+// to Next, and its only data source is a direct Prisma call (not a
+// fetch()) — so without this, Next prerenders it once at build time and
+// serves that same static snapshot until the next deploy. createTenant
+// already calls revalidatePath("/admin") for additions made through the
+// app itself, but a tenant removed any other way (direct DB access) has
+// no such hook, so the client list can go stale indefinitely otherwise.
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
   const tenants = await prisma.tenant.findMany({ orderBy: { createdAt: "asc" } });
 
