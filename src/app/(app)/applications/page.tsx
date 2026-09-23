@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, Button } from "@/components/ui/primitives";
+import { Card, EmptyState, Button, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUSES } from "@/lib/enums";
 import { DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { formatDate, startOfTodayIST } from "@/lib/date";
@@ -66,7 +66,7 @@ export default async function ApplicationsPage({
       : {}),
   };
 
-  const [applications, total, jobs, documentTypeRows, recruiters, applicationForm] = await Promise.all([
+  const [applications, total, jobs, documentTypeRows, recruiters, applicationForm, statusGroups] = await Promise.all([
     prisma.application.findMany({
       where,
       include: { candidate: true, job: true, assignedRecruiter: true },
@@ -87,8 +87,15 @@ export default async function ApplicationsPage({
       where: { tenantId: tenant.id },
       include: { sections: { include: { fields: true }, orderBy: { order: "asc" } } },
     }),
+    // Unfiltered status counts for the Overview card — `total` above is
+    // scoped to whatever search/status/job filter is active, but the
+    // summary at the top should always reflect every application.
+    prisma.application.groupBy({ by: ["status"], where: { tenantId: tenant.id }, _count: { _all: true } }),
   ]);
   const documentTypes = documentTypeRows.map((d) => d.documentType);
+  const countByStatus = (status: string) => statusGroups.find((g) => g.status === status)?._count._all ?? 0;
+  const allTimeTotal = statusGroups.reduce((sum, g) => sum + g._count._all, 0);
+  const selectedCount = countByStatus("selected");
 
   // Every column the export can possibly produce — core fields, every
   // dynamic form field the tenant has ever configured, and every document
@@ -170,6 +177,13 @@ export default async function ApplicationsPage({
           </div>
         )}
       </div>
+
+      <OverviewCard title={tenant.name} badgeLabel={`${(allTimeTotal > 0 ? (selectedCount / allTimeTotal) * 100 : 0).toFixed(1)}% selected`}>
+        <OverviewSubTile label="Submitted" value={countByStatus("submitted")} color="#3b82f6" href="/applications?status=submitted" />
+        <OverviewSubTile label="Shortlisted" value={countByStatus("shortlisted")} color="#8b5cf6" href="/applications?status=shortlisted" />
+        <OverviewSubTile label="Selected" value={selectedCount} color="#10b981" href="/applications?status=selected" />
+        <OverviewSubTile label="Rejected" value={countByStatus("rejected")} color="#ef4444" href="/applications?status=rejected" />
+      </OverviewCard>
 
       <Card className="p-4">
         <Suspense fallback={null}>

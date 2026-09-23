@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, StatusBadge } from "@/components/ui/primitives";
+import { Card, EmptyState, StatusBadge, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { JOB_STATUSES } from "@/lib/enums";
 import { formatDate } from "@/lib/date";
 
@@ -13,7 +13,7 @@ export default async function JobsPage({
   const params = await searchParams;
   const tenant = await getCurrentTenant();
 
-  const [jobs, departments] = await Promise.all([
+  const [jobs, departments, statusGroups, totalApplications] = await Promise.all([
     prisma.job.findMany({
       where: {
         tenantId: tenant.id,
@@ -24,7 +24,15 @@ export default async function JobsPage({
       orderBy: { createdAt: "desc" },
     }),
     prisma.department.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
+    // Unfiltered counts for the Overview card — jobs above is scoped to
+    // whichever status/department filter is active, but the summary at
+    // the top should always reflect every job, not just the filtered view.
+    prisma.job.groupBy({ by: ["status"], where: { tenantId: tenant.id }, _count: { _all: true } }),
+    prisma.application.count({ where: { tenantId: tenant.id } }),
   ]);
+  const totalJobs = statusGroups.reduce((sum, g) => sum + g._count._all, 0);
+  const publishedJobs = statusGroups.find((g) => g.status === "published")?._count._all ?? 0;
+  const closedJobs = statusGroups.find((g) => g.status === "closed")?._count._all ?? 0;
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
     const next = new URLSearchParams();
@@ -38,12 +46,17 @@ export default async function JobsPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Jobs</h1>
-          <p className="text-sm text-slate-500">{tenant.name}</p>
-        </div>
+      <div>
+        <h1 className="text-lg font-semibold text-slate-900">Jobs</h1>
+        <p className="text-sm text-slate-500">Every job posting and how many applications it's drawn.</p>
       </div>
+
+      <OverviewCard title={tenant.name} badgeLabel={`${publishedJobs} open`}>
+        <OverviewSubTile label="Total jobs" value={totalJobs} color="#64748b" />
+        <OverviewSubTile label="Published" value={publishedJobs} color="#10b981" href="/jobs?status=published" />
+        <OverviewSubTile label="Closed" value={closedJobs} color="#94a3b8" href="/jobs?status=closed" />
+        <OverviewSubTile label="Total applications" value={totalApplications} color="#8b5cf6" href="/applications" />
+      </OverviewCard>
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterLink href={buildHref({ status: undefined })} active={!params.status}>
