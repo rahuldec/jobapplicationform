@@ -170,12 +170,6 @@ export function ApplicationsTable({
           >
             Email
           </Button>
-
-          <a href={`/api/export/synopsis?ids=${Array.from(selected).join(",")}`} className="ml-auto">
-            <Button variant="secondary" size="sm">
-              Download Synopsis ({selected.size})
-            </Button>
-          </a>
         </div>
       )}
 
