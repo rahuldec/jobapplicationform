@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
-import { Card, CardHeader, EmptyState } from "@/components/ui/primitives";
+import { Card, CardHeader, EmptyState, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
 import { ApplicationsByJobChart } from "./charts";
 import { SyncNowButton } from "./sync-now-button";
@@ -54,66 +54,6 @@ function Avatar({ name, tone = "orange" }: { name: string; tone?: "orange" | "re
   );
 }
 
-// Sub-metric tile inside the Overview card — a colored dot + uppercase
-// label above a large bold number, same language as the rest of the
-// StatTile family but denser, for grouping several related numbers under
-// one heading instead of four separate top-level cards.
-function SubTile({ label, value, color, href }: { label: string; value: string | number; color: string; href?: string }) {
-  const content = (
-    <div className="rounded-2xl bg-white/70 px-4 py-3.5 ring-1 ring-black/[0.04] transition-colors hover:bg-white">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        {label}
-      </div>
-      <p className="mt-1.5 text-[22px] font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
-    </div>
-  );
-  return href ? (
-    <Link href={href} className="block">
-      {content}
-    </Link>
-  ) : (
-    content
-  );
-}
-
-function Overview({
-  tenantName,
-  totalApplications,
-  newToday,
-  interviewsScheduled,
-  emailsSent,
-  selectedCount,
-}: {
-  tenantName: string;
-  totalApplications: number;
-  newToday: number;
-  interviewsScheduled: number;
-  emailsSent: number;
-  selectedCount: number;
-}) {
-  const selectedPct = totalApplications > 0 ? (selectedCount / totalApplications) * 100 : 0;
-  return (
-    <Card className="overflow-hidden bg-gradient-to-br from-orange-50/70 via-white to-white ring-1 ring-orange-100">
-      <div className="flex items-start justify-between gap-4 px-6 pt-6">
-        <div>
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
-          <h2 className="mt-1 text-[20px] font-bold tracking-tight text-slate-900">{tenantName}</h2>
-        </div>
-        <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-          {selectedPct.toFixed(1)}% selected
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-3 px-6 pb-6 pt-5 sm:grid-cols-4">
-        <SubTile label="Total applications" value={totalApplications} color="#64748b" href="/applications" />
-        <SubTile label="New today" value={newToday} color="#3b82f6" href="/applications?since=today" />
-        <SubTile label="Interviews scheduled" value={interviewsScheduled} color="#8b5cf6" href="/applications?status=interview_scheduled" />
-        <SubTile label="Emails sent" value={emailsSent} color="#10b981" href="/emails" />
-      </div>
-    </Card>
-  );
-}
-
 function PipelineByStatus({ byStatus }: { byStatus: Record<ApplicationStatus, number> }) {
   const max = Math.max(1, ...VISIBLE_APPLICATION_STATUSES.map((s) => byStatus[s]));
   return (
@@ -160,14 +100,20 @@ export default async function DashboardPage() {
         {tenant.sheetSourceUrl && <SyncNowButton />}
       </div>
 
-      <Overview
-        tenantName={tenant.name}
-        totalApplications={data.stats.totalApplications}
-        newToday={data.today.newApplications}
-        interviewsScheduled={data.stats.byStatus.interview_scheduled}
-        emailsSent={data.stats.emailsSent}
-        selectedCount={data.stats.byStatus.selected}
-      />
+      <OverviewCard
+        title={tenant.name}
+        badgeLabel={`${(data.stats.totalApplications > 0 ? (data.stats.byStatus.selected / data.stats.totalApplications) * 100 : 0).toFixed(1)}% selected`}
+      >
+        <OverviewSubTile label="Total applications" value={data.stats.totalApplications} color="#64748b" href="/applications" />
+        <OverviewSubTile label="New today" value={data.today.newApplications} color="#3b82f6" href="/applications?since=today" />
+        <OverviewSubTile
+          label="Interviews scheduled"
+          value={data.stats.byStatus.interview_scheduled}
+          color="#8b5cf6"
+          href="/applications?status=interview_scheduled"
+        />
+        <OverviewSubTile label="Emails sent" value={data.stats.emailsSent} color="#10b981" href="/emails" />
+      </OverviewCard>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[3fr_2fr]">
         <ApplicationsByJobChart data={data.analytics.byJob} />

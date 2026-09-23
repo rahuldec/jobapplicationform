@@ -135,6 +135,70 @@ export function StatTile({
   return <div className={base}>{content}</div>;
 }
 
+// Sub-metric tile for OverviewCard — a colored dot + uppercase label
+// above a large bold number, denser than StatTile for grouping several
+// related numbers under one heading instead of separate top-level cards.
+export function OverviewSubTile({ label, value, color, href }: { label: string; value: string | number; color: string; href?: string }) {
+  const content = (
+    <div className="rounded-2xl bg-white/70 px-4 py-3.5 ring-1 ring-black/[0.04] transition-colors hover:bg-white">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        {label}
+      </div>
+      <p className="mt-1.5 text-[22px] font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block">
+      {content}
+    </Link>
+  ) : (
+    content
+  );
+}
+
+const overviewBadgeTones = {
+  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  amber: "bg-amber-50 text-amber-700 ring-amber-200",
+  red: "bg-red-50 text-red-700 ring-red-200",
+  blue: "bg-blue-50 text-blue-700 ring-blue-200",
+  slate: "bg-slate-50 text-slate-700 ring-slate-200",
+} as const;
+
+// A highlighted summary card — eyebrow + title, an optional tone-colored
+// completion badge, and a row of OverviewSubTile numbers — for the one
+// "here's the state of things" block at the top of a page, in place of a
+// flat row of separate StatTiles. Introduced for Dashboard, reused
+// wherever another page has the same shape of data (see Emails).
+export function OverviewCard({
+  title,
+  badgeLabel,
+  badgeTone = "green",
+  children,
+}: {
+  title: ReactNode;
+  badgeLabel?: string;
+  badgeTone?: keyof typeof overviewBadgeTones;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden bg-gradient-to-br from-orange-50/70 via-white to-white ring-1 ring-orange-100">
+      <div className="flex items-start justify-between gap-4 px-6 pt-6">
+        <div>
+          <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
+          <h2 className="mt-1 text-[20px] font-bold tracking-tight text-slate-900">{title}</h2>
+        </div>
+        {badgeLabel && (
+          <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ring-inset ${overviewBadgeTones[badgeTone]}`}>
+            {badgeLabel}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 px-6 pb-6 pt-5 sm:grid-cols-4">{children}</div>
+    </Card>
+  );
+}
+
 const badgeTones: Record<string, string> = {
   slate: "bg-slate-100 text-slate-700 ring-slate-200",
   blue: "bg-blue-50 text-blue-700 ring-blue-200",

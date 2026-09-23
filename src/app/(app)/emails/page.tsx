@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/tenant";
-import { Card, EmptyState, Badge, StatTile } from "@/components/ui/primitives";
-import { IconCheckCircle } from "@/components/ui/icons";
+import { Card, EmptyState, Badge, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/date";
 import { EmailsFilters } from "./emails-filters";
 
@@ -81,6 +80,9 @@ export default async function EmailsPage({
   });
 
   const sentCount = allRows.filter((r) => r.sent).length;
+  const failedCount = allRows.length - sentCount;
+  const bulkCount = allRows.filter((r) => r.bulk).length;
+  const deliveredPct = allRows.length > 0 ? (sentCount / allRows.length) * 100 : 0;
 
   let rows = allRows;
   if (params.status === "sent") rows = rows.filter((r) => r.sent);
@@ -114,14 +116,15 @@ export default async function EmailsPage({
     <div className="space-y-5">
       <div>
         <h1 className="text-lg font-semibold text-slate-900">Emails</h1>
-        <p className="text-sm text-slate-500">
-          {allRows.length} sent · {tenant.name}
-        </p>
+        <p className="text-sm text-slate-500">Every email sent from an application, single or bulk.</p>
       </div>
 
-      <div className="max-w-xs">
-        <StatTile label="Sent" value={sentCount} tone="success" icon={IconCheckCircle} />
-      </div>
+      <OverviewCard title={tenant.name} badgeLabel={`${deliveredPct.toFixed(1)}% delivered`}>
+        <OverviewSubTile label="Total sent" value={allRows.length} color="#64748b" />
+        <OverviewSubTile label="Delivered" value={sentCount} color="#10b981" href="/emails?status=sent" />
+        <OverviewSubTile label="Failed" value={failedCount} color="#ef4444" href="/emails?status=failed" />
+        <OverviewSubTile label="Bulk sends" value={bulkCount} color="#8b5cf6" />
+      </OverviewCard>
 
       <Card className="p-4">
         <Suspense fallback={null}>
