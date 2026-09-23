@@ -38,6 +38,34 @@ body {
   margin: 0;
 }
 
+/* Modal (src/components/ui/modal.tsx): a soft scale+fade rather than an
+   instant pop-in, matching the rest of the app's Apple-style easing —
+   Tailwind alone has no animate-in utilities without an extra plugin. */
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.modal-overlay {
+  animation: modal-overlay-in 0.15s ease-out;
+}
+.modal-panel {
+  animation: modal-panel-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Printed reports (e.g. the interview attendance sheet) — a plain
    @media/print: utility can't reach the page box itself, and without
    this the browser's own default print margins (~12.7mm, sized for

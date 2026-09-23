@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge, Button, inputClass, PlaceholderChips } from "@/components/ui/primitives";
+import { StatusBadge, Button, inputClass, PlaceholderChips, Field } from "@/components/ui/primitives";
+import { Modal } from "@/components/ui/modal";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
 import { bulkChangeApplicationStatus, bulkAssignRecruiter, bulkSendCandidateEmail } from "@/lib/actions/applications";
 import { INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
@@ -173,39 +174,55 @@ export function ApplicationsTable({
         </div>
       )}
 
-      {selected.size > 0 && showEmailComposer && (
-        <div className="space-y-2.5 border-b border-orange-100 bg-orange-50/60 px-4 py-3">
-          <input
-            value={emailSubject}
-            onChange={(e) => setEmailSubject(e.target.value)}
-            placeholder="Subject"
-            className={`${inputClass} bg-white`}
-          />
-          <input
-            value={emailCc}
-            onChange={(e) => setEmailCc(e.target.value)}
-            placeholder="CC addresses (optional, comma-separated) — applies to every email in this batch"
-            className={`${inputClass} bg-white`}
-          />
-          <input
-            value={emailBcc}
-            onChange={(e) => setEmailBcc(e.target.value)}
-            placeholder="BCC addresses (optional, comma-separated) — applies to every email in this batch"
-            className={`${inputClass} bg-white`}
-          />
-          <textarea
-            value={emailBody}
-            onChange={(e) => setEmailBody(e.target.value)}
-            placeholder={`Message — sent individually to all ${selected.size} selected candidates.`}
-            rows={7}
-            className={`${inputClass} bg-white resize-y font-mono text-xs`}
-          />
+      <Modal
+        open={selected.size > 0 && showEmailComposer}
+        onClose={() => (sendingEmail ? null : setShowEmailComposer(false))}
+        title="Email candidates"
+        description={`Sent individually to all ${selected.size} selected candidate${selected.size === 1 ? "" : "s"} — never a shared to:/cc: list.`}
+        widthClass="max-w-xl"
+      >
+        <div className="space-y-4">
+          <Field label="Subject" htmlFor="bulkEmailSubject" required>
+            <input
+              id="bulkEmailSubject"
+              value={emailSubject}
+              onChange={(e) => setEmailSubject(e.target.value)}
+              placeholder="Subject"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="CC" htmlFor="bulkEmailCc" hint="Optional — comma-separated addresses, applies to every email in this batch">
+            <input
+              id="bulkEmailCc"
+              value={emailCc}
+              onChange={(e) => setEmailCc(e.target.value)}
+              placeholder="cc addresses (optional)"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="BCC" htmlFor="bulkEmailBcc" hint="Optional — comma-separated addresses, invisible to the candidate and other recipients">
+            <input
+              id="bulkEmailBcc"
+              value={emailBcc}
+              onChange={(e) => setEmailBcc(e.target.value)}
+              placeholder="bcc addresses (optional)"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Message" htmlFor="bulkEmailBody" required hint={<PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} />}>
+            <textarea
+              id="bulkEmailBody"
+              value={emailBody}
+              onChange={(e) => setEmailBody(e.target.value)}
+              rows={9}
+              className={`${inputClass} resize-y font-mono text-xs`}
+            />
+          </Field>
           <p className="text-xs text-slate-500">
-            Prefilled from the tenant&apos;s Interview email template — edit freely.{" "}
-            <PlaceholderChips names={INTERVIEW_EMAIL_PLACEHOLDERS} /> resolve per candidate; scheduling ones are blank if
-            that candidate has no interview on record.
+            Prefilled from the tenant&apos;s Interview email template — edit freely. Placeholders resolve per candidate;
+            scheduling ones are blank if that candidate has no interview on record.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border-t border-black/[0.04] pt-4">
             <Button
               size="sm"
               onClick={handleBulkEmail}
@@ -219,7 +236,7 @@ export function ApplicationsTable({
             {emailResult && <span className="text-xs text-orange-700">{emailResult}</span>}
           </div>
         </div>
-      )}
+      </Modal>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
