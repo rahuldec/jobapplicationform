@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { INTERVIEW_MODES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate, parseEmailList, DEFAULT_INTERVIEW_EMAIL_SUBJECT, DEFAULT_INTERVIEW_EMAIL_BODY } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
+import { getTenantBranding, getTenantLogoUrl } from "@/lib/branding";
 
 function invalidateApplicationViews(applicationId: string) {
   revalidatePath(`/applications/${applicationId}`);
@@ -62,6 +63,7 @@ export async function scheduleInterview(formData: FormData) {
   // interview that was successfully scheduled — it's already committed
   // above by this point.
   try {
+    const branding = getTenantBranding(application.tenant);
     const placeholders = {
       candidateName: application.candidate.fullName,
       jobTitle: application.job.title,
@@ -69,6 +71,8 @@ export async function scheduleInterview(formData: FormData) {
       scheduledAt: formatDateTimeFull(scheduledAt),
       mode: INTERVIEW_MODE_LABELS[mode as keyof typeof INTERVIEW_MODE_LABELS] ?? mode,
       location: location ?? "To be shared",
+      logoUrl: getTenantLogoUrl(application.tenantId, branding),
+      brandColor: branding.gradient.from,
     };
     const subject = renderTemplate(application.tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT, placeholders);
     const html = renderTemplate(application.tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY, placeholders);

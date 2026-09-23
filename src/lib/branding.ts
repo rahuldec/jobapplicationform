@@ -2,6 +2,8 @@
 // (web header, synopsis PDF) goes through this instead of touching the
 // raw JSON, so a malformed or missing config degrades gracefully instead
 // of breaking the page.
+import { getAppBaseUrl } from "./url";
+
 export type TenantBranding = {
   name: string;
   shortName: string;
@@ -18,6 +20,21 @@ export type TenantBranding = {
 };
 
 const DEFAULT_GRADIENT = { from: "#0f2359", via: "#1b449c", to: "#3465c9" };
+
+// A 1x1 transparent pixel — used as an <img> fallback when a tenant has
+// no logo set, rather than a blank src (which some email clients treat
+// as "reload this page," others as a broken-image icon).
+const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+// A real, fetchable URL for a tenant's logo (via the /api/tenants/[id]/
+// logo route) rather than the inline data:...;base64 URI it's stored as
+// — needed for anywhere the logo has to render outside this app's own
+// pages, e.g. an email client, which routinely strips or fails to render
+// base64-embedded <img> sources.
+export function getTenantLogoUrl(tenantId: string, branding: TenantBranding): string {
+  if (!branding.logoDataUrl) return TRANSPARENT_PIXEL;
+  return `${getAppBaseUrl()}/api/tenants/${tenantId}/logo`;
+}
 
 export function getTenantBranding(tenant: { name: string; brandingJson: string | null }): TenantBranding {
   let parsed: Partial<TenantBranding> = {};

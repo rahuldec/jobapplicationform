@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { SETTABLE_APPLICATION_STATUSES, INTERVIEW_MODE_LABELS } from "@/lib/enums";
 import { sendEmail, renderTemplate, parseEmailList } from "@/lib/email";
 import { formatDateTimeFull } from "@/lib/date";
+import { getTenantBranding, getTenantLogoUrl } from "@/lib/branding";
 import type { ExportColumnRule } from "@/lib/export-columns";
 
 function invalidateApplicationsViews() {
@@ -137,6 +138,7 @@ type ApplicationEmailContext = Awaited<ReturnType<typeof prisma.application.find
 // blank for a candidate with no interview on record.
 function buildEmailPlaceholders(application: ApplicationEmailContext) {
   const interview = application.interviews[0];
+  const branding = getTenantBranding(application.tenant);
   return {
     candidateName: application.candidate.fullName,
     jobTitle: application.job.title,
@@ -146,6 +148,8 @@ function buildEmailPlaceholders(application: ApplicationEmailContext) {
       : "",
     mode: interview ? (INTERVIEW_MODE_LABELS[interview.mode as keyof typeof INTERVIEW_MODE_LABELS] ?? interview.mode) : "",
     location: interview?.location ?? "",
+    logoUrl: getTenantLogoUrl(application.tenantId, branding),
+    brandColor: branding.gradient.from,
   };
 }
 
