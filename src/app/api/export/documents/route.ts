@@ -84,10 +84,10 @@ export async function GET(request: NextRequest) {
           ...(q
             ? {
                 OR: [
-                  { applicationNumber: { contains: q } },
-                  { candidate: { fullName: { contains: q } } },
-                  { candidate: { email: { contains: q } } },
-                  { candidate: { mobile: { contains: q } } },
+                  { applicationNumber: { contains: q, mode: "insensitive" as const } },
+                  { candidate: { fullName: { contains: q, mode: "insensitive" as const } } },
+                  { candidate: { email: { contains: q, mode: "insensitive" as const } } },
+                  { candidate: { mobile: { contains: q, mode: "insensitive" as const } } },
                 ],
               }
             : {}),

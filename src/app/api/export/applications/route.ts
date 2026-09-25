@@ -35,13 +35,17 @@ export async function GET(request: NextRequest) {
     status: hasStatus ? { in: statusList } : undefined,
     jobId: jobId || undefined,
     ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
+    // mode: "insensitive" so an export matches the same rows the
+    // Applications page itself is showing for this query — see that
+    // page's identical filter for why (candidate names are stored as the
+    // Sheet has them, usually ALL CAPS).
     ...(q
       ? {
           OR: [
-            { applicationNumber: { contains: q } },
-            { candidate: { fullName: { contains: q } } },
-            { candidate: { email: { contains: q } } },
-            { candidate: { mobile: { contains: q } } },
+            { applicationNumber: { contains: q, mode: "insensitive" as const } },
+            { candidate: { fullName: { contains: q, mode: "insensitive" as const } } },
+            { candidate: { email: { contains: q, mode: "insensitive" as const } } },
+            { candidate: { mobile: { contains: q, mode: "insensitive" as const } } },
           ],
         }
       : {}),

@@ -54,13 +54,18 @@ export default async function ApplicationsPage({
     // that status was last set today; without one, it means the application
     // itself was created today (matches how the dashboard counts each stat).
     ...(isToday ? (hasStatus ? { updatedAt: { gte: startOfTodayIST() } } : { createdAt: { gte: startOfTodayIST() } }) : {}),
+    // mode: "insensitive" on every branch — Postgres `contains` is
+    // case-sensitive by default, and candidate names are stored exactly as
+    // the Sheet has them (usually ALL CAPS), so a search for "manohar"
+    // typed the way anyone naturally would returned zero results without
+    // this.
     ...(params.q
       ? {
           OR: [
-            { applicationNumber: { contains: params.q } },
-            { candidate: { fullName: { contains: params.q } } },
-            { candidate: { email: { contains: params.q } } },
-            { candidate: { mobile: { contains: params.q } } },
+            { applicationNumber: { contains: params.q, mode: "insensitive" as const } },
+            { candidate: { fullName: { contains: params.q, mode: "insensitive" as const } } },
+            { candidate: { email: { contains: params.q, mode: "insensitive" as const } } },
+            { candidate: { mobile: { contains: params.q, mode: "insensitive" as const } } },
           ],
         }
       : {}),
