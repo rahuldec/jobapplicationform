@@ -22,6 +22,7 @@ const ACTION_LABELS: Record<string, string> = {
   "application.submitted": "received a new application",
   "application.status_changed": "changed an application's status",
   "application.assigned": "assigned an application to a recruiter",
+  "application.job_changed": "moved an application to a different job",
   "email.sent": "sent a candidate email",
   "document.verified": "verified a document",
   "document.unverified": "un-verified a document",
@@ -39,6 +40,7 @@ const ACTION_TONES: Record<string, "slate" | "blue" | "amber" | "green" | "red" 
   "application.submitted": "blue",
   "application.status_changed": "amber",
   "application.assigned": "amber",
+  "application.job_changed": "amber",
   "email.sent": "purple",
   "document.verified": "green",
   "document.unverified": "slate",
@@ -64,6 +66,8 @@ function describeEntry(action: string, metadataJson: string | null): string | nu
         return meta.status ? `→ ${APPLICATION_STATUS_LABELS[meta.status as never] ?? meta.status}` : null;
       case "application.assigned":
         return meta.recruiterName ? `→ ${meta.recruiterName}` : null;
+      case "application.job_changed":
+        return meta.jobTitle ? `→ ${meta.jobTitle}` : null;
       case "email.sent":
         return meta.subject ? `"${meta.subject}"${meta.sent === false ? " (failed)" : ""}` : null;
       default:

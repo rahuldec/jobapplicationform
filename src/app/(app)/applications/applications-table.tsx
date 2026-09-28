@@ -6,7 +6,7 @@ import Link from "next/link";
 import { StatusBadge, Button, inputClass, PlaceholderChips, Field } from "@/components/ui/primitives";
 import { Modal } from "@/components/ui/modal";
 import { APPLICATION_STATUS_LABELS, SETTABLE_APPLICATION_STATUSES } from "@/lib/enums";
-import { bulkChangeApplicationStatus, bulkAssignRecruiter, bulkSendCandidateEmail } from "@/lib/actions/applications";
+import { bulkChangeApplicationStatus, bulkAssignRecruiter, bulkChangeApplicationJob, bulkSendCandidateEmail } from "@/lib/actions/applications";
 import { INTERVIEW_EMAIL_PLACEHOLDERS } from "@/lib/email";
 
 const MAX_SYNOPSIS_SELECTION = 100;
@@ -27,6 +27,7 @@ export type ApplicationRow = {
 export function ApplicationsTable({
   rows,
   recruiters,
+  jobs,
   defaultEmailSubject,
   defaultEmailBody,
   defaultEmailCc,
@@ -34,6 +35,7 @@ export function ApplicationsTable({
 }: {
   rows: ApplicationRow[];
   recruiters: { id: string; name: string }[];
+  jobs: { id: string; title: string }[];
   defaultEmailSubject: string;
   defaultEmailBody: string;
   defaultEmailCc: string;
@@ -43,8 +45,10 @@ export function ApplicationsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>(SETTABLE_APPLICATION_STATUSES[0]);
   const [bulkRecruiterId, setBulkRecruiterId] = useState<string>("");
+  const [bulkJobId, setBulkJobId] = useState<string>("");
   const [applyingStatus, setApplyingStatus] = useState(false);
   const [applyingAssign, setApplyingAssign] = useState(false);
+  const [applyingJob, setApplyingJob] = useState(false);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -85,6 +89,18 @@ export function ApplicationsTable({
       router.refresh();
     } finally {
       setApplyingAssign(false);
+    }
+  };
+
+  const handleBulkJob = async () => {
+    if (!bulkJobId) return;
+    setApplyingJob(true);
+    try {
+      await bulkChangeApplicationJob({ applicationIds: Array.from(selected), jobId: bulkJobId });
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setApplyingJob(false);
     }
   };
 
@@ -149,6 +165,20 @@ export function ApplicationsTable({
             </select>
             <Button variant="secondary" size="sm" onClick={handleBulkAssign} disabled={applyingAssign}>
               {applyingAssign ? "Assigning…" : "Assign"}
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <select value={bulkJobId} onChange={(e) => setBulkJobId(e.target.value)} className={`${inputClass} w-44 py-1.5 text-sm`}>
+              <option value="">Move to job…</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.title}
+                </option>
+              ))}
+            </select>
+            <Button variant="secondary" size="sm" onClick={handleBulkJob} disabled={applyingJob || !bulkJobId}>
+              {applyingJob ? "Moving…" : "Move"}
             </Button>
           </div>
 

@@ -204,6 +204,7 @@ export default async function ApplicationsPage({
             <ApplicationsTable
               rows={rows}
               recruiters={recruiters.map((r) => ({ id: r.id, name: r.name }))}
+              jobs={jobs.map((j) => ({ id: j.id, title: j.title }))}
               defaultEmailSubject={tenant.interviewEmailSubject || DEFAULT_INTERVIEW_EMAIL_SUBJECT}
               defaultEmailBody={tenant.interviewEmailBody || DEFAULT_INTERVIEW_EMAIL_BODY}
               defaultEmailCc={tenant.interviewEmailCc ?? ""}

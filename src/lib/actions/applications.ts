@@ -113,6 +113,45 @@ export async function bulkAssignRecruiter(input: { applicationIds: string[]; rec
   return { count: apps.length };
 }
 
+// Moves applications to a different job posting — e.g. a sheet's job-
+// selector column pointed at the wrong field for a while (see jobs synced
+// under a garbage or one-off title) and the already-imported rows need
+// re-pointing at the correct posting by hand, since a later sync never
+// revisits a row it's already imported.
+export async function bulkChangeApplicationJob(input: { applicationIds: string[]; jobId: string }) {
+  const { applicationIds, jobId } = input;
+  if (applicationIds.length === 0) return { count: 0 };
+
+  const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+
+  const apps = await prisma.application.findMany({
+    where: { id: { in: applicationIds }, tenantId: job.tenantId },
+    select: { id: true, tenantId: true },
+  });
+  if (apps.length === 0) return { count: 0 };
+
+  await prisma.application.updateMany({
+    where: { id: { in: apps.map((a) => a.id) } },
+    data: { jobId: job.id },
+  });
+
+  await prisma.auditLog.createMany({
+    data: apps.map((a) => ({
+      tenantId: a.tenantId,
+      actorName: "Admin",
+      action: "application.job_changed",
+      entityType: "Application",
+      entityId: a.id,
+      metadataJson: JSON.stringify({ jobId: job.id, jobTitle: job.title, bulk: true }),
+    })),
+  });
+
+  for (const a of apps) revalidatePath(`/applications/${a.id}`);
+  invalidateApplicationsViews();
+  revalidatePath("/jobs");
+  return { count: apps.length };
+}
+
 // Plain text from a textarea -> simple paragraph HTML, shared by the
 // single and bulk send paths below.
 function textToHtml(bodyText: string) {

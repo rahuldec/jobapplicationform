@@ -19,6 +19,7 @@ const ACTION_LABELS: Record<string, string> = {
   "application.submitted": "submitted the application",
   "application.reviewed": "reviewed the application",
   "application.status_changed": "changed the application status",
+  "application.job_changed": "moved the application to a different job",
   "document.uploaded": "uploaded a document",
   "document.verified": "verified a document",
   "document.unverified": "un-verified a document",
