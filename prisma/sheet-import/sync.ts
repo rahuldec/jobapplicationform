@@ -142,25 +142,37 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   const { jobSelectorCol, emailCol, fullNameCol, mobileCol, dobCol, genderCol, addedTimeCol, applicationNumberCol } =
     config.coreFields;
 
-  // Two ways to derive a stable, already-imported-safe application number:
+  // Every row this run sees, resolved to either an already-imported
+  // Application (by the same stable-number matching "already imported"
+  // has always used) or marked for creation — covers the *whole* sheet,
+  // not just rows past the previously-seen cursor. That's deliberate: an
+  // already-imported row's job assignment is re-checked against the
+  // *current* config on every run (see the reassignment pass below), so a
+  // row that synced under the wrong job — because jobSelectorCol pointed
+  // at the wrong column when it first synced — gets moved to the right
+  // one automatically the next time this runs, once the mapping is fixed,
+  // rather than staying stuck forever (a later sync never used to revisit
+  // a row it had already imported at all).
+  //
+  // Two ways to derive a stable, row-to-application identity:
   //
   // 1. applicationNumberCol set: the Sheet already assigns its own unique
   //    ID per row. Prefix + that ID becomes the application number, and
-  //    "already imported" is a plain membership check against every
-  //    number already on file for this tenant — robust even if rows get
-  //    reordered or inserted, not just appended.
+  //    matching to an existing application is a membership check against
+  //    every number already on file for this tenant — robust even if rows
+  //    get reordered or inserted, not just appended.
   // 2. Not set (original behavior): the Sheet is append-only (fed by a
   //    form that can't be edited post-submission), so a row's position IS
-  //    its stable identity. "Already imported" is just the highest
-  //    row-derived number seen so far, parsed back out of existing
-  //    application numbers — cheap, and never touches a row already in.
-  let newRows: { row: unknown[]; applicationNumber: string }[];
+  //    its stable identity — row i always has number i+1, whether it was
+  //    imported five minutes or five months ago.
+  type RowInfo = { row: unknown[]; assignedNumber: string; existingApplicationId: string | null; existingJobId: string | null };
+  let rowInfos: RowInfo[];
   let alreadyImported: number;
 
   if (applicationNumberCol !== null && applicationNumberCol !== undefined) {
     const existing = await prisma.application.findMany({
       where: { tenantId: tenant.id },
-      select: { applicationNumber: true, candidate: { select: { email: true } } },
+      select: { id: true, applicationNumber: true, jobId: true, candidate: { select: { email: true } } },
     });
     // A collision (see below) gets a disambiguated number like "DN-1-2" —
     // which means the *natural* number ("DN-1") can no longer be trusted
@@ -185,26 +197,29 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     // re-application policy documented up top.
     const usedNumbers = new Set(existing.map((a) => a.applicationNumber));
     const claimedNaturalNumbers = new Map(existing.map((a) => [a.applicationNumber, a.candidate.email.toLowerCase()]));
-    const existingNumbersByEmail = new Map<string, string[]>();
+    const existingByEmail = new Map<string, { id: string; applicationNumber: string; jobId: string }[]>();
     for (const a of existing) {
       const email = a.candidate.email.toLowerCase();
-      const list = existingNumbersByEmail.get(email) ?? [];
-      list.push(a.applicationNumber);
-      existingNumbersByEmail.set(email, list);
+      const list = existingByEmail.get(email) ?? [];
+      list.push({ id: a.id, applicationNumber: a.applicationNumber, jobId: a.jobId });
+      existingByEmail.set(email, list);
     }
     alreadyImported = existing.length;
 
-    newRows = [];
+    rowInfos = [];
     for (const row of dataRows) {
       const rawId = cell(row, applicationNumberCol);
       if (!rawId) continue;
       const email = cell(row, emailCol)?.toLowerCase();
       const naturalNumber = `${config.applicationNumberPrefix}${rawId}`;
 
-      const alreadyImportedThisRow = email
-        ? (existingNumbersByEmail.get(email) ?? []).some((n) => n === naturalNumber || n.startsWith(`${naturalNumber}-`))
-        : false;
-      if (alreadyImportedThisRow) continue;
+      const existingMatch = email
+        ? (existingByEmail.get(email) ?? []).find((a) => a.applicationNumber === naturalNumber || a.applicationNumber.startsWith(`${naturalNumber}-`))
+        : undefined;
+      if (existingMatch) {
+        rowInfos.push({ row, assignedNumber: existingMatch.applicationNumber, existingApplicationId: existingMatch.id, existingJobId: existingMatch.jobId });
+        continue;
+      }
 
       let applicationNumber = naturalNumber;
       const claimant = claimedNaturalNumbers.get(applicationNumber);
@@ -214,7 +229,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
         applicationNumber = `${applicationNumber}-${suffix}`;
       }
       usedNumbers.add(applicationNumber);
-      newRows.push({ row, applicationNumber });
+      rowInfos.push({ row, assignedNumber: applicationNumber, existingApplicationId: null, existingJobId: null });
     }
   } else {
     const [{ max_row_index: alreadyImportedRaw }] = await prisma.$queryRawUnsafe<{ max_row_index: number | null }[]>(
@@ -227,21 +242,25 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     );
     alreadyImported = alreadyImportedRaw ?? 0;
 
-    newRows = dataRows.slice(alreadyImported).map((row, n) => ({
-      row,
-      applicationNumber: `${config.applicationNumberPrefix}${String(alreadyImported + n + 1).padStart(4, "0")}`,
-    }));
+    const existing = await prisma.application.findMany({
+      where: { tenantId: tenant.id },
+      select: { id: true, applicationNumber: true, jobId: true },
+    });
+    const existingByNumber = new Map(existing.map((a) => [a.applicationNumber, a]));
+
+    rowInfos = dataRows.map((row, i) => {
+      const assignedNumber = `${config.applicationNumberPrefix}${String(i + 1).padStart(4, "0")}`;
+      const match = existingByNumber.get(assignedNumber);
+      return { row, assignedNumber, existingApplicationId: match?.id ?? null, existingJobId: match?.jobId ?? null };
+    });
   }
 
-  if (newRows.length === 0) {
-    console.log(`[${tenantSlug}] Nothing new — already imported all ${alreadyImported} rows.`);
-    return { created: 0, skipped: 0, alreadyImported };
-  }
-  console.log(`[${tenantSlug}] ${alreadyImported} rows already imported, ${newRows.length} new row(s) to add.`);
+  const newRowCount = rowInfos.filter((r) => !r.existingApplicationId).length;
+  console.log(`[${tenantSlug}] ${alreadyImported} rows already imported, ${newRowCount} new row(s) to add.`);
 
-  const selectorValues = Array.from(new Set(newRows.map((r) => cell(r.row, jobSelectorCol)).filter((s): s is string => !!s)));
+  const selectorValues = Array.from(new Set(rowInfos.map((r) => cell(r.row, jobSelectorCol)).filter((s): s is string => !!s)));
 
-  const jobBySelector = new Map<string, string>();
+  const jobBySelector = new Map<string, { id: string; title: string }>();
   for (const value of selectorValues) {
     let department = await prisma.department.findFirst({ where: { tenantId: tenant.id, name: value } });
     if (!department) {
@@ -263,27 +282,53 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
         },
       });
     }
-    jobBySelector.set(value, job.id);
+    jobBySelector.set(value, { id: job.id, title: job.title });
   }
 
   let created = 0;
   let skipped = 0;
-  const newAuditEntries: {
+  let jobsReassigned = 0;
+  const auditEntries: {
     tenantId: string;
     actorName: string;
     action: string;
     entityType: string;
     entityId: string;
-    createdAt: Date;
+    metadataJson?: string;
+    createdAt?: Date;
   }[] = [];
 
-  for (const { row, applicationNumber } of newRows) {
+  for (const { row, assignedNumber, existingApplicationId, existingJobId } of rowInfos) {
     const selectorValue = cell(row, jobSelectorCol);
     const email = cell(row, emailCol)?.toLowerCase();
     const fullName = cell(row, fullNameCol);
 
     if (!selectorValue || !email || !fullName || !jobBySelector.has(selectorValue)) {
-      skipped++;
+      if (!existingApplicationId) skipped++;
+      continue;
+    }
+
+    const job = jobBySelector.get(selectorValue)!;
+
+    if (existingApplicationId) {
+      // Already imported — re-derive only which job it's grouped under,
+      // from the *current* mapping. Everything else about the
+      // application (status, assigned recruiter, candidate data, field
+      // values, documents) is exactly as it was — this never re-touches
+      // any of that, matching this file's standing rule that a sync never
+      // undoes workflow state HR has already set.
+      if (existingJobId !== job.id) {
+        await withRetry(() => prisma.application.update({ where: { id: existingApplicationId }, data: { jobId: job.id } }));
+        jobsReassigned++;
+        auditEntries.push({
+          tenantId: tenant.id,
+          actorName: "Sheet sync",
+          action: "application.job_changed",
+          entityType: "Application",
+          entityId: existingApplicationId,
+          metadataJson: JSON.stringify({ jobId: job.id, jobTitle: job.title, resync: true }),
+        });
+      }
       continue;
     }
 
@@ -304,8 +349,8 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
       prisma.application.create({
         data: {
           tenantId: tenant.id,
-          applicationNumber,
-          jobId: jobBySelector.get(selectorValue)!,
+          applicationNumber: assignedNumber,
+          jobId: job.id,
           candidateId: candidate.id,
           status: "submitted",
           submittedAt,
@@ -351,7 +396,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     }
 
     created++;
-    newAuditEntries.push({
+    auditEntries.push({
       tenantId: tenant.id,
       actorName: fullName,
       action: "application.submitted",
@@ -361,10 +406,12 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     });
   }
 
-  if (newAuditEntries.length) {
-    await withRetry(() => prisma.auditLog.createMany({ data: newAuditEntries }));
+  if (auditEntries.length) {
+    await withRetry(() => prisma.auditLog.createMany({ data: auditEntries }));
   }
 
-  console.log(`[${tenantSlug}] Done. ${created} new application(s) added, ${skipped} skipped (missing subject/email/name).`);
-  return { created, skipped, alreadyImported };
+  console.log(
+    `[${tenantSlug}] Done. ${created} new application(s) added, ${jobsReassigned} moved to a different job, ${skipped} skipped (missing subject/email/name).`,
+  );
+  return { created, skipped, alreadyImported, jobsReassigned };
 }

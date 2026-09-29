@@ -15,7 +15,8 @@ export function SyncNowButton() {
     setMessage(null);
     try {
       const result = await triggerSheetSyncForCurrentTenant();
-      setMessage(`Synced — ${result.created} new, ${result.skipped} skipped, ${result.alreadyImported} already imported.`);
+      const jobPart = result.jobsReassigned > 0 ? `, ${result.jobsReassigned} moved to a different job` : "";
+      setMessage(`Synced — ${result.created} new, ${result.skipped} skipped${jobPart}, ${result.alreadyImported} already imported.`);
       router.refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Sync failed.");

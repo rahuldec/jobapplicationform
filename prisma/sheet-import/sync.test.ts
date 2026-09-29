@@ -88,12 +88,20 @@ function createFakePrisma(tenant: FakeRow) {
         db.applications
           .filter((a) => a.tenantId === where.tenantId)
           .map((a) => ({
+            id: a.id,
             applicationNumber: a.applicationNumber,
+            jobId: a.jobId,
             candidate: { email: db.candidates.find((c) => c.id === a.candidateId)?.email ?? "" },
           })),
       create: async ({ data }: { data: FakeRow }) => {
         const app = { id: nextId("app"), ...data };
         db.applications.push(app);
+        return app;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: FakeRow }) => {
+        const app = db.applications.find((a) => a.id === where.id);
+        if (!app) throw new Error(`No application "${where.id}"`);
+        Object.assign(app, data);
         return app;
       },
     },
@@ -230,7 +238,7 @@ describe("syncTenantSheet — row-position numbering (no unique-ID column)", () 
 
     const result = await syncTenantSheet(prisma, "acme");
 
-    expect(result).toEqual({ created: 2, skipped: 1, alreadyImported: 0 });
+    expect(result).toEqual({ created: 2, skipped: 1, alreadyImported: 0, jobsReassigned: 0 });
     expect(db.applications.map((a) => a.applicationNumber)).toEqual(["T-0001", "T-0002"]);
   });
 
@@ -286,7 +294,7 @@ describe("syncTenantSheet — row-position numbering (no unique-ID column)", () 
     // The skipped 3rd row's number was never actually created, so
     // tracking resumes from the highest number that WAS created (2),
     // and only the still-incomplete row 3 gets retried.
-    expect(second).toEqual({ created: 0, skipped: 1, alreadyImported: 2 });
+    expect(second).toEqual({ created: 0, skipped: 1, alreadyImported: 2, jobsReassigned: 0 });
   });
 
   it("reuses the existing ApplicationForm on a second run instead of creating a duplicate", async () => {
@@ -308,7 +316,7 @@ describe("syncTenantSheet — row-position numbering (no unique-ID column)", () 
     mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo"], rows.slice(0, 2)); // no new rows at all
     const result = await syncTenantSheet(prisma, "acme");
 
-    expect(result).toEqual({ created: 0, skipped: 0, alreadyImported: 2 });
+    expect(result).toEqual({ created: 0, skipped: 0, alreadyImported: 2, jobsReassigned: 0 });
   });
 
   it("reconciles the existing form when the config changes after the form already exists, instead of crashing (regression: real production bug)", async () => {
@@ -340,6 +348,55 @@ describe("syncTenantSheet — row-position numbering (no unique-ID column)", () 
     expect((db.applicationForms[0].sections as { name: string }[]).map((s) => s.name)).toEqual(["Personal Details", "Contact Info"]);
     expect(db.fieldValues.some((f) => f.valueText === "9999999999")).toBe(true);
   });
+
+  it("moves an already-imported application to the right job once jobSelectorCol is fixed, without touching anything else about it", async () => {
+    // Real scenario this guards against: jobSelectorCol pointed at the
+    // wrong column (e.g. an ID column instead of the subject/post
+    // column), so every application synced under a garbage per-row job
+    // title. Fixing the mapping alone didn't used to help — a sync never
+    // revisited a row it had already imported — so the fix had to be
+    // applied by hand, one application at a time. This is what makes that
+    // automatic: the next ordinary sync re-derives every already-imported
+    // row's job from the *current* config and moves it if it changed.
+    const tenantObj = makeTenant({}, { ...BASE_CONFIG, coreFields: { ...BASE_CONFIG.coreFields, jobSelectorCol: 6 } });
+    const wrongRows = [[new Date(2026, 0, 1), "alice@x.com", "Alice A", "Commerce", "note1", null, "9876543210"]];
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "Mobile"], wrongRows);
+    const { prisma, db } = createFakePrisma(tenantObj);
+    await syncTenantSheet(prisma, "acme");
+
+    const originalApp = db.applications[0];
+    expect((db.jobs.find((j) => j.id === originalApp.jobId) as { title: string }).title).toBe("9876543210");
+    const originalApplicationId = originalApp.id;
+    const originalCandidateId = originalApp.candidateId;
+    originalApp.status = "shortlisted"; // simulate HR having already moved this along
+
+    // Fix the mapping to point at the real subject column instead.
+    tenantObj.sheetMappingJson = JSON.stringify({ ...BASE_CONFIG, coreFields: { ...BASE_CONFIG.coreFields, jobSelectorCol: 3 } });
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo", "Mobile"], wrongRows);
+    const result = await syncTenantSheet(prisma, "acme");
+
+    expect(result).toEqual({ created: 0, skipped: 0, alreadyImported: 1, jobsReassigned: 1 });
+    expect(db.applications).toHaveLength(1); // moved, not duplicated
+    const movedApp = db.applications[0];
+    expect(movedApp.id).toBe(originalApplicationId);
+    expect(movedApp.candidateId).toBe(originalCandidateId);
+    expect(movedApp.status).toBe("shortlisted"); // workflow state left exactly as HR set it
+    expect((db.jobs.find((j) => j.id === movedApp.jobId) as { title: string }).title).toBe("Commerce");
+    expect(db.auditLogs.some((a) => a.action === "application.job_changed")).toBe(true);
+  });
+
+  it("reassigns nothing (and logs nothing) on a normal re-sync where the mapping hasn't changed", async () => {
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo"], rows);
+    const { prisma, db } = createFakePrisma(makeTenant());
+    await syncTenantSheet(prisma, "acme");
+    const auditLogCountAfterFirstSync = db.auditLogs.length;
+
+    mockFetchWithSheet(["Added", "Email", "Name", "Post", "Notes", "Photo"], rows);
+    const result = await syncTenantSheet(prisma, "acme");
+
+    expect(result.jobsReassigned).toBe(0);
+    expect(db.auditLogs).toHaveLength(auditLogCountAfterFirstSync); // no job_changed spam on every routine sync
+  });
 });
 
 describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
@@ -359,7 +416,7 @@ describe("syncTenantSheet — Sheet-provided unique-ID numbering", () => {
 
     const result = await syncTenantSheet(prisma, "acme");
 
-    expect(result).toEqual({ created: 2, skipped: 0, alreadyImported: 0 });
+    expect(result).toEqual({ created: 2, skipped: 0, alreadyImported: 0, jobsReassigned: 0 });
     expect(db.applications.map((a) => a.applicationNumber).sort()).toEqual(["AC-1", "AC-2"]);
   });
 
