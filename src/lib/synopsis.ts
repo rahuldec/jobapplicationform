@@ -50,18 +50,24 @@ function fmtDate(d: Date | null | undefined) {
   return d ? formatDate(d) : "—";
 }
 
-async function fetchDriveImageAsDataUrl(url: string): Promise<string> {
+// Fetches a Google Drive file and returns a base64 data URL for images,
+// or the original URL unchanged for non-image files (PDFs, docs, etc.)
+// so template variables are always usable regardless of file type.
+async function resolveDriveUrl(url: string): Promise<string> {
   const fileId = extractDriveFileId(url);
-  if (!fileId) return "";
+  if (!fileId) return url;
   try {
     const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
-    if (!res.ok) return "";
+    if (!res.ok) return url;
     const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) return "";
     const buf = Buffer.from(await res.arrayBuffer());
-    return `data:${contentType};base64,${buf.toString("base64")}`;
+    if (contentType.startsWith("image/")) {
+      return `data:${contentType};base64,${buf.toString("base64")}`;
+    }
+    // Non-image (PDF, doc, etc.) — return original URL as-is
+    return url;
   } catch {
-    return "";
+    return url;
   }
 }
 
@@ -71,25 +77,35 @@ async function buildTemplateData(application: SynopsisApplication) {
   const formSections = application.job.form?.sections ?? [];
   const includedFormSections = formSections.filter((s) => !synopsisConfig.excludedFormSectionIds.includes(s.id));
 
-  // Individual {{field_<fieldId>}} lookups, for referencing one specific
-  // mapped form field directly in a custom template — separate from the
-  // {{#each formSections}} loop, and not filtered by excludedFormSectionIds:
-  // referencing a field explicitly is a deliberate choice that should
-  // render regardless of that toggle.
-  const individualFields: Record<string, string> = {};
+  // Individual {{field_<fieldId>}} lookups — every sheet column becomes a
+  // template variable. Drive URLs (photos, signatures, certificates, any file)
+  // are auto-resolved: images become base64 data URLs so <img src="{{...}}">
+  // works directly; non-image files keep the original URL.
+  const rawFieldEntries: { key: string; value: string }[] = [];
   for (const section of formSections) {
     for (const field of section.fields) {
       const fv = application.fieldValues.find((v) => v.fieldId === field.id);
-      const value = fv ? (fv.valueText ?? fv.valueNumber?.toString() ?? fv.valueJson ?? "—") : "—";
-      individualFields[`field_${field.id}`] = value;
+      const raw = fv ? (fv.valueText ?? fv.valueNumber?.toString() ?? fv.valueJson ?? "—") : "—";
+      rawFieldEntries.push({ key: `field_${field.id}`, value: raw });
     }
   }
+
+  const resolvedFieldValues = await Promise.all(
+    rawFieldEntries.map(({ value }) =>
+      isDriveUrl(value) ? resolveDriveUrl(value) : Promise.resolve(value)
+    )
+  );
+
+  const individualFields: Record<string, string> = {};
+  rawFieldEntries.forEach(({ key }, i) => {
+    individualFields[key] = resolvedFieldValues[i];
+  });
 
   const photoDoc = application.documents.find((d) => /photo/i.test(d.documentType));
   const signatureDoc = application.documents.find((d) => /signature/i.test(d.documentType));
   const [photoUrl, signatureImageUrl] = await Promise.all([
-    photoDoc?.externalUrl ? fetchDriveImageAsDataUrl(photoDoc.externalUrl) : Promise.resolve(""),
-    signatureDoc?.externalUrl ? fetchDriveImageAsDataUrl(signatureDoc.externalUrl) : Promise.resolve(""),
+    photoDoc?.externalUrl ? resolveDriveUrl(photoDoc.externalUrl) : Promise.resolve(""),
+    signatureDoc?.externalUrl ? resolveDriveUrl(signatureDoc.externalUrl) : Promise.resolve(""),
   ]);
 
   return {
@@ -112,25 +128,24 @@ async function buildTemplateData(application: SynopsisApplication) {
     formSections: includedFormSections.map((section) => ({
       sectionName: section.name,
       fields: section.fields
-        .map((field) => {
-          const fv = application.fieldValues.find((fv) => fv.fieldId === field.id);
-          let displayValue = "—";
-          if (fv) {
-            displayValue = fv.valueText ?? fv.valueNumber?.toString() ?? fv.valueJson ?? "—";
-          }
-          return {
-            fieldLabel: field.label,
-            fieldValue: displayValue,
-          };
-        })
+        .map((field) => ({
+          fieldLabel: field.label,
+          fieldValue: individualFields[`field_${field.id}`] ?? "—",
+        }))
         .filter((f) => f.fieldValue !== "—"),
     })),
   };
 }
 
 function extractDriveFileId(url: string): string | null {
-  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  return match ? match[1] : null;
+  const pathMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (pathMatch) return pathMatch[1];
+  const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return queryMatch ? queryMatch[1] : null;
+}
+
+function isDriveUrl(value: string): boolean {
+  return /drive\.google\.com|docs\.google\.com/.test(value);
 }
 
 // The original Sheet packed some cells into one delimited string, e.g.
