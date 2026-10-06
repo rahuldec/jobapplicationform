@@ -47,25 +47,38 @@ export function CollapsibleCard({
   description,
   defaultOpen = false,
   className = "",
+  sectionNumber,
+  icon,
+  id,
   children,
 }: {
   title: ReactNode;
   description?: ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  sectionNumber?: string;
+  icon?: ReactNode;
+  id?: string;
   children: ReactNode;
 }) {
   return (
-    <details open={defaultOpen} className={`group rounded-[22px] bg-white/90 ring-1 ring-black/[0.04] backdrop-blur-xl ${CARD_SHADOW} ${className}`}>
-      <summary className="marker:hidden flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 [&::-webkit-details-marker]:hidden">
-        <div>
+    <details id={id} open={defaultOpen} className={`group rounded-2xl bg-white ring-1 ring-black/[0.06] ${CARD_SHADOW} ${className}`}>
+      <summary className="marker:hidden flex cursor-pointer list-none items-center gap-4 px-6 py-5 [&::-webkit-details-marker]:hidden">
+        {(sectionNumber || icon) && (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 ring-1 ring-orange-100">
+            {icon ?? (
+              <span className="text-[11px] font-bold text-orange-600">{sectionNumber}</span>
+            )}
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
           <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>
-          {description ? <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{description}</p> : null}
+          {description ? <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500 line-clamp-2">{description}</p> : null}
         </div>
         <svg
           viewBox="0 0 20 20"
           fill="currentColor"
-          className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+          className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-open:rotate-180"
         >
           <path
             fillRule="evenodd"
@@ -74,7 +87,7 @@ export function CollapsibleCard({
           />
         </svg>
       </summary>
-      <div className="border-t border-black/[0.04]">{children}</div>
+      <div className="border-t border-black/[0.05]">{children}</div>
     </details>
   );
 }

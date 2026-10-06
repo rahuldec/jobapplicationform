@@ -51,30 +51,77 @@ export default async function AdminTenantPage({
     }
   }
 
+  const navSections = [
+    { id: "overview", label: "Overview" },
+    { id: "manual", label: "User manual" },
+    { id: "branding", label: "Branding" },
+    { id: "staff", label: "Staff" },
+    { id: "interview-email", label: "Interview email" },
+    { id: "sheet-sync", label: "Sheet sync" },
+    { id: "synopsis", label: "Synopsis" },
+  ];
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link href="/admin" className="text-xs font-medium text-slate-500 hover:text-slate-800">
-        ← All clients
-      </Link>
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">{tenant.name}</h1>
-        <p className="text-sm text-slate-500">
-          Entry link: <code className="text-slate-700">/{tenant.slug}</code> — visiting it sets this browser to this client.
-        </p>
+    <div className="mx-auto max-w-5xl px-4 pb-16">
+      {/* Page header */}
+      <div className="flex items-center gap-2 py-6 text-[13px]">
+        <Link href="/admin" className="font-medium text-slate-400 hover:text-slate-700 transition-colors">
+          All clients
+        </Link>
+        <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 text-slate-300">
+          <path fillRule="evenodd" d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L9.19 8 6.22 5.03a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+        <span className="font-semibold text-slate-800">{tenant.name}</span>
       </div>
 
-      <OverviewCard
-        title={tenant.name}
-        badgeLabel={lastLogin ? `Last login ${formatDateTime(lastLogin.createdAt)}` : "Never logged in"}
-        badgeTone={lastLogin ? "green" : "slate"}
-      >
-        <OverviewSubTile label="Staff accounts" value={staff.length} color="#64748b" />
-        <OverviewSubTile label="Total applications" value={totalApplications} color="#3b82f6" href={`/admin/activity?tenantId=${tenant.id}`} />
-        <OverviewSubTile label="Jobs posted" value={totalJobs} color="#8b5cf6" />
-        <OverviewSubTile label="Activity log" value="View all →" color="#10b981" href={`/admin/activity?tenantId=${tenant.id}`} />
-      </OverviewCard>
+      <div className="flex gap-10 items-start">
+        {/* Sticky sidebar nav */}
+        <aside className="hidden lg:block w-44 shrink-0">
+          <div className="sticky top-8 space-y-1">
+            <div className="mb-4 pb-4 border-b border-slate-100">
+              <p className="text-[13px] font-bold text-slate-900 truncate">{tenant.name}</p>
+              <code className="text-[11px] text-slate-400">/{tenant.slug}</code>
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 pb-1 pt-1">Sections</p>
+            {navSections.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-600 transition-colors hover:bg-orange-50 hover:text-orange-700"
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </aside>
 
-      <CollapsibleCard title="User manual" description="A step-by-step guide to every section below — branding, staff, interview email, and Sheet sync.">
+        {/* Main content */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Overview */}
+          <section id="overview">
+            <OverviewCard
+              title={tenant.name}
+              badgeLabel={lastLogin ? `Last login ${formatDateTime(lastLogin.createdAt)}` : "Never logged in"}
+              badgeTone={lastLogin ? "green" : "slate"}
+            >
+              <OverviewSubTile label="Staff accounts" value={staff.length} color="#64748b" />
+              <OverviewSubTile label="Total applications" value={totalApplications} color="#3b82f6" href={`/admin/activity?tenantId=${tenant.id}`} />
+              <OverviewSubTile label="Jobs posted" value={totalJobs} color="#8b5cf6" />
+              <OverviewSubTile label="Activity log" value="View all →" color="#10b981" href={`/admin/activity?tenantId=${tenant.id}`} />
+            </OverviewCard>
+          </section>
+
+      <CollapsibleCard
+        id="manual"
+        sectionNumber="00"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+          </svg>
+        }
+        title="User manual"
+        description="A step-by-step guide to every section below — branding, staff, interview email, and Sheet sync."
+      >
         <div className="flex items-center justify-between gap-4 px-5 py-5">
           <p className="text-sm text-slate-600">
             Written for anyone setting up or updating a client, no coding knowledge required. Opens in a new tab so you
@@ -91,7 +138,16 @@ export default async function AdminTenantPage({
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Branding" description="Shown in the nav bar and on the synopsis PDF header.">
+      <CollapsibleCard
+        id="branding"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 13.5 9 15.75m-3-3 1.5 1.5m6.75-9.75-3.75 3.75m-4.5 4.5L9.75 9m6-6.75 3 3-9.75 9.75-4.5-4.5L14.25 2.25Z" />
+          </svg>
+        }
+        title="Branding"
+        description="Shown in the nav bar and on the synopsis PDF header."
+      >
         <form action={updateTenantBranding} encType="multipart/form-data" className="space-y-4 px-5 py-5">
           <input type="hidden" name="tenantId" value={tenant.id} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -126,6 +182,12 @@ export default async function AdminTenantPage({
       </CollapsibleCard>
 
       <CollapsibleCard
+        id="staff"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+          </svg>
+        }
         title="Staff"
         description="Recruiters and panel members — shown in the bulk-assign dropdown on Applications. Creating one here doesn't grant them any login access, since none exists yet."
       >
@@ -179,6 +241,12 @@ export default async function AdminTenantPage({
       </CollapsibleCard>
 
       <CollapsibleCard
+        id="interview-email"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+          </svg>
+        }
         title="Interview email"
         description="Sent to the candidate automatically when an interview is scheduled or rescheduled. Leave blank to use the default wording below."
       >
@@ -232,6 +300,12 @@ export default async function AdminTenantPage({
       </CollapsibleCard>
 
       <CollapsibleCard
+        id="sheet-sync"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m2.25-3.75h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5" />
+          </svg>
+        }
         title="Sheet sync"
         description="Maps this client's Google Sheet columns onto the application form. Existing data is never rewritten by saving here — only future syncs use the updated mapping. Set this up before Synopsis Template below, since its field reference depends on the form fields this creates."
       >
@@ -246,6 +320,12 @@ export default async function AdminTenantPage({
       </CollapsibleCard>
 
       <CollapsibleCard
+        id="synopsis"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          </svg>
+        }
         title="Synopsis Template"
         description="Customize the PDF template with HTML/CSS. Leave empty to use the built-in default. Use {{variable}} syntax to insert candidate data."
       >
@@ -284,6 +364,8 @@ export default async function AdminTenantPage({
           formFields={formFieldOptions}
         />
       </CollapsibleCard>
+        </div>{/* end main content */}
+      </div>{/* end two-column flex */}
     </div>
   );
 }
