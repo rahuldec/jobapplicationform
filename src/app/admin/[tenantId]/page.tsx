@@ -257,10 +257,14 @@ export default async function AdminTenantPage({
             Synopsis PDF.
           </p>
           <p className="text-sm text-slate-600">
-            The candidate&apos;s <strong>Photograph and Signature will always be included</strong> in the
-            header/declaration, regardless of this setting.
+            <strong>Default template:</strong> Photograph and Signature are always included in the header/declaration automatically.
           </p>
-          <p className="text-sm text-slate-600">This option only controls the other documents uploaded by the candidate.</p>
+          <p className="text-sm text-slate-600">
+            <strong>Custom HTML template:</strong> Photograph and Signature only appear if your template uses{" "}
+            <code className="text-xs bg-slate-100 px-1 rounded">{"{{photoUrl}}"}</code> and{" "}
+            <code className="text-xs bg-slate-100 px-1 rounded">{"{{signatureImageUrl}}"}</code> — you control where they go.
+          </p>
+          <p className="text-sm text-slate-600">This option controls other documents uploaded by the candidate (certificates, ID proofs, etc.).</p>
           <label className="flex items-center gap-2.5 text-sm text-slate-700">
             <input
               type="checkbox"
