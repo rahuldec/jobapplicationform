@@ -18,7 +18,8 @@ SIMPLE VARIABLES (insert single values):
   {{organizationName}}   - Organization name
   {{logoUrl}}            - Logo image URL
   {{generatedDate}}      - PDF generation time
-  {{signatureImageUrl}}  - Signature image URL
+  {{photoUrl}}           - Candidate photo image URL (base64)
+  {{signatureImageUrl}}  - Signature image URL (base64)
   {{declarationText}}    - Declaration/terms text
 
 LOOPS (iterate through form sections):
@@ -33,6 +34,9 @@ LOOPS (iterate through form sections):
 CONDITIONALS (show content only if exists):
   {{#if logoUrl}}
     <img src="{{logoUrl}}" />
+  {{/if}}
+  {{#if photoUrl}}
+    <img src="{{photoUrl}}" />
   {{/if}}
   {{#if signatureImageUrl}}
     <img src="{{signatureImageUrl}}" />

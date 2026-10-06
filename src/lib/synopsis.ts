@@ -50,7 +50,22 @@ function fmtDate(d: Date | null | undefined) {
   return d ? formatDate(d) : "—";
 }
 
-function buildTemplateData(application: SynopsisApplication) {
+async function fetchDriveImageAsDataUrl(url: string): Promise<string> {
+  const fileId = extractDriveFileId(url);
+  if (!fileId) return "";
+  try {
+    const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+    if (!res.ok) return "";
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) return "";
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:${contentType};base64,${buf.toString("base64")}`;
+  } catch {
+    return "";
+  }
+}
+
+async function buildTemplateData(application: SynopsisApplication) {
   const branding = getTenantBranding(application.tenant);
   const synopsisConfig = parseSynopsisConfig(application.tenant.synopsisConfigJson);
   const formSections = application.job.form?.sections ?? [];
@@ -70,6 +85,13 @@ function buildTemplateData(application: SynopsisApplication) {
     }
   }
 
+  const photoDoc = application.documents.find((d) => /photo/i.test(d.documentType));
+  const signatureDoc = application.documents.find((d) => /signature/i.test(d.documentType));
+  const [photoUrl, signatureImageUrl] = await Promise.all([
+    photoDoc?.externalUrl ? fetchDriveImageAsDataUrl(photoDoc.externalUrl) : Promise.resolve(""),
+    signatureDoc?.externalUrl ? fetchDriveImageAsDataUrl(signatureDoc.externalUrl) : Promise.resolve(""),
+  ]);
+
   return {
     ...individualFields,
     candidateName: application.candidate.fullName,
@@ -85,7 +107,8 @@ function buildTemplateData(application: SynopsisApplication) {
     logoUrl: branding.logoDataUrl || "",
     generatedDate: new Date().toLocaleString(),
     declarationText: "I declare that the information provided above is true and complete.",
-    signatureImageUrl: "", // Would be populated if embedding images
+    photoUrl,
+    signatureImageUrl,
     formSections: includedFormSections.map((section) => ({
       sectionName: section.name,
       fields: section.fields
@@ -173,7 +196,7 @@ async function renderBaseSynopsisPdf(application: SynopsisApplication, options?:
   // Template" section) is rendered via Puppeteer; otherwise fall back to
   // the built-in PDFKit layout below.
   if (application.tenant.synopsisTemplateHtml) {
-    const templateData = buildTemplateData(application);
+    const templateData = await buildTemplateData(application);
     const html = renderTemplate(application.tenant.synopsisTemplateHtml, templateData);
     return await renderHtmlToPdf(html);
   }
