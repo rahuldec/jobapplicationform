@@ -7,10 +7,16 @@ import { Button } from "@/components/ui/primitives";
 
 type FieldOption = { fieldKey: string; label: string; section: string };
 
+// Synthetic option that groups by job title, not a form field value
+const JOB_OPTION: FieldOption = { fieldKey: "__job__", label: "Applications by job", section: "Built-in" };
+
 function buildFieldOptions(sections: SectionSpec[]): FieldOption[] {
-  return sections.flatMap((s) =>
-    s.fields.map((f: { fieldKey: string; label: string }) => ({ fieldKey: f.fieldKey, label: f.label, section: s.name }))
-  );
+  return [
+    JOB_OPTION,
+    ...sections.flatMap((s) =>
+      s.fields.map((f: { fieldKey: string; label: string }) => ({ fieldKey: f.fieldKey, label: f.label, section: s.name }))
+    ),
+  ];
 }
 
 const CHART_TYPES: { value: ChartMapping["chartType"]; label: string }[] = [
@@ -46,9 +52,7 @@ export function ChartConfigEditor({
   const [saved, setSaved] = useState(false);
 
   function addRow() {
-    const first = fieldOptions[0];
-    if (!first) return;
-    setMappings((prev) => [...prev, { fieldKey: first.fieldKey, label: first.label, chartType: "pie" }]);
+    setMappings((prev) => [...prev, { fieldKey: JOB_OPTION.fieldKey, label: JOB_OPTION.label, chartType: "bar" }]);
   }
 
   function removeRow(idx: number) {

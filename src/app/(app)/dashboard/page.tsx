@@ -2,9 +2,9 @@ import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, EmptyState, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
-import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
-import { ApplicationsByJobChart, DynamicFieldCharts } from "./charts";
-import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
+import type { ApplicationStatus } from "@/lib/enums";
+import { DynamicFieldCharts } from "./charts";
+import { parseSheetImportConfig, type ChartMapping } from "../../../../prisma/sheet-import/types";
 import { SyncNowButton } from "./sync-now-button";
 
 // A first-ever sync against a large, never-before-imported sheet can take
@@ -14,18 +14,6 @@ export const maxDuration = 300;
 
 // Same tones StatusBadge uses elsewhere, so a stage reads the same color
 // here as it does on every application row.
-const PIPELINE_STATUS_COLOR: Record<ApplicationStatus, string> = {
-  draft: "#94a3b8",
-  submitted: "#3b82f6",
-  under_review: "#f59e0b",
-  shortlisted: "#8b5cf6",
-  interview_scheduled: "#3465c9",
-  interviewed: "#8b5cf6",
-  selected: "#10b981",
-  rejected: "#ef4444",
-  withdrawn: "#94a3b8",
-};
-
 function timeAgo(date: Date) {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -55,48 +43,22 @@ function Avatar({ name, tone = "orange" }: { name: string; tone?: "orange" | "re
   );
 }
 
-function PipelineByStatus({ byStatus }: { byStatus: Record<ApplicationStatus, number> }) {
-  const max = Math.max(1, ...VISIBLE_APPLICATION_STATUSES.map((s) => byStatus[s]));
-  return (
-    <Card>
-      <CardHeader title="Pipeline by status" description="Click a stage to filter Applications." />
-      <div className="space-y-4 px-6 pb-6">
-        {VISIBLE_APPLICATION_STATUSES.map((status) => {
-          const value = byStatus[status];
-          return (
-            <Link key={status} href={`/applications?status=${status}`} className="group block">
-              <div className="mb-1.5 flex items-center justify-between text-[13px]">
-                <span className="flex items-center gap-2 font-medium text-slate-500 transition-colors group-hover:text-slate-900">
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIPELINE_STATUS_COLOR[status] }} />
-                  {APPLICATION_STATUS_LABELS[status]}
-                </span>
-                <span className="font-semibold tabular-nums text-slate-900">{value}</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100/80">
-                <div
-                  className="h-2 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${(value / max) * 100}%`, backgroundColor: PIPELINE_STATUS_COLOR[status] }}
-                />
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
 export default async function DashboardPage() {
   const tenant = await getCurrentTenant();
   const data = await getDashboardData(tenant.id);
 
-  let chartMappings: import("../../../../prisma/sheet-import/types").ChartMapping[] = [];
+  // Default: show "Applications by job" bar chart until the admin configures something.
+  // Once chartMappings is explicitly set (even to []), use exactly what's configured.
+  const DEFAULT_CHART_MAPPINGS: ChartMapping[] = [
+    { fieldKey: "__job__", label: "Applications by job", chartType: "bar" },
+  ];
+  let chartMappings: ChartMapping[] = DEFAULT_CHART_MAPPINGS;
   if (tenant.sheetMappingJson) {
     try {
       const cfg = parseSheetImportConfig(tenant.sheetMappingJson);
-      chartMappings = cfg.chartMappings ?? [];
+      if (cfg.chartMappings !== undefined) chartMappings = cfg.chartMappings;
     } catch {
-      // Malformed config — no charts shown
+      // Malformed config — fall back to default
     }
   }
 
@@ -126,12 +88,7 @@ export default async function DashboardPage() {
         <OverviewSubTile label="Emails sent" value={data.stats.emailsSent} color="#10b981" href="/emails" />
       </OverviewCard>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[3fr_2fr]">
-        <ApplicationsByJobChart data={data.analytics.byJob} />
-        <PipelineByStatus byStatus={data.stats.byStatus} />
-      </div>
-
-      <DynamicFieldCharts mappings={chartMappings} />
+      <DynamicFieldCharts mappings={chartMappings} pipelineData={data.stats.byStatus} />
 
       <Card>
         <CardHeader title="Attention required" description="Items that need action, most recent first." />
