@@ -27,10 +27,24 @@ type ChartPoint = { label: string; count: number };
 function useFetchChartData(fieldKey: string) {
   const [data, setData] = useState<ChartPoint[] | null>(null);
   useEffect(() => {
-    fetch(`/api/dashboard/chart-data?fieldKey=${encodeURIComponent(fieldKey)}`)
-      .then((r) => r.json())
-      .then((json) => setData(json.data ?? []))
-      .catch(() => setData([]));
+    let cancelled = false;
+    let retries = 0;
+    function attempt() {
+      fetch(`/api/dashboard/chart-data?fieldKey=${encodeURIComponent(fieldKey)}`)
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((json) => { if (!cancelled) setData(json.data ?? []); })
+        .catch(() => {
+          if (!cancelled && retries < 3) {
+            retries++;
+            setTimeout(attempt, 1500 * retries);
+          }
+        });
+    }
+    attempt();
+    return () => { cancelled = true; };
   }, [fieldKey]);
   return data;
 }

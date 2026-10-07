@@ -4,6 +4,7 @@ import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, EmptyState, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import type { ApplicationStatus } from "@/lib/enums";
 import { DynamicFieldCharts } from "./charts";
+import { HeroSearch } from "./hero-search";
 import { parseSheetImportConfig, type ChartMapping } from "../../../../prisma/sheet-import/types";
 
 // A first-ever sync against a large, never-before-imported sheet can take
@@ -63,6 +64,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <HeroSearch tenantName={tenant.name} />
+
       <OverviewCard
         title={tenant.name}
         badgeLabel={`${(data.stats.totalApplications > 0 ? (data.stats.byStatus.selected / data.stats.totalApplications) * 100 : 0).toFixed(1)}% selected`}
