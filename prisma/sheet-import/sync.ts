@@ -258,7 +258,13 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
   const newRowCount = rowInfos.filter((r) => !r.existingApplicationId).length;
   console.log(`[${tenantSlug}] ${alreadyImported} rows already imported, ${newRowCount} new row(s) to add.`);
 
-  const selectorValues = Array.from(new Set(rowInfos.map((r) => cell(r.row, jobSelectorCol)).filter((s): s is string => !!s)));
+  const selectorValues = Array.from(
+    new Set(
+      rowInfos
+        .map((r) => cell(r.row, jobSelectorCol))
+        .filter((s): s is string => !!s && s.trim().length > 0 && s.length <= 120),
+    ),
+  );
 
   const jobBySelector = new Map<string, { id: string; title: string }>();
   for (const value of selectorValues) {

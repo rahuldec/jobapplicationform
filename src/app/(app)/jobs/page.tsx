@@ -30,6 +30,7 @@ export default async function JobsPage({
     prisma.job.groupBy({ by: ["status"], where: { tenantId: tenant.id }, _count: { _all: true } }),
     prisma.application.count({ where: { tenantId: tenant.id } }),
   ]);
+  const cleanDepartments = departments.filter((d) => d.name.length <= 80);
   const totalJobs = statusGroups.reduce((sum, g) => sum + g._count._all, 0);
   const publishedJobs = statusGroups.find((g) => g.status === "published")?._count._all ?? 0;
   const closedJobs = statusGroups.find((g) => g.status === "closed")?._count._all ?? 0;
@@ -71,7 +72,7 @@ export default async function JobsPage({
         <FilterLink href={buildHref({ departmentId: undefined })} active={!params.departmentId}>
           All departments
         </FilterLink>
-        {departments.map((d) => (
+        {cleanDepartments.map((d) => (
           <FilterLink key={d.id} href={buildHref({ departmentId: d.id })} active={params.departmentId === d.id}>
             {d.name}
           </FilterLink>
