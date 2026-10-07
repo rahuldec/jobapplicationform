@@ -15,19 +15,19 @@ export function HeroSearch({ tenantName: _ }: { tenantName: string }) {
   }
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 px-6 py-8 text-center shadow-xl ring-1 ring-white/10">
-      <h1 className="text-[26px] font-bold tracking-tight text-white sm:text-[30px]">
+    <div className="py-4 text-center">
+      <h1 className="text-[20px] font-bold tracking-tight text-slate-900">
         Find any candidate
       </h1>
 
-      <form onSubmit={handleSubmit} className="mx-auto mt-5 flex max-w-xl items-center gap-2">
+      <form onSubmit={handleSubmit} className="mx-auto mt-3 flex max-w-lg items-center gap-2">
         <div className="relative flex-1">
           <svg
             viewBox="0 0 20 20"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.75"
-            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
           </svg>
@@ -37,12 +37,12 @@ export function HeroSearch({ tenantName: _ }: { tenantName: string }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search candidates…"
             autoComplete="off"
-            className="w-full rounded-2xl border-0 bg-white/10 py-3.5 pl-12 pr-4 text-[15px] text-white placeholder-slate-500 ring-1 ring-white/20 outline-none transition focus:bg-white/15 focus:ring-white/40"
+            className="w-full rounded-xl border-0 bg-white py-2.5 pl-10 pr-4 text-[14px] text-slate-900 placeholder-slate-400 ring-1 ring-slate-200 outline-none transition focus:ring-2 focus:ring-orange-400"
           />
         </div>
         <button
           type="submit"
-          className="shrink-0 rounded-2xl bg-orange-500 px-5 py-3.5 text-[15px] font-semibold text-white transition hover:bg-orange-600 active:scale-95"
+          className="shrink-0 rounded-xl bg-orange-500 px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-orange-600 active:scale-95"
         >
           Search
         </button>
