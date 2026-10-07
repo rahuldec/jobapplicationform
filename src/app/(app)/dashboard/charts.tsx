@@ -124,29 +124,33 @@ function FieldColumnChart({ mapping }: { mapping: ChartMapping }) {
         ) : data.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">No data yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "#475569" }}
-                tickLine={false}
-                axisLine={{ stroke: "rgba(15,23,42,0.08)" }}
-                angle={-90}
-                textAnchor="end"
-                interval={0}
-                height={80}
-              />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(234,88,12,0.06)" }} />
-              <Bar dataKey="count" name="Applicants" fill="#ea580c" radius={[6, 6, 0, 0]} barSize={28}>
-                {data.map((_, i) => (
-                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                ))}
-                <LabelList dataKey="count" position="top" style={{ fontSize: 11, fill: "#475569", fontWeight: 600 }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                <XAxis dataKey="label" hide />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(234,88,12,0.06)" }} />
+                <Bar dataKey="count" name="Applicants" fill="#ea580c" radius={[6, 6, 0, 0]}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  ))}
+                  <LabelList dataKey="count" position="top" style={{ fontSize: 10, fill: "#475569", fontWeight: 600 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5">
+              {data.map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-[12px]">
+                  <span className="flex items-center gap-1.5 text-slate-600 truncate">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
+                    <span className="truncate">{d.label}</span>
+                  </span>
+                  <span className="ml-2 shrink-0 font-semibold tabular-nums text-slate-900">{d.count}</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </Card>
