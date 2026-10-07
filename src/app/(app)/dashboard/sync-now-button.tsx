@@ -27,10 +27,14 @@ export function SyncNowButton() {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button variant="secondary" size="sm" onClick={handleClick} disabled={syncing}>
+      <button
+        onClick={handleClick}
+        disabled={syncing}
+        className="rounded-full border border-white/40 bg-white/15 px-3.5 py-1 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/25 disabled:opacity-60"
+      >
         {syncing ? "Syncing…" : "Sync now"}
-      </Button>
-      {message && <span className="max-w-xs text-right text-xs text-slate-500">{message}</span>}
+      </button>
+      {message && <span className="max-w-xs text-right text-[11px] text-white/70">{message}</span>}
     </div>
   );
 }

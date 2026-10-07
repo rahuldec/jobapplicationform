@@ -5,7 +5,6 @@ import { Card, CardHeader, EmptyState, OverviewCard, OverviewSubTile } from "@/c
 import type { ApplicationStatus } from "@/lib/enums";
 import { DynamicFieldCharts } from "./charts";
 import { parseSheetImportConfig, type ChartMapping } from "../../../../prisma/sheet-import/types";
-import { SyncNowButton } from "./sync-now-button";
 
 // A first-ever sync against a large, never-before-imported sheet can take
 // a while (every row needs a Candidate + Application + field values +
@@ -64,15 +63,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
-          <h1 className="mt-1 text-[34px] font-bold tracking-tight text-slate-900">Dashboard</h1>
-          <p className="mt-1.5 text-[15px] text-slate-500">Every application moving through the pipeline, and what still needs a look.</p>
-        </div>
-        {tenant.sheetSourceUrl && <SyncNowButton />}
-      </div>
-
       <OverviewCard
         title={tenant.name}
         badgeLabel={`${(data.stats.totalApplications > 0 ? (data.stats.byStatus.selected / data.stats.totalApplications) * 100 : 0).toFixed(1)}% selected`}

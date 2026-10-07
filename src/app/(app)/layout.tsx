@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getTenantBranding } from "@/lib/branding";
 import { isTenantAuthenticated } from "@/lib/tenant-auth";
 import { syncSheetIfStale } from "@/lib/sheet-sync-throttle";
+import { SyncNowButton } from "./dashboard/sync-now-button";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -45,18 +46,21 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </Link>
         </div>
-        <div className="w-full py-2.5" style={{ background: branding.gradient.via }}>
-          <nav className="flex items-center justify-center gap-8">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-[15px] font-semibold tracking-tight text-white transition-opacity hover:opacity-80"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <div className="w-full px-5 py-2.5" style={{ background: branding.gradient.via }}>
+          <div className="flex items-center justify-between">
+            <nav className="flex items-center gap-8">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-[15px] font-semibold tracking-tight text-white transition-opacity hover:opacity-80"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            {tenant.sheetSourceUrl && <SyncNowButton />}
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:p-0">{children}</main>
