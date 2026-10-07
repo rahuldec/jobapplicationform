@@ -7,6 +7,7 @@ import { getTenantBranding } from "@/lib/branding";
 import { isTenantAuthenticated } from "@/lib/tenant-auth";
 import { syncSheetIfStale } from "@/lib/sheet-sync-throttle";
 import { SyncNowButton } from "./dashboard/sync-now-button";
+import { HeaderSearch } from "@/components/header-search";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -33,7 +34,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-black/[0.06] bg-white/80 backdrop-blur-xl print:hidden">
         <div className="h-1.5 w-full shrink-0" style={{ background: gradientCss }} />
-        <div className="flex items-center px-5 py-4">
+        <div className="flex items-center justify-between px-5 py-4">
           <Link href="/dashboard" className="flex items-center gap-4">
             {branding.logoDataUrl && (
               <img src={branding.logoDataUrl} alt="" width={64} height={80} className="h-16 w-14 shrink-0 object-contain" />
@@ -45,6 +46,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <div className="mt-2 h-0.5 w-10 rounded-full" style={{ background: branding.gradient.from }} />
             </div>
           </Link>
+          <HeaderSearch />
         </div>
         <div className="w-full px-5 py-2.5" style={{ background: branding.gradient.via }}>
           <div className="flex items-center justify-between">
