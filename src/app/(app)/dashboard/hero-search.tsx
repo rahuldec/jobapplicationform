@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function HeroSearch({ tenantName }: { tenantName: string }) {
+export function HeroSearch({ tenantName: _ }: { tenantName: string }) {
   const [query, setQuery] = useState("");
   const router = useRouter();
 
@@ -15,18 +15,12 @@ export function HeroSearch({ tenantName }: { tenantName: string }) {
   }
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 px-6 py-10 text-center shadow-xl ring-1 ring-white/10">
-      <p className="text-[13px] font-semibold uppercase tracking-widest text-slate-400">
-        {tenantName}
-      </p>
-      <h1 className="mt-2 text-[28px] font-bold tracking-tight text-white sm:text-[32px]">
+    <div className="rounded-[24px] bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 px-6 py-8 text-center shadow-xl ring-1 ring-white/10">
+      <h1 className="text-[26px] font-bold tracking-tight text-white sm:text-[30px]">
         Find any candidate
       </h1>
-      <p className="mt-1.5 text-[14px] text-slate-400">
-        Search by name, application number, email, or mobile number
-      </p>
 
-      <form onSubmit={handleSubmit} className="mx-auto mt-6 flex max-w-xl items-center gap-2">
+      <form onSubmit={handleSubmit} className="mx-auto mt-5 flex max-w-xl items-center gap-2">
         <div className="relative flex-1">
           <svg
             viewBox="0 0 20 20"
