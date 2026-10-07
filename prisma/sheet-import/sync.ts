@@ -262,7 +262,7 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
     new Set(
       rowInfos
         .map((r) => cell(r.row, jobSelectorCol))
-        .filter((s): s is string => !!s && s.trim().length > 0 && s.length <= 120),
+        .filter((s): s is string => !!s && s.trim().length > 0 && s.length <= 120 && !/^\d+$/.test(s.trim())),
     ),
   );
 

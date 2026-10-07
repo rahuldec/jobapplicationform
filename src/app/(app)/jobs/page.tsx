@@ -23,7 +23,10 @@ export default async function JobsPage({
       include: { department: true, _count: { select: { applications: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.department.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
+    prisma.department.findMany({
+      where: { tenantId: tenant.id, jobs: { some: {} } },
+      orderBy: { name: "asc" },
+    }),
     // Unfiltered counts for the Overview card — jobs above is scoped to
     // whichever status/department filter is active, but the summary at
     // the top should always reflect every job, not just the filtered view.
