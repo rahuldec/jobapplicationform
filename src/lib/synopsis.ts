@@ -117,7 +117,7 @@ async function buildTemplateData(application: SynopsisApplication) {
     candidateGender: application.candidate.gender || "—",
     candidateStatus: APPLICATION_STATUS_LABELS[application.status as keyof typeof APPLICATION_STATUS_LABELS] || application.status,
     jobTitle: application.job.title,
-    department: application.job.department?.name || "—",
+    department: application.job.department?.name || application.fieldValues.find((v) => v.field?.fieldKey === "department")?.valueText || "—",
     appliedDate: fmtDate(application.createdAt),
     organizationName: branding.name,
     logoUrl: branding.logoDataUrl || "",
@@ -334,7 +334,7 @@ async function renderBaseSynopsisPdf(application: SynopsisApplication, options?:
     const renderApplicationDetails = () => {
       const applicationRows: [string, string][] = [];
       if (isApplicationFieldShown("job")) applicationRows.push(["Job", application.job.title]);
-      if (isApplicationFieldShown("department")) applicationRows.push(["Department", application.job.department?.name ?? "—"]);
+      if (isApplicationFieldShown("department")) applicationRows.push(["Department", application.job.department?.name ?? application.fieldValues.find((v) => v.field?.fieldKey === "department")?.valueText ?? "—"]);
       if (isApplicationFieldShown("appliedOn")) applicationRows.push(["Applied On", fmtDate(application.submittedAt)]);
       if (applicationRows.length) {
         sectionHeader(doc, "Application Details");

@@ -119,7 +119,7 @@ export default async function ApplicationDetailPage({
                 <Link href={`/jobs/${application.job.id}`} className="text-orange-700 hover:underline">
                   {application.job.title}
                 </Link>{" "}
-                · {application.job.department?.name ?? "No department"}
+                · {application.job.department?.name ?? application.fieldValues.find((v) => v.field?.fieldKey === "department")?.valueText ?? "No department"}
               </p>
             </div>
           </div>

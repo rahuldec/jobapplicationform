@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       "Date of Birth": app.candidate.dateOfBirth ? formatDate(app.candidate.dateOfBirth) : "",
       Gender: app.candidate.gender ?? "",
       Job: app.job.title,
-      Department: app.job.department?.name ?? "",
+      Department: app.job.department?.name ?? app.fieldValues.find((v) => v.field?.fieldKey === "department")?.valueText ?? "",
       Status: APPLICATION_STATUS_LABELS[app.status as keyof typeof APPLICATION_STATUS_LABELS] ?? app.status,
       "Applied Date": app.submittedAt ? formatDate(app.submittedAt) : "",
     };
