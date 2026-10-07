@@ -49,7 +49,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <HeaderSearch />
         </div>
         <div className="w-full px-5 py-2.5" style={{ background: branding.gradient.via }}>
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center">
+            <div />
             <nav className="flex items-center gap-8">
               {NAV.map((item) => (
                 <Link
@@ -61,7 +62,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 </Link>
               ))}
             </nav>
-            {tenant.sheetSourceUrl && <SyncNowButton />}
+            <div className="flex justify-end">
+              {tenant.sheetSourceUrl && <SyncNowButton />}
+            </div>
           </div>
         </div>
       </header>
