@@ -125,16 +125,17 @@ function FieldColumnChart({ mapping }: { mapping: ChartMapping }) {
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">No data yet.</div>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 60 }}>
+            <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: "#475569" }}
+                tick={{ fontSize: 10, fill: "#475569" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(15,23,42,0.08)" }}
-                angle={-40}
+                angle={-90}
                 textAnchor="end"
                 interval={0}
+                height={80}
               />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(234,88,12,0.06)" }} />
