@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function HeroSearch({ tenantName: _ }: { tenantName: string }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function HeroSearch({ tenantName }: { tenantName: string }) {
   const [query, setQuery] = useState("");
   const router = useRouter();
 
