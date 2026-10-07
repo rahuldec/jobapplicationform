@@ -6,6 +6,7 @@ import { createStaffUser, deleteStaffUser } from "@/lib/actions/staff";
 import { getTenantBranding } from "@/lib/branding";
 import { CollapsibleCard, Field, inputClass, Button, Badge, EmptyState, PlaceholderChips, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { SheetConfigBuilder } from "@/components/admin/sheet-config-builder";
+import { ChartConfigEditor } from "@/components/admin/chart-config-editor";
 import { SynopsisTemplateEditor } from "@/components/admin/synopsis-template-editor";
 import { ColorPickerField } from "@/components/admin/color-picker-field";
 import { ROLE_LABELS, STAFF_CREATABLE_ROLES } from "@/lib/enums";
@@ -58,6 +59,7 @@ export default async function AdminTenantPage({
     { id: "staff", label: "Staff" },
     { id: "interview-email", label: "Interview email" },
     { id: "sheet-sync", label: "Sheet sync" },
+    { id: "dashboard-charts", label: "Dashboard charts" },
     { id: "synopsis", label: "Synopsis" },
   ];
 
@@ -315,6 +317,25 @@ export default async function AdminTenantPage({
             tenantName={tenant.name}
             initialSheetSourceUrl={tenant.sheetSourceUrl ?? ""}
             initialConfig={initialConfig}
+          />
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        id="dashboard-charts"
+        icon={
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5 text-orange-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+          </svg>
+        }
+        title="Dashboard charts"
+        description="Choose which form fields appear as pie or bar charts on the tenant's dashboard, giving a live breakdown of applicants by category."
+      >
+        <div className="space-y-5 p-5">
+          <ChartConfigEditor
+            tenantId={tenant.id}
+            sections={initialConfig?.sections ?? []}
+            initialMappings={initialConfig?.chartMappings ?? []}
           />
         </div>
       </CollapsibleCard>

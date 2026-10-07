@@ -3,7 +3,8 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { Card, CardHeader, EmptyState, OverviewCard, OverviewSubTile } from "@/components/ui/primitives";
 import { APPLICATION_STATUS_LABELS, VISIBLE_APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/enums";
-import { ApplicationsByJobChart } from "./charts";
+import { ApplicationsByJobChart, DynamicFieldCharts } from "./charts";
+import { parseSheetImportConfig } from "../../../../prisma/sheet-import/types";
 import { SyncNowButton } from "./sync-now-button";
 
 // A first-ever sync against a large, never-before-imported sheet can take
@@ -89,6 +90,16 @@ export default async function DashboardPage() {
   const tenant = await getCurrentTenant();
   const data = await getDashboardData(tenant.id);
 
+  let chartMappings: import("../../../../prisma/sheet-import/types").ChartMapping[] = [];
+  if (tenant.sheetMappingJson) {
+    try {
+      const cfg = parseSheetImportConfig(tenant.sheetMappingJson);
+      chartMappings = cfg.chartMappings ?? [];
+    } catch {
+      // Malformed config — no charts shown
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
@@ -119,6 +130,8 @@ export default async function DashboardPage() {
         <ApplicationsByJobChart data={data.analytics.byJob} />
         <PipelineByStatus byStatus={data.stats.byStatus} />
       </div>
+
+      <DynamicFieldCharts mappings={chartMappings} />
 
       <Card>
         <CardHeader title="Attention required" description="Items that need action, most recent first." />

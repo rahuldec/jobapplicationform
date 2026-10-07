@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import type { TenantBranding } from "@/lib/branding";
-import { toSheetExportUrl, type SheetImportConfig } from "../../../prisma/sheet-import/types";
+import { toSheetExportUrl, type SheetImportConfig, type ChartMapping } from "../../../prisma/sheet-import/types";
 import { autoMapSheetColumns, type AutoMapResult } from "../../../prisma/sheet-import/auto-map";
 
 function slugify(raw: string) {
@@ -198,4 +198,18 @@ export async function updateTenantSheetConfig(input: {
   });
 
   revalidatePath(`/admin/${input.tenantId}`);
+}
+
+// Updates only the chartMappings field inside sheetMappingJson, leaving
+// all sync config fields (sections, coreFields, etc.) untouched.
+export async function updateChartMappings(input: { tenantId: string; chartMappings: ChartMapping[] }) {
+  const tenant = await prisma.tenant.findUnique({ where: { id: input.tenantId }, select: { sheetMappingJson: true } });
+  if (!tenant?.sheetMappingJson) return;
+  const existing = JSON.parse(tenant.sheetMappingJson);
+  await prisma.tenant.update({
+    where: { id: input.tenantId },
+    data: { sheetMappingJson: JSON.stringify({ ...existing, chartMappings: input.chartMappings }) },
+  });
+  revalidatePath(`/admin/${input.tenantId}`);
+  revalidatePath("/dashboard");
 }

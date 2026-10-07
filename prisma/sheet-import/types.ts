@@ -36,6 +36,12 @@ export type CoreFieldMap = {
   applicationNumberCol: number | null;
 };
 
+export type ChartMapping = {
+  fieldKey: string;
+  label: string;
+  chartType: "pie" | "bar";
+};
+
 export type SheetImportConfig = {
   // Name for the ApplicationForm record created to hold `sections` —
   // shown in the Jobs page's "Application form" card.
@@ -58,6 +64,7 @@ export type SheetImportConfig = {
   coreFields: CoreFieldMap;
   sections: SectionSpec[];
   documents: DocSpec[];
+  chartMappings?: ChartMapping[];
 };
 
 // Admins naturally paste the normal "Share" link (.../edit?usp=sharing),
