@@ -153,12 +153,12 @@ export function StatTile({
 // related numbers under one heading instead of separate top-level cards.
 export function OverviewSubTile({ label, value, color, href }: { label: string; value: string | number; color: string; href?: string }) {
   const content = (
-    <div className="rounded-2xl bg-white/70 px-4 py-3.5 ring-1 ring-black/[0.04] transition-colors hover:bg-white">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+    <div className="rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-black/[0.04] transition-colors hover:bg-white">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
         {label}
       </div>
-      <p className="mt-1.5 text-[22px] font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
+      <p className="mt-1 text-[18px] font-bold tabular-nums tracking-tight text-slate-900">{value}</p>
     </div>
   );
   return href ? (
@@ -196,18 +196,18 @@ export function OverviewCard({
 }) {
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-orange-50/70 via-white to-white ring-1 ring-orange-100">
-      <div className="flex items-start justify-between gap-4 px-6 pt-6">
+      <div className="flex items-center justify-between gap-4 px-5 pt-4">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
-          <h2 className="mt-1 text-[20px] font-bold tracking-tight text-slate-900">{title}</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Overview</p>
+          <h2 className="mt-0.5 text-[16px] font-bold tracking-tight text-slate-900">{title}</h2>
         </div>
         {badgeLabel && (
-          <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ring-inset ${overviewBadgeTones[badgeTone]}`}>
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${overviewBadgeTones[badgeTone]}`}>
             {badgeLabel}
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3 px-6 pb-6 pt-5 sm:grid-cols-4">{children}</div>
+      <div className="grid grid-cols-2 gap-2.5 px-5 pb-4 pt-3 sm:grid-cols-4">{children}</div>
     </Card>
   );
 }
