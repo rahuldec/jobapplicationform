@@ -17,9 +17,10 @@ const tooltipStyle = {
 };
 
 const PALETTE = [
-  "#ea580c", "#3b82f6", "#10b981", "#8b5cf6",
-  "#f59e0b", "#06b6d4", "#ec4899", "#84cc16",
-  "#6366f1", "#14b8a6", "#f97316", "#a855f7",
+  "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
+  "#06b6d4", "#f43f5e", "#6366f1", "#34d399",
+  "#fbbf24", "#a78bfa", "#22d3ee", "#fb7185",
+  "#4ade80", "#60a5fa", "#c084fc", "#2dd4bf",
 ];
 
 type ChartPoint = { label: string; count: number };
