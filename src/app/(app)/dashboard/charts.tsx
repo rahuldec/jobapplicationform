@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from "recharts";
 import { Card, CardHeader } from "@/components/ui/primitives";
 import type { ChartMapping } from "../../../../prisma/sheet-import/types";
 import { useEffect, useState } from "react";
@@ -37,6 +37,7 @@ function useFetchChartData(fieldKey: string) {
 
 function FieldPieChart({ mapping }: { mapping: ChartMapping }) {
   const data = useFetchChartData(mapping.fieldKey);
+  const total = data ? data.reduce((s, d) => s + d.count, 0) : 0;
 
   return (
     <Card>
@@ -47,27 +48,34 @@ function FieldPieChart({ mapping }: { mapping: ChartMapping }) {
         ) : data.length === 0 ? (
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">No data yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="count"
-                nameKey="label"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                label={({ name, percent }: { name?: string; percent?: number }) =>
-                  `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`
-                }
-                labelLine
-              >
-                {data.map((_, i) => (
-                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={tooltipStyle} />
-            </PieChart>
-          </ResponsiveContainer>
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={data} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(value) => [value, "Applicants"]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="mt-3 space-y-1.5">
+              {data.map((d, i) => (
+                <div key={i} className="flex items-center justify-between text-[12px]">
+                  <span className="flex items-center gap-2 text-slate-600">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
+                    {d.label}
+                  </span>
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    {d.count} <span className="font-normal text-slate-400">({total > 0 ? ((d.count / total) * 100).toFixed(0) : 0}%)</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </Card>
@@ -88,12 +96,14 @@ function FieldBarChart({ mapping }: { mapping: ChartMapping }) {
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">No data yet.</div>
         ) : (
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" horizontal={false} />
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={{ stroke: "rgba(15,23,42,0.08)" }} />
               <YAxis type="category" dataKey="label" tick={{ fontSize: 12, fill: "#475569" }} tickLine={false} axisLine={false} width={130} />
               <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(234,88,12,0.06)" }} />
-              <Bar dataKey="count" name="Applicants" fill="#ea580c" radius={[0, 8, 8, 0]} barSize={16} />
+              <Bar dataKey="count" name="Applicants" fill="#ea580c" radius={[0, 8, 8, 0]} barSize={16}>
+                <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#475569", fontWeight: 600 }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
