@@ -281,6 +281,10 @@ export async function syncTenantSheet(prisma: PrismaClient, tenantSlug: string) 
           formId: form.id,
         },
       });
+    } else if (!job.formId) {
+      // Job existed before the form was set up — backfill the link so the
+      // Application tab isn't permanently blank for all its applications.
+      job = await prisma.job.update({ where: { id: job.id }, data: { formId: form.id } });
     }
     jobBySelector.set(value, { id: job.id, title: job.title });
   }
