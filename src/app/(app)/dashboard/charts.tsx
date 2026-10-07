@@ -112,6 +112,46 @@ function FieldBarChart({ mapping }: { mapping: ChartMapping }) {
   );
 }
 
+function FieldColumnChart({ mapping }: { mapping: ChartMapping }) {
+  const data = useFetchChartData(mapping.fieldKey);
+
+  return (
+    <Card>
+      <CardHeader title={mapping.label} description="Count per category across all applicants." />
+      <div className="px-6 pb-6">
+        {data === null ? (
+          <div className="flex h-40 items-center justify-center text-sm text-slate-400">Loading…</div>
+        ) : data.length === 0 ? (
+          <div className="flex h-40 items-center justify-center text-sm text-slate-400">No data yet.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#475569" }}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(15,23,42,0.08)" }}
+                angle={-40}
+                textAnchor="end"
+                interval={0}
+              />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(234,88,12,0.06)" }} />
+              <Bar dataKey="count" name="Applicants" fill="#ea580c" radius={[6, 6, 0, 0]} barSize={28}>
+                {data.map((_, i) => (
+                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                ))}
+                <LabelList dataKey="count" position="top" style={{ fontSize: 11, fill: "#475569", fontWeight: 600 }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 const PIPELINE_STATUS_COLOR: Record<ApplicationStatus, string> = {
   draft: "#94a3b8",
   submitted: "#3b82f6",
@@ -168,6 +208,8 @@ export function DynamicFieldCharts({
   const chartCards = mappings.map((m, i) =>
     m.chartType === "pie" ? (
       <FieldPieChart key={i} mapping={m} />
+    ) : m.chartType === "column" ? (
+      <FieldColumnChart key={i} mapping={m} />
     ) : (
       <FieldBarChart key={i} mapping={m} />
     )

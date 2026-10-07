@@ -39,7 +39,7 @@ export type CoreFieldMap = {
 export type ChartMapping = {
   fieldKey: string;
   label: string;
-  chartType: "pie" | "bar";
+  chartType: "pie" | "bar" | "column";
 };
 
 export type SheetImportConfig = {

@@ -20,8 +20,9 @@ function buildFieldOptions(sections: SectionSpec[]): FieldOption[] {
 }
 
 const CHART_TYPES: { value: ChartMapping["chartType"]; label: string }[] = [
-  { value: "pie", label: "Pie chart" },
-  { value: "bar", label: "Bar chart" },
+  { value: "pie", label: "Pie" },
+  { value: "bar", label: "Bar" },
+  { value: "column", label: "Column" },
 ];
 
 const CHART_ICONS: Record<ChartMapping["chartType"], React.ReactNode> = {
@@ -33,6 +34,11 @@ const CHART_ICONS: Record<ChartMapping["chartType"], React.ReactNode> = {
   bar: (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
       <path d="M3 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Zm5-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V1Zm5 6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V7Z" />
+    </svg>
+  ),
+  column: (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path d="M4 14a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2Zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V9Zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V5Z" />
     </svg>
   ),
 };
