@@ -9,6 +9,7 @@ function extractDriveFileId(url: string): string | null {
 
 export function DocumentThumbnail({ url, label }: { url: string; label: string }) {
   const [open, setOpen] = useState(false);
+  const [useIframe, setUseIframe] = useState(false);
   const fileId = extractDriveFileId(url);
 
   useEffect(() => {
@@ -18,11 +19,18 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Reset fallback state whenever a new document is opened
+  useEffect(() => {
+    if (!open) setUseIframe(false);
+  }, [open]);
+
   if (!fileId) {
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
+  // Large thumbnail works for images without black letterboxing; falls back to iframe for PDFs
+  const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
   const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
 
   return (
@@ -43,10 +51,10 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
           onClick={() => setOpen(false)}
         >
           <div
-            className="flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+            className="flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-medium text-slate-900">{label}</p>
               <div className="flex items-center gap-3">
                 <a
@@ -67,7 +75,20 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
                 </button>
               </div>
             </div>
-            <iframe src={previewUrl} className="min-h-0 flex-1" title={label} />
+
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-4">
+              {useIframe ? (
+                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={largeThumbUrl}
+                  alt={label}
+                  className="max-h-full max-w-full rounded object-contain shadow"
+                  onError={() => setUseIframe(true)}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
