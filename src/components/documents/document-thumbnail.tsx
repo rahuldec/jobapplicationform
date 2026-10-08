@@ -28,8 +28,10 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
+  // Guess whether this is a PDF by looking at the documentType label
+  const looksLikePdf = /certificate|degree|marksheet|resume|cv|transcript|report|letter|policy|agreement|payslip/i.test(label);
+
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
-  // Large thumbnail works for images without black letterboxing; falls back to iframe for PDFs
   const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
   const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
 
@@ -77,7 +79,7 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-4">
-              {useIframe ? (
+              {useIframe || looksLikePdf ? (
                 <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
