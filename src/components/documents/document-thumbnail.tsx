@@ -9,7 +9,6 @@ function extractDriveFileId(url: string): string | null {
 
 export function DocumentThumbnail({ url, label }: { url: string; label: string }) {
   const [open, setOpen] = useState(false);
-  const [imgFailed, setImgFailed] = useState(false);
   const fileId = extractDriveFileId(url);
 
   useEffect(() => {
@@ -19,16 +18,12 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) setImgFailed(false);
-  }, [open]);
-
   if (!fileId) {
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
-  const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
+  const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
 
   return (
     <>
@@ -48,10 +43,10 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
           onClick={() => setOpen(false)}
         >
           <div
-            className="flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-medium text-slate-900">{label}</p>
               <div className="flex items-center gap-3">
                 <a
@@ -72,41 +67,7 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
                 </button>
               </div>
             </div>
-
-            <div className="min-h-0 flex-1 overflow-auto bg-white flex items-center justify-center p-6">
-              {imgFailed ? (
-                <div className="text-center space-y-3">
-                  <p className="text-sm text-slate-500">Preview not available.</p>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
-                  >
-                    Open in Drive ↗
-                  </a>
-                </div>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={largeThumbUrl}
-                  alt={label}
-                  className="max-h-full max-w-full object-contain"
-                  onError={() => setImgFailed(true)}
-                />
-              )}
-            </div>
-
-            <div className="shrink-0 border-t border-slate-100 px-4 py-2 text-center">
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-slate-400 hover:text-orange-600 hover:underline"
-              >
-                Need to scroll through multiple pages? Open full document in Drive ↗
-              </a>
-            </div>
+            <iframe src={previewUrl} className="min-h-0 flex-1" title={label} />
           </div>
         </div>
       )}
