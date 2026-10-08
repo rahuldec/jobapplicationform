@@ -9,7 +9,7 @@ function extractDriveFileId(url: string): string | null {
 
 export function DocumentThumbnail({ url, label }: { url: string; label: string }) {
   const [open, setOpen] = useState(false);
-  const [useIframe, setUseIframe] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const fileId = extractDriveFileId(url);
 
   useEffect(() => {
@@ -19,19 +19,16 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Reset fallback state whenever a new document is opened
   useEffect(() => {
-    if (!open) setUseIframe(false);
+    if (!open) setImgFailed(false);
   }, [open]);
 
   if (!fileId) {
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
-
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
   const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
-  const previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
 
   return (
     <>
@@ -76,31 +73,40 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-4">
-              {useIframe ? (
-                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
+            <div className="min-h-0 flex-1 overflow-auto bg-white flex items-center justify-center p-6">
+              {imgFailed ? (
+                <div className="text-center space-y-3">
+                  <p className="text-sm text-slate-500">Preview not available.</p>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+                  >
+                    Open in Drive ↗
+                  </a>
+                </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={largeThumbUrl}
                   alt={label}
-                  className="max-h-full max-w-full rounded object-contain shadow"
-                  onError={() => setUseIframe(true)}
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => setImgFailed(true)}
                 />
               )}
             </div>
 
-            {!useIframe && (
-              <div className="shrink-0 border-t border-slate-100 px-4 py-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setUseIframe(true)}
-                  className="text-[11px] text-slate-400 hover:text-orange-600 hover:underline"
-                >
-                  Multi-page PDF? Click to view full document →
-                </button>
-              </div>
-            )}
+            <div className="shrink-0 border-t border-slate-100 px-4 py-2 text-center">
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-slate-400 hover:text-orange-600 hover:underline"
+              >
+                Need to scroll through multiple pages? Open full document in Drive ↗
+              </a>
+            </div>
           </div>
         </div>
       )}
