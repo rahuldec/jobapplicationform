@@ -28,8 +28,9 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
-  // Guess whether this is a PDF by looking at the documentType label
-  const looksLikePdf = /certificate|degree|marksheet|resume|cv|transcript|report|letter|policy|agreement|payslip/i.test(label);
+  // Use a clean img viewer only for obvious image uploads; everything else gets the Drive iframe
+  // (so multi-page PDFs, certificates, marksheets, etc. are fully scrollable)
+  const looksLikeImage = /photograph|signature|photo|image|selfie|picture|pic\b/i.test(label);
 
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
   const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
@@ -79,9 +80,7 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-4">
-              {useIframe || looksLikePdf ? (
-                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
-              ) : (
+              {!useIframe && looksLikeImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={largeThumbUrl}
@@ -89,6 +88,8 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
                   className="max-h-full max-w-full rounded object-contain shadow"
                   onError={() => setUseIframe(true)}
                 />
+              ) : (
+                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
               )}
             </div>
           </div>
