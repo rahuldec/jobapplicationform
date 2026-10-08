@@ -28,9 +28,6 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
     return <span className="text-xs italic text-slate-400">No preview</span>;
   }
 
-  // Use a clean img viewer only for obvious image uploads; everything else gets the Drive iframe
-  // (so multi-page PDFs, certificates, marksheets, etc. are fully scrollable)
-  const looksLikeImage = /photograph|signature|photo|image|selfie|picture|pic\b/i.test(label);
 
   const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`;
   const largeThumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
@@ -80,7 +77,9 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-slate-100 flex items-center justify-center p-4">
-              {!useIframe && looksLikeImage ? (
+              {useIframe ? (
+                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
+              ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={largeThumbUrl}
@@ -88,10 +87,20 @@ export function DocumentThumbnail({ url, label }: { url: string; label: string }
                   className="max-h-full max-w-full rounded object-contain shadow"
                   onError={() => setUseIframe(true)}
                 />
-              ) : (
-                <iframe src={previewUrl} className="h-full w-full bg-white" title={label} />
               )}
             </div>
+
+            {!useIframe && (
+              <div className="shrink-0 border-t border-slate-100 px-4 py-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setUseIframe(true)}
+                  className="text-[11px] text-slate-400 hover:text-orange-600 hover:underline"
+                >
+                  Multi-page PDF? Click to view full document →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
